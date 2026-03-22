@@ -5,45 +5,52 @@ interface TableProps {
     columns?: string[];
     data?: any[];
     renderRow?: (item: any, index: number) => React.ReactNode;
+    className?: string;
 }
 
-export default function Table({ children, columns, data, renderRow }: TableProps) {
+export default function Table({ children, columns, data, renderRow, className = '' }: TableProps) {
     if (columns && data) {
         return (
-            <table className="w-full">
-                <thead className="bg-gray-50">
-                    <tr>
-                        {columns.map((column, index) => (
-                            <th key={index} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {column}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {data.map((item, index) =>
-                        renderRow ? (
-                            renderRow(item, index)
-                        ) : (
-                            <tr key={index}>
-                                {columns.map((_, colIndex) => (
-                                    <td key={colIndex} className="px-4 py-3 whitespace-nowrap">
-                                        {item[columns[colIndex]]}
-                                    </td>
+            <div className={`glass rounded-[2rem] overflow-hidden ${className}`}>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                                {columns.map((column, index) => (
+                                    <th key={index} className="px-8 py-5 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                                        {column}
+                                    </th>
                                 ))}
                             </tr>
-                        )
-                    )}
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {data.map((item, index) =>
+                                renderRow ? (
+                                    renderRow(item, index)
+                                ) : (
+                                    <tr key={index} className="hover:bg-slate-50/50 transition-colors group">
+                                        {columns.map((_, colIndex) => (
+                                            <td key={colIndex} className="px-8 py-5 text-slate-700 font-bold group-hover:text-green-700 transition-colors">
+                                                {item[columns[colIndex]]}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                )
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         );
     }
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full">
-                {children}
-            </table>
+        <div className={`glass rounded-[2rem] overflow-hidden ${className}`}>
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    {children}
+                </table>
+            </div>
         </div>
     );
 }

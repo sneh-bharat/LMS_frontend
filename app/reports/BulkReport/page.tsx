@@ -1,45 +1,30 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import {
+  FileText,
+  Printer,
+  Download,
+  Search,
+  Calendar as CalendarIcon,
+  Filter,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  Globe,
+  CreditCard,
+  Stethoscope,
+  Shield,
+  Users,
+  ArrowRightCircle,
+  Zap,
+  LayoutGrid,
+  MoreVertical
+} from 'lucide-react';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
 
-// ─── Inline UI Primitives ─────────────────────────────────────────────────────
-
-function Button({
-  children, onClick, variant = 'primary', size = 'md', style = {}, disabled = false,
-}: {
-  children: React.ReactNode; onClick?: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
-  size?: 'sm' | 'md'; style?: React.CSSProperties; disabled?: boolean;
-}) {
-  const base: React.CSSProperties = {
-    border: 'none', borderRadius: 5, cursor: disabled ? 'not-allowed' : 'pointer',
-    fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: size === 'sm' ? '5px 12px' : '8px 18px',
-    fontSize: size === 'sm' ? 12 : 13,
-    opacity: disabled ? 0.65 : 1,
-    whiteSpace: 'nowrap' as const, transition: 'background 0.15s, opacity 0.15s',
-  };
-  const variants: Record<string, React.CSSProperties> = {
-    primary:   { background: '#16a34a', color: '#fff' },
-    secondary: { background: '#f3f4f6', color: '#374151', border: '1.5px solid #d1d5db' },
-    outline:   { background: '#fff', color: '#1a1a2e', border: '2px solid #1a1a2e', borderRadius: 5 },
-  };
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ ...base, ...variants[variant], ...style }}>
-      {children}
-    </button>
-  );
-}
-
-// ─── Select style ─────────────────────────────────────────────────────────────
-const sel: React.CSSProperties = {
-  border: '1.5px solid #d1d5db', borderRadius: 5,
-  padding: '6px 10px', fontSize: 13, color: '#444',
-  outline: 'none', background: '#fff', cursor: 'pointer',
-};
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types and Constants ──────────────────────────────────────────────────────
 interface ReportRow {
   id: number;
   patientName: string;
@@ -49,290 +34,174 @@ interface ReportRow {
   checked: boolean;
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: ReportRow['status'] }) {
-  const map: Record<string, React.CSSProperties> = {
-    Ready:     { background: '#dcfce7', color: '#16a34a' },
-    Pending:   { background: '#fef9c3', color: '#b45309' },
-    Delivered: { background: '#dbeafe', color: '#1d4ed8' },
-  };
-  return (
-    <span style={{
-      display: 'inline-block', padding: '2px 10px',
-      borderRadius: 20, fontSize: 11, fontWeight: 600, ...map[status],
-    }}>
-      {status}
-    </span>
-  );
-}
+const SAMPLE_DATA: ReportRow[] = [
+  { id: 1, patientName: 'Aman Kumar', investigation: 'CBC (Complete Blood Count)', status: 'Ready', reportId: 'RP-2026-001', checked: false },
+  { id: 2, patientName: 'Sarah Jenkins', investigation: 'Lipid Profile', status: 'Pending', reportId: 'RP-2026-002', checked: false },
+  { id: 3, patientName: 'Michael Chen', investigation: 'Thyroid Profile', status: 'Delivered', reportId: 'RP-2026-003', checked: false }
+];
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BulkReportPrintPage() {
-  // ── Date default: 02-03-2026 ────────────────────────────────────────────────
-  const [date, setDate]           = useState('2026-03-02');
-  const [branding, setBranding]   = useState('Branding+Signature');
-  const [payment, setPayment]     = useState('HO(IP)');
-  const [dept, setDept]           = useState('All Departments');
-  const [rows, setRows]           = useState<ReportRow[]>([]);
-  const [searched, setSearched]   = useState(false);
+  const [date, setDate] = useState('2026-03-22');
+  const [rows, setRows] = useState<ReportRow[]>(SAMPLE_DATA);
+  const [branding, setBranding] = useState('Branding+Signature');
 
-  const allChecked  = rows.length > 0 && rows.every(r => r.checked);
-  const someChecked = rows.some(r => r.checked);
+  const allChecked = rows.length > 0 && rows.every(r => r.checked);
   const selectedCount = rows.filter(r => r.checked).length;
 
-  const toggleAll = () =>
-    setRows(prev => prev.map(r => ({ ...r, checked: !allChecked })));
-  const toggleRow = (id: number) =>
-    setRows(prev => prev.map(r => r.id === id ? { ...r, checked: !r.checked } : r));
-
-  const handleSearch = () => setSearched(true);
+  const toggleAll = () => setRows(prev => prev.map(r => ({ ...r, checked: !allChecked })));
+  const toggleRow = (id: number) => setRows(prev => prev.map(r => r.id === id ? { ...r, checked: !r.checked } : r));
 
   return (
-    <div style={{
-      background: '#fff', borderRadius: 8,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden',
-    }}>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-      {/* ── Page Header ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', borderBottom: '1px solid #e8edf3',
-        flexWrap: 'wrap', gap: 12,
-      }}>
-        <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>
-          Bulk Report Print
-        </h1>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Branding dropdown — outlined style matching screenshot */}
-          <div style={{ position: 'relative' }}>
+      {/* ═══ HEADER ═════════════════════════════════════════════ */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
+            Batch <span className="text-gradient">Publishing</span>
+          </h1>
+          <p className="text-slate-500 font-medium max-w-xl">
+            Streamlined system for bulk report generation, digital signature integration, and institutional printing.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group">
+            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-blue-500 transition-colors" size={18} />
             <select
               value={branding}
               onChange={e => setBranding(e.target.value)}
-              style={{
-                ...sel,
-                border: '2px solid #1a1a2e',
-                borderRadius: 6,
-                padding: '7px 32px 7px 12px',
-                fontSize: 13,
-                fontWeight: 500,
-                color: '#1a1a2e',
-                appearance: 'none' as const,
-                WebkitAppearance: 'none' as const,
-                minWidth: 170,
-                background: '#fff',
-              }}
+              className="bg-white border-2 border-slate-900 rounded-2xl py-3 pl-12 pr-10 text-xs font-black uppercase tracking-widest focus:outline-none appearance-none cursor-pointer hover:bg-slate-50 transition-all"
             >
-              <option value="Report Only">Report Only</option>
-              <option value="Branding+Signature">Branding+Signature</option>
-              <option value="With Signature">With Signature</option>
+              <option>Report Only</option>
+              <option>Branding+Signature</option>
+              <option>With Signature</option>
             </select>
-            {/* Custom chevron */}
-            <svg
-              width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="#1a1a2e" strokeWidth="2.5"
-              style={{
-                position: 'absolute', right: 10, top: '50%',
-                transform: 'translateY(-50%)', pointerEvents: 'none',
-              }}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-900 pointer-events-none" size={16} />
           </div>
-
-          {/* Download All button */}
-          <Button
-            variant="primary"
-            disabled={!someChecked}
-            onClick={() => alert(`Downloading ${selectedCount} report(s)…`)}
-            style={{
-              background: '#16a34a',
-              fontSize: 13, fontWeight: 700,
-              padding: '8px 20px', borderRadius: 6,
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download All (Selected)
+          <Button variant="gradient" disabled={selectedCount === 0} className="gap-2 shadow-xl shadow-green-500/20 px-8 py-3.5">
+            <Download size={20} /> Collect Batch ({selectedCount})
           </Button>
         </div>
       </div>
 
-      {/* ── Filter Bar ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 20px', borderBottom: '1px solid #e8edf3',
-        background: '#f8fafc', flexWrap: 'wrap' as const,
-        justifyContent: 'center',
-      }}>
-        {/* Date */}
-        <div style={{ position: 'relative' }}>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            style={{ ...sel, width: 170, paddingRight: 32 }}
-          />
+      {/* ═══ FILTER BAR ═════════════════════════════════════════ */}
+      <div className="glass p-4 rounded-[2.5rem] border border-white/40 shadow-xl flex flex-col lg:flex-row items-center gap-4">
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 group min-w-[180px]">
+            <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-50/50 border border-slate-200/40 rounded-2xl py-3.5 pl-12 pr-6 text-sm font-black focus:outline-none focus:ring-4 focus:ring-green-500/10 transition-all" />
+          </div>
+          <div className="relative flex-1 group min-w-[200px]">
+            <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <select className="w-full bg-slate-50/50 border border-slate-200/40 rounded-2xl py-3.5 pl-12 pr-10 text-xs font-black uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
+              <option>H.O. Collection</option>
+              <option>Cash Sales</option>
+              <option>Credit Institutional</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+          </div>
         </div>
-
-        {/* Payment / Source */}
-        <select value={payment} onChange={e => setPayment(e.target.value)}
-          style={{ ...sel, minWidth: 200 }}>
-          <option value="HO(IP)">HO(IP)</option>
-          <option value="Cash">Cash</option>
-          <option value="Credit">Credit</option>
-          <option value="Credit Franchise">Credit Franchise</option>
-          <option value="sv prasad hospital">sv prasad hospital</option>
-          <option value="Wallet">Wallet</option>
-          <option value="wallet flexibility">wallet flexibility</option>
-        </select>
-
-        {/* Department — hierarchical */}
-        <select value={dept} onChange={e => setDept(e.target.value)}
-          style={{ ...sel, minWidth: 220, flex: 1 }}>
-          <option value="All Departments">All Departments</option>
-          <optgroup label="Cardiology">
-            <option value="ECG">ECG</option>
-            <option value="ECHOCARDIOGRAPHY">ECHOCARDIOGRAPHY</option>
-            <option value="PFT">PFT</option>
-          </optgroup>
-          <optgroup label="Dental">
-            <option value="DENTAL">DENTAL</option>
-          </optgroup>
-          <optgroup label="Eye">
-            <option value="EYE">EYE</option>
-          </optgroup>
-          <optgroup label="Gastroenterology">
-            <option value="COLONOSCOPY">COLONOSCOPY</option>
-            <option value="ENDOSCOPY">ENDOSCOPY</option>
-          </optgroup>
-          <optgroup label="Infertility">
-            <option value="IVF">IVF</option>
-          </optgroup>
-          <optgroup label="Neurology">
-            <option value="BEAR STUDY">BEAR STUDY</option>
-            <option value="EEG">EEG</option>
-            <option value="NCV EMG">NCV EMG</option>
-          </optgroup>
-          <optgroup label="Pathology">
-            <option value="ALLERGY">ALLERGY</option>
-            <option value="BIOCHEMISTRY">BIOCHEMISTRY</option>
-            <option value="CLINICAL PATHOLOGY">CLINICAL PATHOLOGY</option>
-            <option value="HAEMATOLOGY">HAEMATOLOGY</option>
-            <option value="HISTOPATHOLOGY">HISTOPATHOLOGY</option>
-            <option value="IMMUNOLOGY">IMMUNOLOGY</option>
-            <option value="MICROBIOLOGY">MICROBIOLOGY</option>
-            <option value="SEROLOGY">SEROLOGY</option>
-          </optgroup>
-          <optgroup label="Radiology">
-            <option value="CT SCAN">CT SCAN</option>
-            <option value="MRI">MRI</option>
-            <option value="ULTRASOUND">ULTRASOUND</option>
-            <option value="X-RAY">X-RAY</option>
-          </optgroup>
-        </select>
-
-        <Button variant="secondary" size="sm" onClick={handleSearch}>Search</Button>
+        <div className="relative flex-1 group w-full">
+          <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <select className="w-full bg-slate-50/50 border border-slate-200/40 rounded-2xl py-3.5 pl-12 pr-10 text-xs font-black uppercase tracking-widest focus:outline-none appearance-none cursor-pointer">
+            <option>All Specializations</option>
+            <optgroup label="Pathology">
+              <option>Biochemistry</option>
+              <option>Hematology</option>
+            </optgroup>
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+        </div>
+        <Button variant="outline" className="rounded-2xl border-slate-200/60 px-8 py-3.5 font-black uppercase text-xs tracking-widest bg-white shadow-sm hover:border-green-500 hover:text-green-600 transition-all">
+          Filter Results
+        </Button>
       </div>
 
-      {/* ── Table ── */}
-      <div style={{ overflowX: 'auto' as const }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
-
-              {/* Patient Name */}
-              <th style={{
-                textAlign: 'left', padding: '11px 16px',
-                fontWeight: 700, color: '#1a1a2e', fontSize: 13,
-              }}>
-                Patient Name
-              </th>
-
-              {/* Checkbox — header */}
-              <th style={{ width: 50, padding: '11px 10px', textAlign: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={allChecked}
-                  onChange={toggleAll}
-                  style={{
-                    width: 16, height: 16,
-                    accentColor: '#2563eb', cursor: 'pointer',
-                  }}
-                />
-              </th>
-
-              {/* Investigation */}
-              <th style={{
-                textAlign: 'left', padding: '11px 14px',
-                fontWeight: 700, color: '#1a1a2e', fontSize: 13,
-              }}>
-                Investigation
-              </th>
-
-              {/* Status */}
-              <th style={{
-                textAlign: 'center', padding: '11px 14px',
-                fontWeight: 700, color: '#1a1a2e', fontSize: 13,
-              }}>
-                Status
-              </th>
-
-              {/* Report ID */}
-              <th style={{
-                textAlign: 'left', padding: '11px 16px',
-                fontWeight: 700, color: '#1a1a2e', fontSize: 13,
-              }}>
-                Report ID
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{
-                  padding: '28px 16px',
-                  fontSize: 13, color: '#555',
-                  background: '#fff',
-                  borderBottom: '1px solid #e8edf3',
-                }}>
-                  No report found for download. Please change search date.
-                </td>
+      {/* ═══ DATA GRID ══════════════════════════════════════════ */}
+      <div className="glass rounded-[3.5rem] overflow-hidden border border-white/40 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-100">
+                <th className="px-10 py-6 w-12">
+                  <div className={`w-6 h-6 rounded-lg cursor-pointer flex items-center justify-center transition-all ${allChecked ? 'bg-green-600 border-green-600' : 'bg-white border-2 border-slate-200 hover:border-slate-300'}`} onClick={toggleAll}>
+                    {allChecked && <CheckCircle2 size={16} className="text-white" />}
+                  </div>
+                </th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Patient Dynamics</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Investigation Profile</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Protocol Status</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Digital Report ID</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Action</th>
               </tr>
-            ) : (
-              rows.map((row, idx) => (
-                <tr key={row.id} style={{
-                  borderBottom: '1px solid #f0f0f0',
-                  background: idx % 2 === 0 ? '#fff' : '#fafafa',
-                }}>
-                  <td style={{ padding: '10px 16px', fontWeight: 500, color: '#1a1a2e' }}>
-                    {row.patientName}
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white/40 backdrop-blur-md">
+              {rows.map((row, idx) => (
+                <tr key={row.id} className="hover:bg-blue-50/30 transition-all group">
+                  <td className="px-10 py-6">
+                    <div className={`w-6 h-6 rounded-lg cursor-pointer flex items-center justify-center transition-all ${row.checked ? 'bg-blue-600 border-blue-600 shadow-md shadow-blue-500/20' : 'bg-white border-2 border-slate-100 hover:border-slate-200'}`} onClick={() => toggleRow(row.id)}>
+                      {row.checked && <CheckCircle2 size={16} className="text-white" />}
+                    </div>
                   </td>
-                  <td style={{ padding: '10px', textAlign: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={row.checked}
-                      onChange={() => toggleRow(row.id)}
-                      style={{ width: 16, height: 16, accentColor: '#2563eb', cursor: 'pointer' }}
-                    />
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 font-black text-xs">
+                        {row.patientName.charAt(0)}
+                      </div>
+                      <div className="font-black text-slate-900 tracking-tight">{row.patientName}</div>
+                    </div>
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#444' }}>{row.investigation}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                    <StatusBadge status={row.status} />
+                  <td className="px-8 py-6">
+                    <div className="text-sm font-bold text-slate-600">{row.investigation}</div>
                   </td>
-                  <td style={{ padding: '10px 16px', color: '#555', fontFamily: 'monospace' }}>
+                  <td className="px-8 py-6 text-center">
+                    <Badge variant={row.status === 'Ready' ? 'success' : row.status === 'Pending' ? 'secondary' : 'gradient'} className="px-4 py-1.5 rounded-xl uppercase text-[9px] font-black tracking-widest shadow-sm">
+                      {row.status}
+                    </Badge>
+                  </td>
+                  <td className="px-8 py-6 font-mono text-xs font-black text-blue-600">
                     {row.reportId}
                   </td>
+                  <td className="px-8 py-6 text-center">
+                    <button className="p-2 text-slate-300 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all">
+                      <Printer size={20} />
+                    </button>
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ═══ FOOTER ═════════════════════════════════════════════ */}
+        <div className="p-10 border-t border-slate-100 bg-white/50 space-y-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-10">
+              <div className="flex -space-x-3">
+                {[1, 2, 3].map(i => <div key={i} className="w-10 h-10 rounded-full bg-slate-200 border-4 border-white"></div>)}
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-sm font-black text-slate-900">Queue Active</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Monitoring {rows.length} publishing threads</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button className="px-8 py-3 rounded-2xl bg-slate-50 border border-slate-100 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all">Previous Sync</button>
+              <button className="px-10 py-3 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/20 font-black text-[10px] uppercase tracking-widest group">
+                Proceed Batch <ArrowRightCircle size={16} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+          <div className="bg-emerald-50 rounded-3xl p-6 flex items-center justify-between border border-emerald-100">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                <Zap size={20} />
+              </div>
+              <p className="text-[11px] font-black text-emerald-800 uppercase tracking-tight">System ready for A5 High-Precision Invoice printing</p>
+            </div>
+            <Badge variant="success" className="px-3">Online</Badge>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  X,
+  Calendar,
+  Stethoscope,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Video,
+  Home,
+  Building2,
+  Clock,
+  CreditCard,
+  Check
+} from 'lucide-react';
+import Button from '../components/ui/Button';
 
-// ─── Shared Types (exported for use in parent) ────────────────────────────────
+// ─── Shared Types ────────────────────────────────────────────────────────────
 export interface Appointment {
   id: number;
   patientName: string;
@@ -52,34 +68,33 @@ export const DEPARTMENTS = [
 
 export interface DoctorInfo { name: string; fee: number; }
 export const DOCTORS: Record<string, DoctorInfo[]> = {
-  'General Medicine': [{ name: 'Dr. Rajan Mehta',  fee: 800  }, { name: 'Dr. Priya Sharma',  fee: 700  }],
-  'Cardiology':       [{ name: 'Dr. Suresh Kumar', fee: 1500 }, { name: 'Dr. Anita Nair',    fee: 1200 }],
-  'Dermatology':      [{ name: 'Dr. Kavitha Rao',  fee: 1000 }, { name: 'Dr. Farhan Sheikh', fee: 900  }],
-  'Orthopedics':      [{ name: 'Dr. Mohan Das',    fee: 1200 }, { name: 'Dr. Sunita Pillai', fee: 1100 }],
-  'Neurology':        [{ name: 'Dr. Amit Verma',   fee: 1800 }, { name: 'Dr. Deepa Iyer',    fee: 1600 }],
-  'Pediatrics':       [{ name: 'Dr. Leena Joseph', fee: 600  }, { name: 'Dr. Rahul Bose',    fee: 650  }],
-  'Gynecology':       [{ name: 'Dr. Nisha Reddy',  fee: 1300 }, { name: 'Dr. Smita Patil',   fee: 1100 }],
-  'Ophthalmology':    [{ name: 'Dr. Vikram Patel', fee: 950  }, { name: 'Dr. Anjali Singh',  fee: 850  }],
+  'General Medicine': [{ name: 'Dr. Rajan Mehta', fee: 800 }, { name: 'Dr. Priya Sharma', fee: 700 }],
+  'Cardiology': [{ name: 'Dr. Suresh Kumar', fee: 1500 }, { name: 'Dr. Anita Nair', fee: 1200 }],
+  'Dermatology': [{ name: 'Dr. Kavitha Rao', fee: 1000 }, { name: 'Dr. Farhan Sheikh', fee: 900 }],
+  'Orthopedics': [{ name: 'Dr. Mohan Das', fee: 1200 }, { name: 'Dr. Sunita Pillai', fee: 1100 }],
+  'Neurology': [{ name: 'Dr. Amit Verma', fee: 1800 }, { name: 'Dr. Deepa Iyer', fee: 1600 }],
+  'Pediatrics': [{ name: 'Dr. Leena Joseph', fee: 600 }, { name: 'Dr. Rahul Bose', fee: 650 }],
+  'Gynecology': [{ name: 'Dr. Nisha Reddy', fee: 1300 }, { name: 'Dr. Smita Patil', fee: 1100 }],
+  'Ophthalmology': [{ name: 'Dr. Vikram Patel', fee: 950 }, { name: 'Dr. Anjali Singh', fee: 850 }],
 };
 
 export const ALL_SLOTS = [
   { time: '09:00 AM - 09:30 AM', booked: false },
   { time: '10:00 AM - 10:30 AM', booked: false, next: true },
-  { time: '11:00 AM - 11:30 AM', booked: true  },
-  { time: '12:00 PM - 12:30 PM', booked: true  },
+  { time: '11:00 AM - 11:30 AM', booked: true },
+  { time: '12:00 PM - 12:30 PM', booked: true },
   { time: '02:00 PM - 02:30 PM', booked: false },
-  { time: '03:00 PM - 03:30 PM', booked: true  },
+  { time: '03:00 PM - 03:30 PM', booked: true },
   { time: '04:00 PM - 04:30 PM', booked: false },
   { time: '05:00 PM - 05:30 PM', booked: false },
 ];
 
 const CONSULTING_TYPES = [
-  { value: 'Clinic Visit'     },
-  { value: 'Hospital Visit' },
-  { value: 'Video Consultation' },
+  { value: 'Clinic Visit', icon: <Building2 size={16} /> },
+  { value: 'Hospital Visit', icon: <Home size={16} /> },
+  { value: 'Video Consultation', icon: <Video size={16} /> },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 export const getTodayStr = () => {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -99,35 +114,6 @@ export const BLANK_FORM: FormState = {
   email: '', whatsapp: '', contactNumber: '',
 };
 
-// ─── Shared Style Constants ───────────────────────────────────────────────────
-const inputBase: React.CSSProperties = {
-  width: '100%', border: '1.5px solid #e2e8f0', borderRadius: 8,
-  padding: '9px 12px', fontSize: 13, color: '#1e293b',
-  outline: 'none', background: '#fff', boxSizing: 'border-box' as const,
-  fontFamily: 'inherit', transition: 'border-color 0.15s',
-};
-const selectBase: React.CSSProperties = { ...inputBase, cursor: 'pointer' };
-const labelBase: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569',
-  marginBottom: 5, display: 'block', letterSpacing: '0.02em',
-};
-const sectionCard: React.CSSProperties = {
-  background: '#fff', borderRadius: 12, padding: '20px 24px',
-  border: '1px solid #e8edf5', marginBottom: 16,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-};
-const sectionTitle: React.CSSProperties = {
-  fontSize: 13, fontWeight: 700, color: '#1e293b',
-  marginBottom: 18, paddingBottom: 10,
-  borderBottom: '2px solid #f1f5f9',
-  display: 'flex', alignItems: 'center', gap: 8,
-  letterSpacing: '0.01em',
-};
-const errorStyle: React.CSSProperties = {
-  fontSize: 11, color: '#ef4444', marginTop: 3,
-};
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 interface NewAppointmentProps {
   isOpen: boolean;
   onClose: () => void;
@@ -135,37 +121,35 @@ interface NewAppointmentProps {
   initial?: Appointment | null;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function NewAppointment({
   isOpen, onClose, onSave, initial,
 }: NewAppointmentProps) {
-  const [form, setForm]           = useState<FormState>({ ...BLANK_FORM, date: getTodayStr() });
-  const [errors, setErrors]       = useState<Partial<Record<keyof FormState, string>>>({});
+  const [form, setForm] = useState<FormState>({ ...BLANK_FORM, date: getTodayStr() });
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Sync form when modal opens or initial data changes
   useEffect(() => {
     if (!isOpen) return;
     setErrors({});
     if (initial) {
       setForm({
-        consultingType:   initial.consultingType,
-        department:       initial.department,
-        doctor:           initial.doctor,
-        slot:             initial.slot,
-        date:             initial.date,
-        patientName:      initial.patientName,
-        age:              String(initial.age),
-        gender:           initial.gender,
-        phone:            initial.phone,
+        consultingType: initial.consultingType,
+        department: initial.department,
+        doctor: initial.doctor,
+        slot: initial.slot,
+        date: initial.date,
+        patientName: initial.patientName,
+        age: String(initial.age),
+        gender: initial.gender,
+        phone: initial.phone,
         permanentAddress: initial.permanentAddress,
-        localAddress:     initial.localAddress,
-        pincode:          initial.pincode,
-        city:             initial.city,
-        country:          initial.country,
-        email:            initial.email,
-        whatsapp:         initial.whatsapp,
-        contactNumber:    initial.contactNumber,
+        localAddress: initial.localAddress,
+        pincode: initial.pincode,
+        city: initial.city,
+        country: initial.country,
+        email: initial.email,
+        whatsapp: initial.whatsapp,
+        contactNumber: initial.contactNumber,
       });
     } else {
       setForm({ ...BLANK_FORM, date: getTodayStr() });
@@ -174,7 +158,6 @@ export default function NewAppointment({
 
   if (!isOpen) return null;
 
-  // Generic change handler
   const set = (key: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => setForm(f => ({ ...f, [key]: e.target.value }));
@@ -183,14 +166,14 @@ export default function NewAppointment({
 
   const validate = (): boolean => {
     const e: Partial<Record<keyof FormState, string>> = {};
-    if (!form.consultingType)                           e.consultingType = 'Required';
-    if (!form.department)                               e.department     = 'Please select a department';
-    if (!form.doctor)                                   e.doctor         = 'Please select a doctor';
-    if (!form.slot)                                     e.slot           = 'Please select a time slot';
-    if (!form.date)                                     e.date           = 'Please select a date';
-    if (!form.patientName.trim())                       e.patientName    = 'Patient name is required';
-    if (!form.age || isNaN(Number(form.age)))           e.age            = 'Valid age required';
-    if (!form.phone.trim() || form.phone.length < 10)   e.phone          = 'Valid phone required';
+    if (!form.consultingType) e.consultingType = 'Required';
+    if (!form.department) e.department = 'Required';
+    if (!form.doctor) e.doctor = 'Required';
+    if (!form.slot) e.slot = 'Required';
+    if (!form.date) e.date = 'Required';
+    if (!form.patientName.trim()) e.patientName = 'Required';
+    if (!form.age || isNaN(Number(form.age))) e.age = 'Invalid';
+    if (!form.phone.trim() || form.phone.length < 10) e.phone = 'Invalid';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -199,25 +182,6 @@ export default function NewAppointment({
     if (!validate()) return;
     setSubmitting(true);
     setTimeout(() => {
-      console.log('Appointment JSON:', JSON.stringify({
-        consultingType:   form.consultingType,
-        department:       form.department,
-        doctor:           form.doctor,
-        slot:             form.slot,
-        date:             form.date,
-        patientName:      form.patientName,
-        age:              Number(form.age),
-        gender:           form.gender,
-        phone:            form.phone,
-        permanentAddress: form.permanentAddress,
-        localAddress:     form.localAddress,
-        pincode:          form.pincode,
-        city:             form.city,
-        country:          form.country,
-        email:            form.email,
-        whatsapp:         form.whatsapp,
-        contactNumber:    form.contactNumber,
-      }, null, 2));
       onSave(form);
       setSubmitting(false);
       onClose();
@@ -225,337 +189,192 @@ export default function NewAppointment({
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      zIndex: 1000, overflowY: 'auto', padding: '24px 16px',
-    }}>
-      <div style={{
-        background: '#f8fafc', borderRadius: 16, width: 720, maxWidth: '100%',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.22)',
-        fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
-      }}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center z-[100] overflow-y-auto py-12 px-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden">
 
-        {/* ── Modal Header ── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
-          borderRadius: '16px 16px 0 0', padding: '20px 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>
-              {initial ? 'Edit Appointment' : 'Book New Appointment'}
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">
+              {initial ? 'Update Visit' : 'Schedule Visit'}
             </h2>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#93c5fd' }}>
-              Fill in the details to schedule a consultation
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Patient Consultation Workflow
             </p>
           </div>
-          <button onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none',
-            borderRadius: 8, width: 32, height: 32, cursor: 'pointer',
-            color: '#fff', fontSize: 18, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-          }}>×</button>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400">
+            <X size={20} />
+          </button>
         </div>
 
-        <div style={{ padding: '20px 24px 24px' }}>
+        <div className="p-6 space-y-8">
+          {/* Section 1: Consultation */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-4 h-[1px] bg-slate-200"></span>
+              01. Consultation Specs
+            </h3>
 
-          {/* ══ Section 01: Consultation Details ══ */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>
-              <span style={{ background: '#dbeafe', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#1d4ed8' }}>01</span>
-              Consultation Details
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {CONSULTING_TYPES.map(ct => (
+                <button
+                  key={ct.value}
+                  onClick={() => setForm(f => ({ ...f, consultingType: ct.value }))}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all text-left ${form.consultingType === ct.value
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm'
+                    : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200 hover:bg-slate-100'
+                    }`}
+                >
+                  <div className={`${form.consultingType === ct.value ? 'text-emerald-600' : 'text-slate-300'}`}>
+                    {ct.icon}
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-tight">{ct.value}</span>
+                </button>
+              ))}
             </div>
 
-            {/* Consulting Type */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelBase}>Consulting Type *</label>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
-                {CONSULTING_TYPES.map(ct => (
-                  <button key={ct.value}
-                    onClick={() => setForm(f => ({ ...f, consultingType: ct.value }))}
-                    style={{
-                      flex: 1, minWidth: 140, padding: '10px 14px',
-                      border: form.consultingType === ct.value ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                      borderRadius: 10, cursor: 'pointer',
-                      background: form.consultingType === ct.value ? '#eff6ff' : '#fff',
-                      color: form.consultingType === ct.value ? '#1d4ed8' : '#64748b',
-                      fontWeight: form.consultingType === ct.value ? 600 : 400,
-                      fontSize: 13, transition: 'all 0.15s',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}>
-                    <span style={{ fontSize: 16 }}></span>
-                    {ct.value}
-                  </button>
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="label-refined">Visit Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input type="date" value={form.date} onChange={set('date')} min={getTodayStr()}
+                    className="input-refined w-full pl-10 py-2.5 font-bold" />
+                </div>
               </div>
-              {errors.consultingType && <p style={errorStyle}>{errors.consultingType}</p>}
+              <div className="space-y-1.5">
+                <label className="label-refined">Specialty</label>
+                <div className="relative">
+                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value, doctor: '', slot: '' }))}
+                    className="input-refined w-full pl-10 py-2.5 font-bold appearance-none">
+                    <option value="">Select Specialty</option>
+                    {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            {/* Date + Department + Doctor */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 16 }}>
-              <div>
-                <label style={labelBase}>Appointment Date *</label>
-                <input type="date" value={form.date} onChange={set('date')}
-                  min={getTodayStr()} style={inputBase} />
-                {errors.date && <p style={errorStyle}>{errors.date}</p>}
-              </div>
-              <div>
-                <label style={labelBase}>Department *</label>
-                <select value={form.department}
-                  onChange={e => setForm(f => ({ ...f, department: e.target.value, doctor: '', slot: '' }))}
-                  style={selectBase}>
-                  <option value="">Select Department</option>
-                  {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-                </select>
-                {errors.department && <p style={errorStyle}>{errors.department}</p>}
-              </div>
-              <div>
-                <label style={labelBase}>Select Doctor *</label>
-                <select value={form.doctor}
-                  onChange={e => setForm(f => ({ ...f, doctor: e.target.value, slot: '' }))}
-                  style={{ ...selectBase, color: form.doctor ? '#1e293b' : '#94a3b8' }}
-                  disabled={!form.department}>
-                  <option value="">Select Doctor</option>
+            <div className="space-y-1.5">
+              <label className="label-refined">Consulting Physician</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <select value={form.doctor} onChange={e => setForm(f => ({ ...f, doctor: e.target.value, slot: '' }))} disabled={!form.department}
+                  className="input-refined w-full pl-10 py-2.5 font-bold appearance-none disabled:opacity-50">
+                  <option value="">Choose Physician</option>
                   {doctors.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
                 </select>
-                {errors.doctor && <p style={errorStyle}>{errors.doctor}</p>}
               </div>
             </div>
 
-            {/* Appointment Fee Banner */}
             {form.doctor && (() => {
               const fee = getDoctorFee(form.department, form.doctor);
               return fee !== null ? (
-                <div style={{
-                  margin: '0 0 16px',
-                  padding: '12px 18px',
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                  border: '1.5px solid #86efac',
-                  borderRadius: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>💳</span>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white text-emerald-600 rounded-lg flex items-center justify-center border border-emerald-100">
+                      <CreditCard size={20} />
+                    </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#15803d', letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>
-                        Appointment Fee
-                      </div>
-                      <div style={{ fontSize: 11, color: '#4ade80', marginTop: 1 }}>
-                        {form.doctor} · {form.department}
-                      </div>
+                      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Consultation Fee</div>
+                      <div className="text-xs font-bold text-emerald-700">{form.doctor}</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' as const }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: '#15803d', letterSpacing: '-0.5px' }}>
-                      ₹{fee.toLocaleString('en-IN')}
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#4ade80', marginLeft: 2 }}>/–</span>
-                    </div>
-                    <div style={{ fontSize: 10, color: '#86efac', marginTop: 1 }}>Inclusive of all charges</div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-emerald-600 tracking-tight">₹{fee.toLocaleString()}</div>
+                    <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest">Inc. Tax</div>
                   </div>
                 </div>
               ) : null;
             })()}
 
-            {/* Time Slots */}
-            <div>
-              <label style={labelBase}>Available Time Slots *</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Available Slots</label>
+              <div className="flex flex-wrap gap-2">
                 {ALL_SLOTS.map(slot => {
                   const isSelected = form.slot === slot.time;
                   return (
-                    <button key={slot.time}
-                      disabled={slot.booked}
-                      onClick={() => !slot.booked && setForm(f => ({ ...f, slot: slot.time }))}
-                      style={{
-                        padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                        cursor: slot.booked ? 'not-allowed' : 'pointer',
-                        border: isSelected ? '2px solid #2563eb'
-                          : slot.booked ? '2px solid #fee2e2' : '2px solid #e2e8f0',
-                        background: isSelected ? '#2563eb'
-                          : slot.booked ? '#fef2f2' : '#fff',
-                        color: isSelected ? '#fff' : slot.booked ? '#fca5a5' : '#475569',
-                        position: 'relative' as const, transition: 'all 0.15s',
-                      }}>
+                    <button key={slot.time} disabled={slot.booked} onClick={() => !slot.booked && setForm(f => ({ ...f, slot: slot.time }))}
+                      className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all relative overflow-hidden ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' :
+                        slot.booked ? 'bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed' :
+                          'bg-white border text-slate-500 border-slate-200/60 hover:bg-slate-50 hover:border-slate-300'
+                        }`}>
                       {slot.time}
-                      {slot.next && !slot.booked && (
-                        <span style={{
-                          position: 'absolute', top: -8, right: -4,
-                          background: '#16a34a', color: '#fff',
-                          fontSize: 9, fontWeight: 700, borderRadius: 4,
-                          padding: '1px 5px', letterSpacing: '0.03em',
-                        }}>NEXT</span>
-                      )}
-                      {slot.booked && (
-                        <span style={{ fontSize: 9, display: 'block', color: '#fca5a5' }}>Booked</span>
-                      )}
+                      {isSelected && <Check size={12} className="inline ml-2" />}
                     </button>
                   );
                 })}
               </div>
-              {errors.slot && <p style={errorStyle}>{errors.slot}</p>}
             </div>
-          </div>
+          </section>
 
-          {/* ══ Section 02: Patient Information ══ */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>
-              <span style={{ background: '#dcfce7', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#15803d' }}>02</span>
-              Patient Information
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div>
-                <label style={labelBase}>Patient Name *</label>
-                <input value={form.patientName} onChange={set('patientName')}
-                  placeholder="Full name" style={inputBase} />
-                {errors.patientName && <p style={errorStyle}>{errors.patientName}</p>}
+          {/* Section 2: Patient Info */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-4 h-[1px] bg-slate-200"></span>
+              02. Patient Profile
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="label-refined">Full Name</label>
+                <input value={form.patientName} onChange={set('patientName')} placeholder="e.g. Johnathan Doe"
+                  className="input-refined w-full py-2.5 font-bold" />
               </div>
-              <div>
-                <label style={labelBase}>Age *</label>
-                <input type="number" value={form.age} onChange={set('age')}
-                  placeholder="Age in years" min="0" max="120" style={inputBase} />
-                {errors.age && <p style={errorStyle}>{errors.age}</p>}
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div>
-                <label style={labelBase}>Gender *</label>
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                  {['Male', 'Female', 'Other'].map(g => (
-                    <label key={g} style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      cursor: 'pointer', fontSize: 13, color: '#374151',
-                      padding: '6px 12px', borderRadius: 8,
-                      border: form.gender === g ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                      background: form.gender === g ? '#eff6ff' : '#fff',
-                      transition: 'all 0.12s',
-                    }}>
-                      <input type="radio" name="modal-gender" value={g}
-                        checked={form.gender === g} onChange={set('gender')}
-                        style={{ accentColor: '#2563eb' }} />
-                      {g}
-                    </label>
-                  ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="label-refined">Age</label>
+                  <input type="number" value={form.age} onChange={set('age')} placeholder="Yrs"
+                    className="input-refined w-full py-2.5 font-bold text-center" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label-refined">Gender</label>
+                  <select value={form.gender} onChange={set('gender')}
+                    className="input-refined w-full py-2.5 font-bold appearance-none">
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <label style={labelBase}>Phone Number *</label>
-                <input type="tel" value={form.phone} onChange={set('phone')}
-                  placeholder="10-digit mobile number" style={inputBase} />
-                {errors.phone && <p style={errorStyle}>{errors.phone}</p>}
-              </div>
             </div>
-          </div>
 
-          {/* ══ Section 03: Address Details ══ */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>
-              <span style={{ background: '#fef9c3', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#854d0e' }}>03</span>
-              Address Details
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div>
-                <label style={labelBase}>Permanent Address</label>
-                <textarea value={form.permanentAddress}
-                  onChange={e => setForm(f => ({ ...f, permanentAddress: e.target.value }))}
-                  placeholder="Permanent address" rows={3}
-                  style={{ ...inputBase, resize: 'vertical' as const }} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="label-refined">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input type="tel" value={form.phone} onChange={set('phone')} placeholder="+91 XXX XXX XXXX"
+                    className="input-refined w-full pl-10 py-2.5 font-bold" />
+                </div>
               </div>
-              <div>
-                <label style={labelBase}>Local Address</label>
-                <textarea value={form.localAddress}
-                  onChange={e => setForm(f => ({ ...f, localAddress: e.target.value }))}
-                  placeholder="Local / temporary address" rows={3}
-                  style={{ ...inputBase, resize: 'vertical' as const }} />
+              <div className="space-y-1.5">
+                <label className="label-refined">Email (Optional)</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input type="email" value={form.email} onChange={set('email')} placeholder="dx@hive.com"
+                    className="input-refined w-full pl-10 py-2.5" />
+                </div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-              <div>
-                <label style={labelBase}>Pincode</label>
-                <input value={form.pincode} onChange={set('pincode')}
-                  placeholder="e.g. 500001" style={inputBase} maxLength={10} />
-              </div>
-              <div>
-                <label style={labelBase}>City</label>
-                <input value={form.city} onChange={set('city')}
-                  placeholder="City" style={inputBase} />
-              </div>
-              <div>
-                <label style={labelBase}>Country</label>
-                <select value={form.country}
-                  onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
-                  style={selectBase}>
-                  <option>India</option>
-                  <option>United States</option>
-                  <option>United Kingdom</option>
-                  <option>UAE</option>
-                  <option>Canada</option>
-                  <option>Australia</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </div>
-          </div>
+          </section>
 
-          {/* ══ Section 04: Contact Details ══ */}
-          <div style={{ ...sectionCard, marginBottom: 0 }}>
-            <div style={sectionTitle}>
-              <span style={{ background: '#fce7f3', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#be185d' }}>04</span>
-              Contact Details
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-              <div>
-                <label style={labelBase}>Email ID</label>
-                <input type="email" value={form.email} onChange={set('email')}
-                  placeholder="email@example.com" style={inputBase} />
-              </div>
-              <div>
-                <label style={labelBase}>WhatsApp Number</label>
-                <input type="tel" value={form.whatsapp} onChange={set('whatsapp')}
-                  placeholder="WhatsApp number" style={inputBase} />
-              </div>
-              <div>
-                <label style={labelBase}>Contact Number</label>
-                <input type="tel" value={form.contactNumber} onChange={set('contactNumber')}
-                  placeholder="Alternate contact" style={inputBase} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Footer Actions ── */}
-          <div style={{
-            display: 'flex', justifyContent: 'flex-end', gap: 10,
-            marginTop: 20, paddingTop: 16, borderTop: '1px solid #e8edf3',
-          }}>
-            <button onClick={onClose} style={{
-              padding: '9px 20px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              border: '1.5px solid #cbd5e1', background: '#fff',
-              color: '#475569', cursor: 'pointer',
-            }}>Cancel</button>
-            <button onClick={handleSubmit} disabled={submitting} style={{
-              padding: '9px 28px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-              border: 'none', background: submitting ? '#93c5fd' : '#2563eb',
-              color: '#fff', cursor: submitting ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'background 0.15s',
-            }}>
-              {submitting && (
-                <span style={{
-                  width: 14, height: 14,
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  borderTopColor: '#fff', borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.7s linear infinite',
-                }} />
-              )}
-              {submitting ? 'Booking…' : initial ? 'Update Appointment' : 'Book Appointment'}
-            </button>
+          {/* Actions */}
+          <div className="pt-6 flex items-center gap-3">
+            <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">
+              Cancel Request
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              variant="gradient"
+              className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm"
+            >
+              {submitting ? 'Authenticating...' : initial ? 'Confirm Updates' : 'Confirm Appointment'}
+            </Button>
           </div>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

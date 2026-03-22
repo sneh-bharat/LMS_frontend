@@ -45,21 +45,16 @@ function StatCard({
 }: StatCardProps) {
     return (
         <div
-            className="flex-1 min-w-[280px] rounded-lg p-5"
-            style={{
-                background: bg,
-                border: `1px solid ${borderColor}`,
-            }}
+            className="flex-1 min-w-[280px] rounded-xl p-6 bg-white border border-slate-200 shadow-sm"
         >
             {/* Main value */}
-            <div className="text-center mb-4">
+            <div className="text-center mb-6">
                 <div
-                    className="text-[42px] font-bold leading-none"
-                    style={{ color: mainColor }}
+                    className="text-4xl font-bold leading-none tracking-tight text-slate-900"
                 >
                     {mainValue}
                 </div>
-                <div className="text-[13px] text-gray-600 font-medium mt-2">
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-2">
                     {title}
                 </div>
             </div>
@@ -97,16 +92,16 @@ function BarChart() {
             {WEEK_DATA.map((d) => (
                 <div
                     key={d.day}
-                    className="flex flex-col items-center gap-1 flex-1"
+                    className="flex flex-col items-center gap-2 flex-1"
                 >
                     <div
-                        className="w-full bg-blue-50 rounded-t-sm border border-blue-100 transition-all duration-300 ease-in-out"
+                        className="w-full bg-emerald-50 rounded-t border border-emerald-100 transition-all duration-300 ease-in-out"
                         style={{
                             height: `${(d.value / max) * 140 + 4}px`,
                             minHeight: '4px',
                         }}
                     />
-                    <span className="text-[11px] text-gray-400">{d.day}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{d.day}</span>
                 </div>
             ))}
         </div>
@@ -126,13 +121,13 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-3.5 max-w-full p-4">
 
             {/* ── Greeting card ── */}
-            <div className="card">
-                <div className="flex items-center gap-2">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3">
                     {/* Green play triangle */}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#43a047">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#10b981">
                         <path d="M8 5v14l11-7z" />
                     </svg>
-                    <span className="text-green-700 font-semibold text-base">
+                    <span className="text-emerald-700 font-bold text-sm tracking-tight">
                         Hello, Administrator Good Morning.
                     </span>
                 </div>
@@ -185,30 +180,30 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Financial banner ── */}
-            <div className="card flex items-center justify-between gap-3">
-                <span className="text-[13.5px] text-gray-600">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                <span className="text-xs font-medium text-slate-500">
                     Manage your financial data more effectively to run your operations in a better way
                 </span>
                 <a
                     href="/accounts"
-                    className="text-blue-700 font-semibold text-[13.5px] whitespace-nowrap no-underline hover:underline"
+                    className="text-emerald-600 font-bold text-xs whitespace-nowrap hover:underline"
                 >
                     Financial View
                 </a>
             </div>
 
             {/* ── Sale Graphical View ── */}
-            <div className="card">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
                 <div
-                    className="flex justify-between items-center mb-5"
+                    className="flex justify-between items-center mb-8"
                 >
-                    <span className="font-semibold text-base text-gray-800">
+                    <span className="text-base font-bold text-slate-900 tracking-tight">
                         Sale Graphical View
                     </span>
                     <select
                         value={isMounted ? chartPeriod : ''}
                         onChange={(e) => setChartPeriod(e.target.value)}
-                        className="input-field w-auto"
+                        className="input-refined w-auto py-1.5 px-4 font-bold text-xs"
                     >
                         <option>Past 1 Week</option>
                         <option>Past 1 Month</option>

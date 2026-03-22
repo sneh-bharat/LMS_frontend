@@ -86,12 +86,13 @@ function CustomSelect<T extends string>({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 6,
-          border: '1px solid #c8c8c8',
-          borderRadius: 4,
-          padding: '7px 10px',
+          border: '1px solid #e2e8f0',
+          borderRadius: 6,
+          padding: '8px 12px',
           background: '#fff',
-          fontSize: 13,
-          color: '#333',
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#1e293b',
           cursor: 'pointer',
           fontFamily: 'inherit',
           whiteSpace: 'nowrap',
@@ -105,7 +106,7 @@ function CustomSelect<T extends string>({
           width="10"
           height="10"
           viewBox="0 0 24 24"
-          fill="#666"
+          fill="#94a3b8"
           style={{
             flexShrink: 0,
             transform: open ? 'rotate(180deg)' : 'none',
@@ -121,16 +122,16 @@ function CustomSelect<T extends string>({
         <ul
           style={{
             position: 'absolute',
-            top: 'calc(100% + 2px)',
+            top: 'calc(100% + 4px)',
             left: 0,
             zIndex: 500,
             background: '#fff',
-            border: '1px solid #c8c8c8',
-            borderRadius: 4,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+            border: '1px solid #e2e8f0',
+            borderRadius: 6,
+            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
             minWidth: '100%',
             margin: 0,
-            padding: 0,
+            padding: '4px',
             listStyle: 'none',
             overflow: 'hidden',
           }}
@@ -145,18 +146,20 @@ function CustomSelect<T extends string>({
                   setOpen(false);
                 }}
                 style={{
-                  padding: '9px 14px',
-                  fontSize: 13,
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  borderRadius: 4,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  background: isSelected ? '#1565c0' : '#fff',
-                  color: isSelected ? '#fff' : '#333',
+                  background: isSelected ? '#10b981' : '#fff',
+                  color: isSelected ? '#fff' : '#475569',
                   transition: 'background 0.1s',
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected)
                     (e.currentTarget as HTMLElement).style.background =
-                      '#f0f4ff';
+                      '#f8fafc';
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected)
@@ -180,23 +183,24 @@ function DateRangeDisplay({ value }: { value: string }) {
   return (
     <div
       style={{
-        border: '1px solid #c8c8c8',
-        borderRadius: 4,
-        padding: '7px 10px',
-        fontSize: 13,
-        color: '#333',
+        border: '1px solid #e2e8f0',
+        borderRadius: 6,
+        padding: '8px 12px',
+        fontSize: 12,
+        fontWeight: 700,
+        color: '#1e293b',
         background: '#fff',
         whiteSpace: 'nowrap',
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
         cursor: 'default',
         flexShrink: 0,
       }}
     >
       <span>{value}</span>
       {/* Calendar icon */}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#888">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8">
         <path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.89 3 3 3.9 3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
       </svg>
     </div>
@@ -207,10 +211,10 @@ function DateRangeDisplay({ value }: { value: string }) {
 //  INVOICE LIST PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function InvoiceListPage() {
-  const [searchBy, setSearchBy]   = useState<SearchOption>('UHID');
+  const [searchBy, setSearchBy] = useState<SearchOption>('UHID');
   const [searchText, setSearchText] = useState('');
-  const [centre, setCentre]       = useState<CentreOption>('Select centre');
-  const [status, setStatus]       = useState<StatusOption>('All');
+  const [centre, setCentre] = useState<CentreOption>('Select centre');
+  const [status, setStatus] = useState<StatusOption>('All');
 
   // Today's date range (matches screenshot format)
   const today = new Date();
@@ -240,83 +244,42 @@ export default function InvoiceListPage() {
           ROW 1 — title | UHID select | "Type here" input
       ════════════════════════════════════════════════════════ */}
       <div
-        style={{
-          ...borderCard({
-            borderRadius: '8px 8px 0 0',
-            borderBottom: 'none',
-            padding: '12px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-          }),
-        }}
+        className="bg-white rounded-t-xl border border-slate-200 border-b-0 p-4 flex items-center justify-between gap-4 flex-wrap shadow-sm"
       >
         {/* Icon + Title */}
         <span
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 16,
-            fontWeight: 600,
-            color: '#222',
-            flex: 1,
-            minWidth: 160,
-          }}
+          className="flex items-center gap-2 text-base font-bold text-slate-900 flex-1 min-w-[200px]"
         >
-          {/* Green document icon — matches screenshot */}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="#43a047">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#10b981">
             <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z" />
           </svg>
           List of Invoices
         </span>
 
-        {/* UHID / search-type custom select */}
-        <CustomSelect<SearchOption>
-          value={searchBy}
-          options={SEARCH_OPTIONS}
-          onChange={setSearchBy}
-          minWidth={160}
-        />
+        <div className="flex items-center gap-2">
+          {/* UHID / search-type custom select */}
+          <CustomSelect<SearchOption>
+            value={searchBy}
+            options={SEARCH_OPTIONS}
+            onChange={setSearchBy}
+            minWidth={160}
+          />
 
-        {/* "Type here" text input */}
-        <input
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          placeholder="Type here"
-          style={{
-            border: '1px solid #c8c8c8',
-            borderRadius: 4,
-            padding: '7px 11px',
-            fontSize: 13,
-            color: '#333',
-            width: 200,
-            outline: 'none',
-            fontFamily: 'inherit',
-            flexShrink: 0,
-          }}
-          onFocus={(e) => (e.target.style.borderColor = '#1565c0')}
-          onBlur={(e)  => (e.target.style.borderColor = '#c8c8c8')}
-        />
+          {/* "Type here" text input */}
+          <input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search patient..."
+            className="input-refined w-[200px] py-2 font-bold"
+          />
+        </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════
           ROW 2 — Select centre | date range | All (status)
       ════════════════════════════════════════════════════════ */}
       <div
-        style={{
-          ...borderCard({
-            borderTop: '1px solid #eeeeee',
-            borderBottom: 'none',
-            padding: '9px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-          }),
-        }}
+        className="bg-slate-50 border border-slate-200 border-t-0 border-b-0 p-3 flex items-center justify-end gap-3 flex-wrap"
       >
         {/* Centre dropdown */}
         <CustomSelect<CentreOption>
@@ -342,21 +305,15 @@ export default function InvoiceListPage() {
           TABLE
       ════════════════════════════════════════════════════════ */}
       <div
-        style={{
-          ...borderCard({
-            borderRadius: '0 0 8px 8px',
-            overflow: 'hidden',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-          }),
-        }}
+        className="bg-white rounded-b-xl border border-slate-200 shadow-sm overflow-hidden"
       >
         <table
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}
+          className="w-full border-collapse"
         >
           <thead>
-            <tr style={{ borderBottom: '1px solid #e0e0e0', background: '#fff' }}>
+            <tr className="bg-slate-50 border-b border-slate-200">
               <Th style={{ width: 56, textAlign: 'center' }}>#</Th>
-              <Th>Invoice &amp; Patient info</Th>
+              <Th>Invoice & Patient info</Th>
               <Th style={{ width: 180 }}>Ref Doctor</Th>
               <Th style={{ width: 120 }}>Amount</Th>
             </tr>
@@ -366,12 +323,12 @@ export default function InvoiceListPage() {
             <tr>
               <td
                 colSpan={4}
-                style={{ padding: '36px 18px', fontSize: 13 }}
+                className="px-6 py-12 text-sm text-slate-500"
               >
                 {/* Empty state — matches "No record found." coloring */}
                 No record found. Please try with{' '}
-                <span style={{ color: '#1565c0' }}>different search</span> or{' '}
-                <span style={{ color: '#e53935' }}>filter criteria</span>.
+                <span className="text-emerald-600 font-bold">different search</span> or{' '}
+                <span className="text-rose-500 font-bold">filter criteria</span>.
               </td>
             </tr>
           </tbody>
@@ -393,12 +350,14 @@ function Th({
   return (
     <th
       style={{
-        padding: '11px 16px',
+        padding: '12px 16px',
         textAlign: 'left',
-        fontWeight: 600,
-        fontSize: 13,
-        color: '#333',
-        background: '#fff',
+        fontWeight: 700,
+        fontSize: 11,
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        background: 'transparent',
         whiteSpace: 'nowrap',
         ...style,
       }}
