@@ -13,8 +13,23 @@ const CENTRES = [
   'wallet flexibility',
 ];
 
-export default function AddCollectorModal({ onClose, onSave, initialData }) {
-  const [form, setForm] = useState(
+interface CollectorForm {
+  name: string;
+  address: string;
+  mobile: string;
+  centre: string;
+  status: string;
+  priceShow: string;
+}
+
+interface AddCollectorModalProps {
+  onClose: () => void;
+  onSave: (form: CollectorForm) => void;
+  initialData?: CollectorForm;
+}
+
+export default function AddCollectorModal({ onClose, onSave, initialData }: AddCollectorModalProps) {
+  const [form, setForm] = useState<CollectorForm>(
     initialData ?? {
       name: '',
       address: '',
@@ -25,7 +40,7 @@ export default function AddCollectorModal({ onClose, onSave, initialData }) {
     }
   );
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof CollectorForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const isEdit = !!initialData;
 
@@ -210,7 +225,7 @@ export default function AddCollectorModal({ onClose, onSave, initialData }) {
 }
 
 /* ── Tiny helpers ── */
-function Field({ label, children }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <label
@@ -229,7 +244,14 @@ function Field({ label, children }) {
   );
 }
 
-function Input({ value, onChange, placeholder, type = 'text' }) {
+interface InputProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string;
+  type?: string;
+}
+
+function Input({ value, onChange, placeholder, type = 'text' }: InputProps) {
   const [focused, setFocused] = useState(false);
   return (
     <input
@@ -257,7 +279,13 @@ function Input({ value, onChange, placeholder, type = 'text' }) {
   );
 }
 
-function Select({ value, onChange, children }) {
+interface SelectProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  children: React.ReactNode;
+}
+
+function Select({ value, onChange, children }: SelectProps) {
   const [focused, setFocused] = useState(false);
   return (
     <select

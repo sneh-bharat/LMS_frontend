@@ -62,5 +62,6 @@ export function RightDrawer({
             </SheetContent>
         </Sheet>
     )
-}export { RightDrawer }
+}
+
 export default RightDrawer

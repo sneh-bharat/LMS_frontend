@@ -85,7 +85,7 @@ export default function InvoiceListPage() {
 
           <div className="flex items-center gap-3 flex-1 md:max-w-xl">
             <div className="w-48">
-              <Select value={searchBy} onValueChange={setSearchBy}>
+              <Select value={searchBy} onValueChange={(val) => setSearchBy(val || '')}>
                 <SelectTrigger className="h-10 bg-slate-50 border-slate-200 font-bold text-xs uppercase tracking-wider text-slate-700">
                   <SelectValue placeholder="Search by" />
                 </SelectTrigger>
@@ -115,7 +115,7 @@ export default function InvoiceListPage() {
         <div className="bg-slate-50/50 p-3 flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
             <Building2 size={14} className="text-slate-400" />
-            <Select value={centre} onValueChange={setCentre}>
+            <Select value={centre} onValueChange={(v) => setCentre(v || '')}>
               <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
                 <SelectValue placeholder="Centre" />
               </SelectTrigger>
@@ -134,7 +134,7 @@ export default function InvoiceListPage() {
 
           <div className="flex items-center gap-2">
             <Filter size={14} className="text-slate-400" />
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status} onValueChange={(v) => setStatus(v || '')}>
               <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>

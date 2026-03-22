@@ -3,8 +3,24 @@
 import { useState } from 'react';
 import AddCollectorModal from './AddCollectorModal';
 
+// ── Types ───────────────────────────────────────────────────────────────────
+interface Collector {
+  id: number;
+  name: string;
+  mobile: string;
+  address: string;
+  centre: string;
+  status: string;
+  priceShow: string;
+}
+
+interface ModalState {
+  mode: 'add' | 'edit';
+  data?: Collector;
+}
+
 // ── Seed data matching the screenshot exactly ─────────────────────────────────
-const SEED = [
+const SEED: Collector[] = [
   { id: 1, name: 'Biswajit Thakur', mobile: '8240978301', address: 'Hrc road',    centre: 'HO(IP)',  status: 'Active', priceShow: 'Yes' },
   { id: 2, name: 'PARTHA DAS',      mobile: '9071119895', address: 'H.R.C. ROAD', centre: 'HO(IP)',  status: 'Active', priceShow: 'Yes' },
   { id: 3, name: 'Rabi santra',     mobile: '8240611662', address: 'Hrc road',    centre: 'HO(IP)',  status: 'Active', priceShow: 'Yes' },
@@ -24,8 +40,8 @@ const CENTRES = [
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function CollectorPage() {
-  const [collectors, setCollectors]     = useState(SEED);
-  const [modal, setModal]               = useState(null); // null | { mode: 'add' | 'edit', data?: collector }
+  const [collectors, setCollectors]     = useState<Collector[]>(SEED);
+  const [modal, setModal]               = useState<ModalState | null>(null); // null | { mode: 'add' | 'edit', data?: collector }
   const [centreFilter, setCentreFilter] = useState('Select centre');
   const [nameSearch, setNameSearch]     = useState('');
 
@@ -37,26 +53,26 @@ export default function CollectorPage() {
   });
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleSave = (form) => {
-    if (modal.mode === 'add') {
+  const handleSave = (form: Omit<Collector, 'id'>) => {
+    if (modal?.mode === 'add') {
       setCollectors((prev) => [...prev, { ...form, id: Date.now() }]);
-    } else {
+    } else if (modal?.mode === 'edit' && modal.data) {
       setCollectors((prev) =>
-        prev.map((c) => (c.id === modal.data.id ? { ...c, ...form } : c))
+        prev.map((c) => (c.id === modal.data?.id ? { ...c, ...form } : c))
       );
     }
     setModal(null);
   };
 
   // ── Styles ────────────────────────────────────────────────────────────────
-  const pageWrap = {
+  const pageWrap: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: 0,
     fontFamily: "'Segoe UI', system-ui, sans-serif",
   };
 
-  const topCard = {
+  const topCard: React.CSSProperties = {
     background: '#fff',
     border: '1px solid #e0e0e0',
     borderRadius: '8px 8px 0 0',
@@ -68,7 +84,7 @@ export default function CollectorPage() {
     flexWrap: 'wrap',
   };
 
-  const filterRow = {
+  const filterRow: React.CSSProperties = {
     background: '#fff',
     border: '1px solid #e0e0e0',
     borderTop: '1px solid #eeeeee',
@@ -78,7 +94,7 @@ export default function CollectorPage() {
     justifyContent: 'flex-end',
   };
 
-  const tableWrap = {
+  const tableWrap: React.CSSProperties = {
     background: '#fff',
     border: '1px solid #e0e0e0',
     borderRadius: '0 0 8px 8px',
@@ -320,7 +336,7 @@ export default function CollectorPage() {
 }
 
 // ── Table header cell helper ──────────────────────────────────────────────────
-function Th({ children, style = {} }) {
+function Th({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <th
       style={{

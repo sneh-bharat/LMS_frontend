@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
+import AddFranchiseModal from './AddFranchiseModal';
 
 const BRANCHES = [
   {
@@ -57,9 +58,16 @@ const BRANCHES = [
 
 export default function BranchesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleAddEntity = (data: Record<string, string>) => {
+    console.log('Adding entity:', data);
+    // Logic to add to state would go here
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <>
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* ═══ HEADER ═════════════════════════════════════════════ */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -85,7 +93,11 @@ export default function BranchesPage() {
               <List size={20} />
             </button>
           </div>
-          <Button variant="gradient" className="gap-2 shadow-xl shadow-green-500/20 px-6">
+          <Button 
+            variant="gradient" 
+            className="gap-2 shadow-xl shadow-green-500/20 px-6"
+            onClick={() => setShowAddModal(true)}
+          >
             <Plus size={18} />
             Add New Entity
           </Button>
@@ -234,5 +246,12 @@ export default function BranchesPage() {
         </div>
       )}
     </div>
+      {/* Modals */}
+      <AddFranchiseModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)}
+        onSave={handleAddEntity}
+      />
+    </>
   );
 }

@@ -4,7 +4,7 @@ import React from 'react';
 import Button from '@/components/ui/button';
 
 interface ModalProps {
-    isOpen: boolean;
+    isOpen?: boolean;
     onClose: () => void;
     title: string;
     children: React.ReactNode;
@@ -15,7 +15,7 @@ interface ModalProps {
 }
 
 export default function Modal({
-    isOpen,
+    isOpen = true,
     onClose,
     title,
     children,
@@ -24,7 +24,7 @@ export default function Modal({
     size = 'md',
     showFooter = true,
 }: ModalProps) {
-    if (!isOpen) return null;
+    if (isOpen === false) return null;
 
     const sizeStyles = {
         sm: { maxWidth: '400px' },
@@ -135,7 +135,7 @@ export default function Modal({
                             Cancel
                         </Button>
                         <Button
-                            variant="primary"
+                            variant="gradient"
                             onClick={onSave}
                         >
                             Save

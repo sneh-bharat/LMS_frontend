@@ -7,12 +7,13 @@ import Input from '@/components/ui/input';
 import Button from '@/components/ui/button';
 
 interface AddFranchiseModalProps {
+    isOpen: boolean;
     onClose: () => void;
     onSave: (form: Record<string, string>) => void;
     initialData?: Record<string, string>;
 }
 
-export default function AddFranchiseModal({ onClose, onSave, initialData }: AddFranchiseModalProps) {
+export default function AddFranchiseModal({ isOpen, onClose, onSave, initialData }: AddFranchiseModalProps) {
     const [form, setForm] = useState({
         name: initialData?.name || '',
         mobile: initialData?.mobile || '',
@@ -29,7 +30,12 @@ export default function AddFranchiseModal({ onClose, onSave, initialData }: AddF
     };
 
     return (
-        <Modal onClose={onClose} title={initialData ? 'Edit Franchise' : 'Add Franchise'}>
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            onSave={handleSubmit}
+            title={initialData ? 'Edit Franchise' : 'Add Franchise'}
+        >
             <div className="space-y-4">
                 <FormGroup label="Franchise Name">
                     <Input
@@ -99,11 +105,6 @@ export default function AddFranchiseModal({ onClose, onSave, initialData }: AddF
                         placeholder="Enter amount"
                     />
                 </FormGroup>
-
-                <div className="flex justify-end gap-3 mt-6">
-                    <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleSubmit}>{initialData ? 'Update' : 'Save'}</Button>
-                </div>
             </div>
         </Modal>
     );
