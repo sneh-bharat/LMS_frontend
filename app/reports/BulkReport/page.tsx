@@ -21,8 +21,8 @@ import {
   LayoutGrid,
   MoreVertical
 } from 'lucide-react';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
+import Button from '@/components/ui/button';
+import Badge from '@/components/ui/badge';
 
 // ─── Types and Constants ──────────────────────────────────────────────────────
 interface ReportRow {

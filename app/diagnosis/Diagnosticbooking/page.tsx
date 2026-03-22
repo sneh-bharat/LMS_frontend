@@ -27,12 +27,26 @@ import {
   MoreVertical,
   Zap,
   Scale,
-  Ruler
+  Ruler,
+  Info
 } from 'lucide-react';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
+import { 
+  Button, 
+  Badge, 
+  RightDrawer, 
+  Card,
+  Input,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Table
+} from '@/components/ui';
+import { cn } from '@/lib/utils';
 
-// ─── Data ───────────────────────────────────────────────────────────────────
+// ─── Types & Constants ───────────────────────────────────────────────────────
 interface Investigation {
   id: number;
   name: string;
@@ -75,11 +89,11 @@ interface FormState {
 }
 
 const DISEASES = ['Diabetes', 'Hypertension', 'Anaemia', 'Thyroid', 'Arthritis', 'Asthma'];
-const TITLES = ['', 'Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby', 'M/s'];
-const GENDERS = ['', 'Male', 'Female', 'Other'];
+const TITLES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby', 'M/s'];
+const GENDERS = ['Male', 'Female', 'Other'];
 const PROCESSING = ['Normal', 'Urgent', 'STAT'];
 const PAY_MODES = ['Cash', 'Card', 'UPI', 'Online', 'Credit'];
-const DISC_TYPES = ['--', '%', 'Flat'];
+const DISC_TYPES = ['%', 'Flat'];
 
 const SAMPLE_INVESTIGATIONS: Investigation[] = [
   { id: 1, name: 'CBC (Complete Blood Count)', mrp: 350, category: 'Haematology' },
@@ -90,65 +104,84 @@ const SAMPLE_INVESTIGATIONS: Investigation[] = [
 ];
 
 const BLANK: FormState = {
-  country: 'IND +91', mobile: '', title: '', patientName: '',
-  age: '', month: '0', day: '0', gender: '',
+  country: 'IND +91', mobile: '', title: 'Mr.', patientName: '',
+  age: '', month: '0', day: '0', gender: 'Male',
   address: '', email: '', diagnosis: '', nationality: 'IND-India',
   drugAllergy: '', lmpDate: '', height: '', weight: '',
   diseases: [], referredDoctor: '', referrer: '',
   processing: 'Normal', emergencyCharge: '',
   phlebotomist: '', phlebotomistCharge: '', contrast: '',
-  discount: '0', discountType: '--', discountBy: 'N/A',
+  discount: '0', discountType: '%', discountBy: 'N/A',
   payment: '', paymentMode: 'Cash', srfId: '', advanceBooking: false,
 };
 
-// ─── Modals (Redesigned) ───────────────────────────────────────────────────────
+// ─── Modals ──────────────────────────────────────────────────────────────────
 function AddInvestigationsModal({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () => void; onAdd: (inv: Investigation[]) => void; }) {
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState('');
+
   if (!isOpen) return null;
+
   const filtered = SAMPLE_INVESTIGATIONS.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
   const toggle = (id: number) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl border-gray-300">Cancel</Button>
+      <Button disabled={selected.length === 0} onClick={() => { onAdd(SAMPLE_INVESTIGATIONS.filter(i => selected.includes(i.id))); setSelected([]); onClose(); }} className="flex-[2] rounded-xl custom-gradient text-white font-bold">
+        Add {selected.length} Tests
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center"><Plus size={20} /></div>
-            <h3 className="text-lg font-bold text-slate-900">Add Investigations</h3>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X size={20} /></button>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Investigations"
+      description="Search and select lab tests"
+      footer={footer}
+    >
+      <div className="space-y-6">
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search test name..."
+            className="pl-10"
+          />
         </div>
-        <div className="p-6 flex-1 overflow-y-auto space-y-6">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search test name or code..." className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all" />
-          </div>
-          <div className="space-y-2">
-            {filtered.map(inv => (
-              <div key={inv.id} onClick={() => toggle(inv.id)} className={`flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer ${selected.includes(inv.id) ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-slate-100 bg-white hover:border-slate-300'}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selected.includes(inv.id) ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-300 border border-slate-100'}`}>
-                    {selected.includes(inv.id) ? <CheckCircle2 size={24} /> : <FlaskConical size={20} />}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-900">{inv.name}</div>
-                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{inv.category}</div>
-                  </div>
+        <div className="space-y-2">
+          {filtered.map(inv => (
+            <div
+              key={inv.id}
+              onClick={() => toggle(inv.id)}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group",
+                selected.includes(inv.id)
+                  ? "border-emerald-500 bg-emerald-50/50"
+                  : "border-gray-200 bg-white hover:border-emerald-200 hover:bg-slate-50"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
+                  selected.includes(inv.id) ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600"
+                )}>
+                  {selected.includes(inv.id) ? <CheckCircle2 size={24} /> : <FlaskConical size={20} />}
                 </div>
-                <div className="text-base font-bold text-slate-900">₹{inv.mrp}</div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900">{inv.name}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{inv.category}</div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold text-xs uppercase tracking-wider">Cancel</Button>
-          <Button variant="gradient" disabled={selected.length === 0} onClick={() => { onAdd(SAMPLE_INVESTIGATIONS.filter(i => selected.includes(i.id))); setSelected([]); onClose(); }} className="flex-[2] rounded-lg py-2.5 font-bold text-xs uppercase tracking-wider shadow-sm">
-            Confirm Selection ({selected.length})
-          </Button>
+              <div className="text-sm font-black text-slate-900">₹{inv.mrp}</div>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </RightDrawer>
   );
 }
 
@@ -158,7 +191,11 @@ export default function DiagnosticBookingPage() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [addInvOpen, setAddInvOpen] = useState(false);
 
-  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [key]: e.target.value }));
+  const set = (key: keyof FormState) => (e: any) => {
+    const value = e && e.target ? e.target.value : e;
+    setForm(f => ({ ...f, [key]: value }));
+  };
+
   const toggleDisease = (d: string) => setForm(f => ({ ...f, diseases: f.diseases.includes(d) ? f.diseases.filter(x => x !== d) : [...f.diseases, d], }));
   const removeInvestigation = (id: number) => setInvestigations(prev => prev.filter(i => i.id !== id));
 
@@ -170,296 +207,369 @@ export default function DiagnosticBookingPage() {
   const balance = totalDue - (Number(form.payment) || 0);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <AddInvestigationsModal isOpen={addInvOpen} onClose={() => setAddInvOpen(false)} onAdd={(inv) => setInvestigations(prev => [...prev, ...inv])} />
+    <div className="max-w-[1600px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <AddInvestigationsModal 
+        isOpen={addInvOpen} 
+        onClose={() => setAddInvOpen(false)} 
+        onAdd={(inv) => setInvestigations(prev => [...prev, ...inv])} 
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            Diagnostic <span className="text-emerald-600">Booking</span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+              <FlaskConical size={22} />
+            </div>
+            Diagnostic Booking
           </h1>
-          <p className="text-slate-500 text-sm font-medium max-w-xl">
-            Streamlined patient intake and investigation workflow.
+          <p className="text-slate-500 text-sm font-semibold mt-1 flex items-center gap-2">
+            Patient Intake Workflow <span className="w-1 h-1 rounded-full bg-slate-300"></span> 
+            <span className="text-emerald-600 font-bold">HO(IP) Branch</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-slate-100 rounded-lg border border-slate-200 font-bold tracking-wider uppercase text-[11px] text-slate-600">Branch: HO(IP)</div>
-          <div className="flex gap-2">
-            <button className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-emerald-600 hover:border-emerald-500 transition-all shadow-sm">
-              <Download size={18} />
-            </button>
-            <button className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-emerald-600 hover:border-emerald-500 transition-all shadow-sm">
-              <MoreVertical size={18} />
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="rounded-xl border-gray-300 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs gap-2">
+            <Download size={16} /> Export Draft
+          </Button>
+          <Button className="rounded-xl custom-gradient text-white font-bold text-xs gap-2 shadow-lg shadow-emerald-500/10 px-6">
+            <Zap size={16} /> Smart Sync
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Main Form Area */}
-        <div className="xl:col-span-2 space-y-8">
-          {/* Profile Sync */}
-          <div className="card-refined p-6 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <Zap size={14} className="text-blue-500" /> Patient Profile Sync
-            </h3>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+        {/* ── Main Form Column ── */}
+        <div className="xl:col-span-8 space-y-8">
+          
+          {/* Section 1: Identity & Sync */}
+          <Card className="p-6 border-gray-300 overflow-hidden relative shadow-sm">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Patient Identity</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Profile Sync & Access</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-gray-200">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Advance Mode</span>
+                <div className={`w-9 h-5 rounded-full cursor-pointer relative transition-all ${form.advanceBooking ? 'bg-emerald-500' : 'bg-slate-300'}`} onClick={() => setForm(f => ({ ...f, advanceBooking: !f.advanceBooking }))}>
+                  <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${form.advanceBooking ? 'left-5' : 'left-1'}`}></div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="label-refined">Mobile Access</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input value={form.mobile} onChange={set('mobile')} placeholder="99XXX-XXXXX" className="input-refined w-full pl-10" />
+              <div className="space-y-2">
+                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Number</Label>
+                <div className="relative group">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
+                  <Input value={form.mobile} onChange={set('mobile')} placeholder="98765 43210" className="pl-10 border-gray-300" />
                 </div>
               </div>
-              <div className="flex items-center">
-                <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200 w-full">
-                  <div className={`w-9 h-5 rounded-full cursor-pointer relative transition-all ${form.advanceBooking ? 'bg-emerald-500' : 'bg-slate-300'}`} onClick={() => setForm(f => ({ ...f, advanceBooking: !f.advanceBooking }))}>
-                    <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${form.advanceBooking ? 'left-5' : 'left-1'}`}>
-                    </div>
+              <div className="space-y-2">
+                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Digital ID (Email)</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
+                  <Input value={form.email} onChange={set('email')} placeholder="patient@example.com" className="pl-10 border-gray-300" />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Section 2: Bio Information */}
+          <Card className="p-0 border-gray-300 overflow-hidden relative shadow-sm">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+            <div className="p-6 border-b border-gray-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <User size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Bio Information</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Clinical Demographics</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-8">
+              {/* Name & Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Title</Label>
+                  <Select value={form.title} onValueChange={set('title')}>
+                    <SelectTrigger className="border-gray-300">
+                      <SelectValue placeholder="Title" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TITLES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-6 space-y-2">
+                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Full Legal Name</Label>
+                  <Input value={form.patientName} onChange={set('patientName')} placeholder="Enter patient name" className="border-gray-300" />
+                </div>
+                <div className="md:col-span-4 grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-black text-slate-400 uppercase pl-1 text-center">Age</Label>
+                    <Input value={form.age} onChange={set('age')} className="text-center font-black text-emerald-600 border-gray-300" placeholder="0" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">Advance Booking Active</span>
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Gender</Label>
+                    <Select value={form.gender} onValueChange={set('gender')}>
+                      <SelectTrigger className="border-gray-300">
+                        <SelectValue placeholder="Gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENDERS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address & Context */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Permanent Address</Label>
+                  <div className="relative group">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
+                    <Input value={form.address} onChange={set('address')} className="pl-10 border-gray-300" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Nationality</Label>
+                  <div className="relative group">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
+                    <Input value={form.nationality} onChange={set('nationality')} className="pl-10 border-gray-300" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Measurements row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-gray-200">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5"><Heart size={12} className="text-rose-500" /> LMP Date</Label>
+                  <Input type="date" value={form.lmpDate} onChange={set('lmpDate')} className="text-xs font-bold border-gray-300" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5"><Ruler size={12} className="text-blue-500" /> Height (cm)</Label>
+                  <Input value={form.height} onChange={set('height')} className="text-center font-black border-gray-300" placeholder="--" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5"><Scale size={12} className="text-amber-500" /> Weight (kg)</Label>
+                  <Input value={form.weight} onChange={set('weight')} className="text-center font-black border-gray-300" placeholder="--" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5"><Droplets size={12} className="text-rose-600" /> Drug Allergy</Label>
+                  <Input value={form.drugAllergy} onChange={set('drugAllergy')} className="bg-rose-50 border-rose-200 placeholder:text-rose-300 text-rose-700 font-bold border-gray-300" placeholder="None" />
+                </div>
+              </div>
+
+              {/* History / Dynamics */}
+              <div className="space-y-4 pt-2">
+                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Pre-Existing Dynamics</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DISEASES.map(d => {
+                    const active = form.diseases.includes(d);
+                    return (
+                      <button 
+                        key={d} 
+                        onClick={() => toggleDisease(d)} 
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 border",
+                          active 
+                            ? "bg-[#050b18] text-white border-transparent shadow-lg" 
+                            : "bg-white border-gray-300 text-slate-400 hover:border-emerald-200 hover:text-slate-600 shadow-sm"
+                        )}
+                      >
+                        {active ? <CheckCircle2 size={14} className="text-emerald-400" /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>}
+                        {d}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
 
-          {/* Bio Details */}
-          <div className="card-refined p-6 space-y-6">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <User size={14} className="text-emerald-500" /> Bio Information
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="label-refined">Title</label>
-                <select value={form.title} onChange={set('title')} className="input-refined w-full px-2">
-                  {TITLES.map(t => <option key={t} value={t}>{t || '-'}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-6 space-y-1.5">
-                <label className="label-refined">Patient Full Name</label>
-                <input value={form.patientName} onChange={set('patientName')} className="input-refined w-full" />
-              </div>
-              <div className="md:col-span-4 grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="label-refined">Age</label>
-                  <input value={form.age} onChange={set('age')} className="input-refined w-full text-center font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="label-refined">Sex</label>
-                  <select value={form.gender} onChange={set('gender')} className="input-refined w-full px-2">
-                    {GENDERS.map(g => <option key={g} value={g}>{g || '-'}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Residential Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input value={form.address} onChange={set('address')} className="input-refined w-full pl-10" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Email Digital ID</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input type="email" value={form.email} onChange={set('email')} className="input-refined w-full pl-10" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Nationality</label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <select value={form.nationality} onChange={set('nationality')} className="input-refined w-full pl-10 appearance-none">
-                    <option>IND-India</option><option>USA-United States</option><option>Other</option>
-                  </select>
-                </div>
-              </div>
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="label-refined">Primary Diagnosis</label>
-                <input value={form.diagnosis} onChange={set('diagnosis')} placeholder="Routine Checkup..." className="input-refined w-full italic" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined flex items-center gap-1.5"><Heart size={10} className="text-rose-500" /> LMP Date</label>
-                <input type="date" value={form.lmpDate} onChange={set('lmpDate')} className="input-refined w-full text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined flex items-center gap-1.5"><Ruler size={10} className="text-blue-500" /> Height (cm)</label>
-                <input value={form.height} onChange={set('height')} className="input-refined w-full text-center font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined flex items-center gap-1.5"><Scale size={10} className="text-amber-500" /> Weight (kg)</label>
-                <input value={form.weight} onChange={set('weight')} className="input-refined w-full text-center font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined flex items-center gap-1.5"><Droplets size={10} className="text-rose-600" /> Drug Allergy</label>
-                <input value={form.drugAllergy} onChange={set('drugAllergy')} className="bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-sm font-medium text-rose-700 outline-none w-full" />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="label-refined">Pre-Existing Dynamics</label>
-              <div className="flex flex-wrap gap-2">
-                {DISEASES.map(d => (
-                  <button key={d} onClick={() => toggleDisease(d)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2 ${form.diseases.includes(d) ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                    {form.diseases.includes(d) ? <CheckCircle2 size={12} /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>}
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Investigations Selection Area */}
+          {/* Section 3: Order Cart */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
-                Order Cart
-                <Badge variant="secondary" className="px-2 text-[10px]">{investigations.length} Items</Badge>
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Order Cart</h3>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] px-2.5">{investigations.length} ITEMS</Badge>
+              </div>
               <div className="flex gap-2">
-                <Button variant="outline" className="gap-2 border-slate-200 bg-white shadow-sm rounded-lg py-1.5 px-3 text-xs">
-                  <Stethoscope size={14} className="text-blue-500" /> Referred Doc
+                <Button variant="outline" className="rounded-xl border-gray-300 bg-white text-xs font-bold gap-2">
+                  <Stethoscope size={14} className="text-blue-500" /> Referred Doctor
                 </Button>
-                <Button variant="gradient" onClick={() => setAddInvOpen(true)} className="gap-2 shadow-sm rounded-lg py-1.5 px-4 text-xs">
-                  <Plus size={14} /> Add Test
+                <Button onClick={() => setAddInvOpen(true)} className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10">
+                  <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Investigation
                 </Button>
               </div>
             </div>
 
             {investigations.length > 0 ? (
-              <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-tight">Investigation Name</th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-tight">Category</th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-tight text-right">MRP</th>
-                      <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-tight text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {investigations.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                              <FlaskConical size={14} />
-                            </div>
-                            <div className="text-sm font-bold text-slate-900">{inv.name}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">{inv.category}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-sm">₹{inv.mrp}</td>
-                        <td className="px-6 py-4 text-center">
-                          <button onClick={() => removeInvestigation(inv.id)} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
+              <Card className="overflow-hidden border-gray-300 shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Test Name</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Category</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">MRP</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {investigations.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 border border-gray-200">
+                                <FlaskConical size={16} />
+                              </div>
+                              <div className="text-sm font-bold text-slate-900">{inv.name}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-500 text-[9px] font-black border-gray-200">{inv.category}</Badge>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className="text-sm font-black text-slate-900">₹{inv.mrp.toLocaleString()}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button onClick={() => removeInvestigation(inv.id)} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             ) : (
-              <div className="bg-slate-50 h-48 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center p-8 space-y-3">
-                <FlaskConical size={32} className="text-slate-300" />
-                <p className="text-slate-500 text-sm font-medium">Cart is empty. Click <span className="text-emerald-600 font-bold">Add Test</span>.</p>
+              <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 h-52 flex flex-col items-center justify-center text-center p-8 transition-all hover:bg-slate-50 group cursor-pointer" onClick={() => setAddInvOpen(true)}>
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-200 mb-4 group-hover:scale-110 group-hover:bg-emerald-50 group-hover:text-emerald-400 transition-all border border-gray-100">
+                  <FlaskConical size={32} />
+                </div>
+                <p className="text-slate-400 text-sm font-bold">No investigations added yet.</p>
+                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">Start by clicking "Add Investigation"</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Summary Column */}
-        <div className="space-y-8">
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-lg space-y-6 sticky top-8">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              Order Billing
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            </h3>
-
-            <div className="space-y-4 text-slate-800">
-              <div className="space-y-1.5">
-                <label className="label-refined">Processing Priority</label>
-                <select value={form.processing} onChange={set('processing')} className="input-refined w-full appearance-none">
-                  {PROCESSING.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-3 border-b border-slate-100 pb-4">
-                <div className="flex justify-between items-center text-sm font-bold text-slate-500">
-                  <span>Sub-Total</span>
-                  <span className="font-mono text-slate-900">₹{amount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm font-bold text-slate-500">
-                  <span className="flex items-center gap-2"><Timer size={14} className="text-rose-500" /> Emergency Charge</span>
-                  <input type="number" value={form.emergencyCharge} onChange={set('emergencyCharge')} placeholder="0" className="w-20 text-right bg-slate-50 border border-slate-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none font-mono font-bold text-slate-900" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-base font-bold">
-                  <span>Grand Total</span>
-                  <span className="text-xl font-bold text-emerald-600 font-mono">₹{totalAmount.toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} className="text-amber-500" />
-                  <span className="text-[10px] font-bold uppercase text-amber-700 tracking-wider">Adjustment / Discount</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" value={form.discount} onChange={set('discount')} className="input-refined w-full py-1.5 px-3" />
-                  <select value={form.discountType} onChange={set('discountType')} className="input-refined w-full py-1.5 px-3">
-                    {DISC_TYPES.map(d => <option key={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-t border-slate-100 pt-4">
-                  <span className="text-xs font-bold text-slate-500 uppercase">Total Due</span>
-                  <span className="text-xl font-bold text-slate-900 font-mono">₹{totalDue.toLocaleString()}</span>
-                </div>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="number" value={form.payment} onChange={set('payment')} placeholder="Pay Amount..." className="input-refined w-full pl-10 bg-emerald-50/30 border-emerald-200 focus:border-emerald-500" />
-                  </div>
-                  <select value={form.paymentMode} onChange={set('paymentMode')} className="input-refined w-full text-xs">
-                    {PAY_MODES.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className={`p-3 rounded-lg border flex justify-between items-center ${balance === 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`}>
-                <span className="text-[10px] font-bold uppercase">Balance</span>
-                <span className="text-base font-bold font-mono">₹{balance.toLocaleString()}</span>
+        {/* ── Summary Column ── */}
+        <div className="xl:col-span-4 space-y-8 sticky top-24">
+          <Card className="p-0 border-gray-300 overflow-hidden shadow-xl">
+            <div className="p-6 bg-blue-900 text-white">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 opacity-80 mb-1">
+                Checkout Summary
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              </h3>
+              <div className="flex items-baseline gap-1 mt-4">
+                <span className="text-[10px] font-black opacity-50 uppercase">Balance Due</span>
+                <span className="text-3xl font-black text-emerald-400">₹{balance.toLocaleString()}</span>
               </div>
             </div>
 
-            <Button variant="gradient" className="w-full rounded-lg py-3.5 font-bold uppercase tracking-widest shadow-md gap-3 group">
-              Confirm Booking
-              <ArrowRightCircle size={20} className="group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </div>
+            <div className="p-6 space-y-6">
+              {/* Controls */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Processing Priority</Label>
+                  <Select value={form.processing} onValueChange={set('processing')}>
+                    <SelectTrigger className="border-gray-300">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROCESSING.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          <p className="text-center text-[10px] font-bold text-slate-400 italic">
-            Secure checkout powered by WellnessHive®
-          </p>
+                <div className="space-y-4 pt-2 border-b border-gray-100 pb-6">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-bold text-slate-400">Order Sub-Total</span>
+                    <span className="font-black text-slate-900">₹{amount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-bold text-slate-400 flex items-center gap-2 italic"><Timer size={14} className="text-rose-500" /> Emergency Fee</span>
+                    <input type="number" value={form.emergencyCharge} onChange={set('emergencyCharge')} placeholder="0" className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900" />
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-xs font-black text-slate-900 uppercase">Gross Amount</span>
+                    <span className="text-lg font-black text-emerald-600">₹{totalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Adjustment */}
+                <div className="bg-slate-50 p-5 rounded-2xl border border-gray-200 space-y-4 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adjustment / Discount</span>
+                    <Badge variant="secondary" className="bg-white text-emerald-600 text-[10px] font-black border-gray-200">APPLY</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input type="number" value={form.discount} onChange={set('discount')} className="bg-white border-gray-300" />
+                    <Select value={form.discountType} onValueChange={set('discountType')}>
+                      <SelectTrigger className="border-gray-300 bg-white">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DISC_TYPES.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Final Due & Pay */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-slate-900 uppercase text-gray-500">Final Amount Due</span>
+                    <span className="text-2xl font-black text-[#050b18]">₹{totalDue.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="relative group">
+                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
+                      <Input type="number" value={form.payment} onChange={set('payment')} placeholder="Payable amount..." className="pl-10 h-12 bg-white border-gray-300 font-black text-[#050b18] placeholder:text-gray-300 shadow-sm" />
+                    </div>
+                    <Select value={form.paymentMode} onValueChange={set('paymentMode')}>
+                      <SelectTrigger className="border-gray-300 h-10 font-bold">
+                        <SelectValue placeholder="Mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAY_MODES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirm */}
+              <div className="pt-2">
+                <Button className="w-full h-14 rounded-2xl custom-gradient text-white font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 gap-3 group">
+                  Confirm Booking
+                  <ArrowRightCircle size={20} className="group-hover:translate-x-1.5 transition-transform" />
+                </Button>
+                <div className="mt-4 flex flex-col items-center gap-1 opacity-40">
+                  <div className="flex items-center gap-1.5">
+                    <Info size={10} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">WellnessHive® Precision Billing</span>
+                  </div>
+                  <span className="text-[8px] font-bold uppercase tracking-tighter">System ID: DIAG-BOOK-PR13-2026</span>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

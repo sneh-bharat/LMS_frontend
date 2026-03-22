@@ -1,9 +1,28 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import { 
+  Search, 
+  ChevronRight, 
+  FileText, 
+  Calendar as CalendarIcon, 
+  Filter,
+  Building2,
+  CheckCircle2
+} from 'lucide-react';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import Input from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  CONSTANTS  — all dropdown options exactly as seen in screenshots
+//  CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 const SEARCH_OPTIONS = [
   'Invoice Barcode',
@@ -33,190 +52,13 @@ const STATUS_OPTIONS = [
   'Urgent Processing',
 ] as const;
 
-type SearchOption = (typeof SEARCH_OPTIONS)[number];
-type CentreOption = (typeof CENTRE_OPTIONS)[number];
-type StatusOption = (typeof STATUS_OPTIONS)[number];
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  CUSTOM SELECT DROPDOWN
-//  Native <select> can't match the blue-highlight style from the screenshots.
-//  This renders a custom dropdown that looks identical.
-// ─────────────────────────────────────────────────────────────────────────────
-interface CustomSelectProps<T extends string> {
-  value: T;
-  options: readonly T[];
-  onChange: (v: T) => void;
-  width?: number | string;
-  minWidth?: number;
-}
-
-function CustomSelect<T extends string>({
-  value,
-  options,
-  onChange,
-  width = 'auto',
-  minWidth = 120,
-}: CustomSelectProps<T>) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close when clicking outside
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      style={{ position: 'relative', width, minWidth, flexShrink: 0 }}
-    >
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 6,
-          border: '1px solid #e2e8f0',
-          borderRadius: 6,
-          padding: '8px 12px',
-          background: '#fff',
-          fontSize: 12,
-          fontWeight: 700,
-          color: '#1e293b',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {value}
-        </span>
-        {/* Chevron */}
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="#94a3b8"
-          style={{
-            flexShrink: 0,
-            transform: open ? 'rotate(180deg)' : 'none',
-            transition: 'transform 0.15s',
-          }}
-        >
-          <path d="M7 10l5 5 5-5z" />
-        </svg>
-      </button>
-
-      {/* Dropdown list */}
-      {open && (
-        <ul
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            zIndex: 500,
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 6,
-            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-            minWidth: '100%',
-            margin: 0,
-            padding: '4px',
-            listStyle: 'none',
-            overflow: 'hidden',
-          }}
-        >
-          {options.map((opt) => {
-            const isSelected = opt === value;
-            return (
-              <li
-                key={opt}
-                onClick={() => {
-                  onChange(opt as T);
-                  setOpen(false);
-                }}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  background: isSelected ? '#10b981' : '#fff',
-                  color: isSelected ? '#fff' : '#475569',
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected)
-                    (e.currentTarget as HTMLElement).style.background =
-                      '#f8fafc';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected)
-                    (e.currentTarget as HTMLElement).style.background = '#fff';
-                }}
-              >
-                {opt}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  DATE RANGE DISPLAY  (read-only for now — wire to a date picker if needed)
-// ─────────────────────────────────────────────────────────────────────────────
-function DateRangeDisplay({ value }: { value: string }) {
-  return (
-    <div
-      style={{
-        border: '1px solid #e2e8f0',
-        borderRadius: 6,
-        padding: '8px 12px',
-        fontSize: 12,
-        fontWeight: 700,
-        color: '#1e293b',
-        background: '#fff',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        cursor: 'default',
-        flexShrink: 0,
-      }}
-    >
-      <span>{value}</span>
-      {/* Calendar icon */}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#94a3b8">
-        <path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.89 3 3 3.9 3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
-      </svg>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  INVOICE LIST PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 export default function InvoiceListPage() {
-  const [searchBy, setSearchBy] = useState<SearchOption>('UHID');
+  const [searchBy, setSearchBy] = useState<string>('UHID');
   const [searchText, setSearchText] = useState('');
-  const [centre, setCentre] = useState<CentreOption>('Select centre');
-  const [status, setStatus] = useState<StatusOption>('All');
+  const [centre, setCentre] = useState<string>('Select centre');
+  const [status, setStatus] = useState<string>('All');
 
-  // Today's date range (matches screenshot format)
+  // Today's date range
   const today = new Date();
   const fmt = (d: Date) =>
     `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(
@@ -224,145 +66,121 @@ export default function InvoiceListPage() {
     ).padStart(2, '0')}`;
   const dateRange = `${fmt(today)} - ${fmt(today)}`;
 
-  // ── Shared card shell style ──────────────────────────────────────────────
-  const borderCard = (extra: React.CSSProperties = {}): React.CSSProperties => ({
-    background: '#fff',
-    border: '1px solid #e0e0e0',
-    ...extra,
-  });
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: "'Segoe UI', system-ui, sans-serif",
-      }}
-    >
-
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* ════════════════════════════════════════════════════════
-          ROW 1 — title | UHID select | "Type here" input
+          ROW 1 — Header & Search
       ════════════════════════════════════════════════════════ */}
-      <div
-        className="bg-white rounded-t-xl border border-slate-200 border-b-0 p-4 flex items-center justify-between gap-4 flex-wrap shadow-sm"
-      >
-        {/* Icon + Title */}
-        <span
-          className="flex items-center gap-2 text-base font-bold text-slate-900 flex-1 min-w-[200px]"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#10b981">
-            <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z" />
-          </svg>
-          List of Invoices
-        </span>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+              <FileText size={20} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">List of Invoices</h1>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Manage patient billing and transaction history</p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {/* UHID / search-type custom select */}
-          <CustomSelect<SearchOption>
-            value={searchBy}
-            options={SEARCH_OPTIONS}
-            onChange={setSearchBy}
-            minWidth={160}
-          />
+          <div className="flex items-center gap-3 flex-1 md:max-w-xl">
+            <div className="w-48">
+              <Select value={searchBy} onValueChange={setSearchBy}>
+                <SelectTrigger className="h-10 bg-slate-50 border-slate-200 font-bold text-xs uppercase tracking-wider text-slate-700">
+                  <SelectValue placeholder="Search by" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEARCH_OPTIONS.map(opt => (
+                    <SelectItem key={opt} value={opt} className="text-xs font-bold uppercase tracking-wider">{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* "Type here" text input */}
-          <input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search patient..."
-            className="input-refined w-[200px] py-2 font-bold"
-          />
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
+              <Input
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search patient record..."
+                className="pl-10 h-10 w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ════════════════════════════════════════════════════════
+            ROW 2 — Filters
+        ════════════════════════════════════════════════════════ */}
+        <div className="bg-slate-50/50 p-3 flex flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-2">
+            <Building2 size={14} className="text-slate-400" />
+            <Select value={centre} onValueChange={setCentre}>
+              <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
+                <SelectValue placeholder="Centre" />
+              </SelectTrigger>
+              <SelectContent>
+                {CENTRE_OPTIONS.map(opt => (
+                  <SelectItem key={opt} value={opt} className="text-[11px] font-bold uppercase tracking-wider">{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-xl bg-white text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+            <CalendarIcon size={14} className="text-slate-400" />
+            <span>{dateRange}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter size={14} className="text-slate-400" />
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map(opt => (
+                  <SelectItem key={opt} value={opt} className="text-[11px] font-bold uppercase tracking-wider">{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* ════════════════════════════════════════════════════════
+            TABLE
+        ════════════════════════════════════════════════════════ */}
+        <div className="overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-y border-slate-200">
+              <tr>
+                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-16">#</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Invoice & Patient info</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ref Doctor</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Amount</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="group hover:bg-slate-50 transition-colors">
+                <td colSpan={5} className="px-6 py-20">
+                  <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-sm mx-auto">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
+                      <Search size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-slate-900 font-bold text-sm mb-1">No record found.</h3>
+                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                        Please try with <span className="text-emerald-600 font-bold">different search</span> terms or <span className="text-rose-500 font-bold">filter criteria</span>.
+                      </p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-
-      {/* ════════════════════════════════════════════════════════
-          ROW 2 — Select centre | date range | All (status)
-      ════════════════════════════════════════════════════════ */}
-      <div
-        className="bg-slate-50 border border-slate-200 border-t-0 border-b-0 p-3 flex items-center justify-end gap-3 flex-wrap"
-      >
-        {/* Centre dropdown */}
-        <CustomSelect<CentreOption>
-          value={centre}
-          options={CENTRE_OPTIONS}
-          onChange={setCentre}
-          minWidth={155}
-        />
-
-        {/* Date range */}
-        <DateRangeDisplay value={dateRange} />
-
-        {/* Status dropdown */}
-        <CustomSelect<StatusOption>
-          value={status}
-          options={STATUS_OPTIONS}
-          onChange={setStatus}
-          minWidth={140}
-        />
-      </div>
-
-      {/* ════════════════════════════════════════════════════════
-          TABLE
-      ════════════════════════════════════════════════════════ */}
-      <div
-        className="bg-white rounded-b-xl border border-slate-200 shadow-sm overflow-hidden"
-      >
-        <table
-          className="w-full border-collapse"
-        >
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <Th style={{ width: 56, textAlign: 'center' }}>#</Th>
-              <Th>Invoice & Patient info</Th>
-              <Th style={{ width: 180 }}>Ref Doctor</Th>
-              <Th style={{ width: 120 }}>Amount</Th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td
-                colSpan={4}
-                className="px-6 py-12 text-sm text-slate-500"
-              >
-                {/* Empty state — matches "No record found." coloring */}
-                No record found. Please try with{' '}
-                <span className="text-emerald-600 font-bold">different search</span> or{' '}
-                <span className="text-rose-500 font-bold">filter criteria</span>.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
     </div>
   );
-}
-
-// ─── TH helper ────────────────────────────────────────────────────────────────
-function Th({
-  children,
-  style = {},
-}: {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <th
-      style={{
-        padding: '12px 16px',
-        textAlign: 'left',
-        fontWeight: 700,
-        fontSize: 11,
-        color: '#64748b',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        background: 'transparent',
-        whiteSpace: 'nowrap',
-        ...style,
-      }}
-    >
-      {children}
-    </th>
-  );
-}
+}

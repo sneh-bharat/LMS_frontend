@@ -16,7 +16,8 @@ import {
   CreditCard,
   Check
 } from 'lucide-react';
-import Button from '../components/ui/Button';
+import Button from '@/components/ui/button';
+import { RightDrawer } from '@/components/ui/right-drawer';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 export interface Appointment {
@@ -188,193 +189,183 @@ export default function NewAppointment({
     }, 800);
   };
 
+  const footer = (
+    <div className="flex items-center gap-3 w-full">
+      <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">
+        Cancel Request
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting}
+        variant="gradient"
+        className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm"
+      >
+        {submitting ? 'Authenticating...' : initial ? 'Confirm Updates' : 'Confirm Appointment'}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center z-[100] overflow-y-auto py-12 px-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={initial ? 'Update Visit' : 'Schedule Visit'}
+      description="Patient Consultation Workflow"
+      footer={footer}
+      maxWidth="md"
+    >
+      <div className="space-y-8">
+        {/* Section 1: Consultation */}
+        <section className="space-y-4">
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            01. Consultation Specs
+          </h3>
 
-        {/* Header */}
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">
-              {initial ? 'Update Visit' : 'Schedule Visit'}
-            </h2>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              Patient Consultation Workflow
-            </p>
+          <div className="grid grid-cols-1 gap-2">
+            {CONSULTING_TYPES.map(ct => (
+              <button
+                key={ct.value}
+                onClick={() => setForm(f => ({ ...f, consultingType: ct.value }))}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left ${form.consultingType === ct.value
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm'
+                  : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200 hover:bg-slate-100'
+                  }`}
+              >
+                <div className={`${form.consultingType === ct.value ? 'text-emerald-600' : 'text-slate-300'}`}>
+                  {ct.icon}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-tight">{ct.value}</span>
+              </button>
+            ))}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400">
-            <X size={20} />
-          </button>
-        </div>
 
-        <div className="p-6 space-y-8">
-          {/* Section 1: Consultation */}
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              01. Consultation Specs
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {CONSULTING_TYPES.map(ct => (
-                <button
-                  key={ct.value}
-                  onClick={() => setForm(f => ({ ...f, consultingType: ct.value }))}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all text-left ${form.consultingType === ct.value
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm'
-                    : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200 hover:bg-slate-100'
-                    }`}
-                >
-                  <div className={`${form.consultingType === ct.value ? 'text-emerald-600' : 'text-slate-300'}`}>
-                    {ct.icon}
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-tight">{ct.value}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Visit Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input type="date" value={form.date} onChange={set('date')} min={getTodayStr()}
-                    className="input-refined w-full pl-10 py-2.5 font-bold" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Specialty</label>
-                <div className="relative">
-                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value, doctor: '', slot: '' }))}
-                    className="input-refined w-full pl-10 py-2.5 font-bold appearance-none">
-                    <option value="">Select Specialty</option>
-                    {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="label-refined">Consulting Physician</label>
+              <label className="label-refined">Visit Date</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <select value={form.doctor} onChange={e => setForm(f => ({ ...f, doctor: e.target.value, slot: '' }))} disabled={!form.department}
-                  className="input-refined w-full pl-10 py-2.5 font-bold appearance-none disabled:opacity-50">
-                  <option value="">Choose Physician</option>
-                  {doctors.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input type="date" value={form.date} onChange={set('date')} min={getTodayStr()}
+                  className="input-refined w-full pl-10 py-2.5 font-bold" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="label-refined">Specialty</label>
+              <div className="relative">
+                <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <select value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value, doctor: '', slot: '' }))}
+                  className="input-refined w-full pl-10 py-2.5 font-bold appearance-none">
+                  <option value="">Select Specialty</option>
+                  {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
                 </select>
               </div>
             </div>
-
-            {form.doctor && (() => {
-              const fee = getDoctorFee(form.department, form.doctor);
-              return fee !== null ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white text-emerald-600 rounded-lg flex items-center justify-center border border-emerald-100">
-                      <CreditCard size={20} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Consultation Fee</div>
-                      <div className="text-xs font-bold text-emerald-700">{form.doctor}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-emerald-600 tracking-tight">₹{fee.toLocaleString()}</div>
-                    <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest">Inc. Tax</div>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Available Slots</label>
-              <div className="flex flex-wrap gap-2">
-                {ALL_SLOTS.map(slot => {
-                  const isSelected = form.slot === slot.time;
-                  return (
-                    <button key={slot.time} disabled={slot.booked} onClick={() => !slot.booked && setForm(f => ({ ...f, slot: slot.time }))}
-                      className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all relative overflow-hidden ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' :
-                        slot.booked ? 'bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed' :
-                          'bg-white border text-slate-500 border-slate-200/60 hover:bg-slate-50 hover:border-slate-300'
-                        }`}>
-                      {slot.time}
-                      {isSelected && <Check size={12} className="inline ml-2" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          {/* Section 2: Patient Info */}
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              02. Patient Profile
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Full Name</label>
-                <input value={form.patientName} onChange={set('patientName')} placeholder="e.g. Johnathan Doe"
-                  className="input-refined w-full py-2.5 font-bold" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="label-refined">Age</label>
-                  <input type="number" value={form.age} onChange={set('age')} placeholder="Yrs"
-                    className="input-refined w-full py-2.5 font-bold text-center" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="label-refined">Gender</label>
-                  <select value={form.gender} onChange={set('gender')}
-                    className="input-refined w-full py-2.5 font-bold appearance-none">
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input type="tel" value={form.phone} onChange={set('phone')} placeholder="+91 XXX XXX XXXX"
-                    className="input-refined w-full pl-10 py-2.5 font-bold" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Email (Optional)</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input type="email" value={form.email} onChange={set('email')} placeholder="dx@hive.com"
-                    className="input-refined w-full pl-10 py-2.5" />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Actions */}
-          <div className="pt-6 flex items-center gap-3">
-            <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">
-              Cancel Request
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              variant="gradient"
-              className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm"
-            >
-              {submitting ? 'Authenticating...' : initial ? 'Confirm Updates' : 'Confirm Appointment'}
-            </Button>
           </div>
-        </div>
+
+          <div className="space-y-1.5">
+            <label className="label-refined">Consulting Physician</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <select value={form.doctor} onChange={e => setForm(f => ({ ...f, doctor: e.target.value, slot: '' }))} disabled={!form.department}
+                className="input-refined w-full pl-10 py-2.5 font-bold appearance-none disabled:opacity-50">
+                <option value="">Choose Physician</option>
+                {doctors.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {form.doctor && (() => {
+            const fee = getDoctorFee(form.department, form.doctor);
+            return fee !== null ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white text-emerald-600 rounded-lg flex items-center justify-center border border-emerald-100">
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Consultation Fee</div>
+                    <div className="text-xs font-bold text-emerald-700">{form.doctor}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-emerald-600 tracking-tight">₹{fee.toLocaleString()}</div>
+                  <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest">Inc. Tax</div>
+                </div>
+              </div>
+            ) : null;
+          })()}
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Available Slots</label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_SLOTS.map(slot => {
+                const isSelected = form.slot === slot.time;
+                return (
+                  <button key={slot.time} disabled={slot.booked} onClick={() => !slot.booked && setForm(f => ({ ...f, slot: slot.time }))}
+                    className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-all relative overflow-hidden ${isSelected ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' :
+                      slot.booked ? 'bg-slate-50 text-slate-200 border border-slate-100 cursor-not-allowed' :
+                        'bg-white border text-slate-500 border-slate-200/60 hover:bg-slate-50 hover:border-slate-300'
+                      }`}>
+                    {slot.time}
+                    {isSelected && <Check size={10} className="inline ml-1" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 2: Patient Info */}
+        <section className="space-y-4">
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            02. Patient Profile
+          </h3>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="label-refined">Full Name</label>
+              <input value={form.patientName} onChange={set('patientName')} placeholder="e.g. Johnathan Doe"
+                className="input-refined w-full py-2.5 font-bold" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="label-refined">Age</label>
+                <input type="number" value={form.age} onChange={set('age')} placeholder="Yrs"
+                  className="input-refined w-full py-2.5 font-bold text-center" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="label-refined">Gender</label>
+                <select value={form.gender} onChange={set('gender')}
+                  className="input-refined w-full py-2.5 font-bold appearance-none">
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="label-refined">Phone Number</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input type="tel" value={form.phone} onChange={set('phone')} placeholder="+91 XXX XXX XXXX"
+                  className="input-refined w-full pl-10 py-2.5 font-bold" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="label-refined">Email (Optional)</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input type="email" value={form.email} onChange={set('email')} placeholder="dx@hive.com"
+                  className="input-refined w-full pl-10 py-2.5" />
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </div>
+    </RightDrawer>
   );
 }

@@ -27,8 +27,8 @@ import NewAppointment, {
   FormState,
   DEPARTMENTS,
 } from './NewAppointment';
-import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
+import Button from '@/components/ui/button';
+import Badge from '@/components/ui/badge';
 
 // ─── Inline sample data ──────────────────────────────────────────────────────
 const SAMPLE_APPOINTMENTS: Appointment[] = [

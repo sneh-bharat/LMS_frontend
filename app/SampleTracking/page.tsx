@@ -23,8 +23,9 @@ import {
   FileText,
   Download
 } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
+import Button from '@/components/ui/button';
+import Badge from '@/components/ui/badge';
+import { RightDrawer } from '@/components/ui/right-drawer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SampleRow {
@@ -51,55 +52,51 @@ function BulkCollectionModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [status, setStatus] = useState('Collected');
 
   if (!isOpen) return null;
+
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Cancel</Button>
+      <Button variant="gradient" className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Update Batch</Button>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-300 px-4">
-      <div className="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl border border-slate-200">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <ClipboardList size={20} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900">Bulk Collection</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-            <SearchX size={20} />
-          </button>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Bulk Collection"
+      description="Process multiple specimens"
+      footer={footer}
+      maxWidth="sm"
+    >
+      <div className="space-y-5">
+        <div className="space-y-1.5">
+          <label className="label-refined">Scan or Paste Barcodes</label>
+          <textarea
+            value={barcodes}
+            onChange={e => setBarcodes(e.target.value)}
+            placeholder="Enter barcodes, one per line..."
+            rows={8}
+            className="input-refined w-full p-4 font-bold text-slate-700 resize-none"
+          />
         </div>
-
-        <div className="space-y-5">
-          <div className="space-y-1.5">
-            <label className="label-refined">Scan or Paste Barcodes</label>
-            <textarea
-              value={barcodes}
-              onChange={e => setBarcodes(e.target.value)}
-              placeholder="Enter barcodes, one per line..."
-              rows={5}
-              className="input-refined w-full p-4 font-bold text-slate-700 resize-none"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-refined">Target Status</label>
-            <div className="relative">
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="input-refined w-full px-10 appearance-none font-bold"
-              >
-                {Object.keys(STATUS_ICONS).map(s => <option key={s}>{s}</option>)}
-              </select>
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                {STATUS_ICONS[status].icon}
-              </div>
+        <div className="space-y-1.5">
+          <label className="label-refined">Target Status</label>
+          <div className="relative">
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              className="input-refined w-full px-10 appearance-none font-bold"
+            >
+              {Object.keys(STATUS_ICONS).map(s => <option key={s}>{s}</option>)}
+            </select>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              {STATUS_ICONS[status].icon}
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3 mt-8">
-          <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Cancel</Button>
-          <Button variant="gradient" className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Update Batch</Button>
         </div>
       </div>
-    </div>
+    </RightDrawer>
   );
 }
 

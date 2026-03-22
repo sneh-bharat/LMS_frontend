@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 
 const PRICE_DATA = [
   { id: 1,  type: 'self', name: 'COLONOSCOPY',                                        days: 0, mrp: 3800.00, revenue: 3800.00 },

@@ -16,8 +16,7 @@ import {
   ChevronRight,
   Activity
 } from 'lucide-react';
-import Button from './components/ui/Button';
-import Badge from './components/ui/Badge';
+import { Badge, Button } from '@/components/ui';
 
 export default function Dashboard() {
   return (

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 
-import Card from '@/app/components/ui/Card';
-import Input from '@/app/components/ui/Input';
-import Table from '@/app/components/ui/Table';
+import Card from '@/components/ui/card';
+import Input from '@/components/ui/input';
+import Table from '@/components/ui/table';
 
 export default function MembersPage() {
   const [members] = useState([]);

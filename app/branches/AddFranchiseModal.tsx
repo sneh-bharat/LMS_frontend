@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Modal from '@/components/ui/Modal';
-import FormGroup from '@/components/ui/FormGroup';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/modal';
+import FormGroup from '@/components/ui/form-group';
+import Input from '@/components/ui/input';
+import Button from '@/components/ui/button';
 
 interface AddFranchiseModalProps {
     onClose: () => void;

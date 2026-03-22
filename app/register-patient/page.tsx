@@ -18,8 +18,9 @@ import {
   Database,
   ArrowRightCircle
 } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
+import Button from '@/components/ui/button';
+import Badge from '@/components/ui/badge';
+import { RightDrawer } from '@/components/ui/right-drawer';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 interface Patient {
@@ -57,91 +58,91 @@ const GENDERS = ['Male', 'Female', 'Other'];
 // ─── Redesigned Registration Modal ───────────────────────────────────────────
 function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   if (!isOpen) return null;
+
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Discard</Button>
+      <Button variant="gradient" className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Initialize Profile</Button>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">New <span className="text-emerald-600">Registration</span></h3>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Institutional Patient Intake</p>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New Registration"
+      description="Institutional Patient Intake"
+      footer={footer}
+      maxWidth="md"
+    >
+      <div className="space-y-8">
+        <section className="space-y-4">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            01. Personal Identity
+          </h4>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="label-refined">Salutation</label>
+              <select className="input-refined w-full px-2">
+                {TITLES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="label-refined">Legal Full Name</label>
+              <input placeholder="e.g. Jonathan Quincy Doe" className="input-refined w-full font-bold" />
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={20} /></button>
-        </div>
 
-        <div className="p-6 overflow-y-auto space-y-8">
-          <section className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              01. Personal Identity
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-3 space-y-1.5">
-                <label className="label-refined">Salutation</label>
-                <select className="input-refined w-full px-2">
-                  {TITLES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-9 space-y-1.5">
-                <label className="label-refined">Legal Full Name</label>
-                <input placeholder="e.g. Jonathan Quincy Doe" className="input-refined w-full font-bold" />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="label-refined">Age (Years)</label>
+              <input type="number" placeholder="28" className="input-refined w-full text-center font-mono font-bold" />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Age (Years)</label>
-                <input type="number" placeholder="28" className="input-refined w-full text-center font-mono font-bold" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Biological Sex</label>
-                <select className="input-refined w-full px-4 font-bold">
-                  {GENDERS.map(g => <option key={g}>{g}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Identity Sync</label>
-                <input placeholder="Aadhar / PAN" className="input-refined w-full" />
-              </div>
+            <div className="space-y-1.5">
+              <label className="label-refined">Biological Sex</label>
+              <select className="input-refined w-full px-4 font-bold">
+                {GENDERS.map(g => <option key={g}>{g}</option>)}
+              </select>
             </div>
-          </section>
+          </div>
+          <div className="space-y-1.5">
+            <label className="label-refined">Identity Sync</label>
+            <input placeholder="Aadhar / PAN" className="input-refined w-full" />
+          </div>
+        </section>
 
-          <section className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              02. Global Connectivity
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="label-refined">Primary Mobile</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input placeholder="+91 XXX XXX XXXX" className="input-refined w-full pl-10 font-mono font-bold" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="label-refined">Email Digital ID</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input type="email" placeholder="patient@wellnesshive.com" className="input-refined w-full pl-10 italic" />
-                </div>
+        <section className="space-y-4">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            02. Global Connectivity
+          </h4>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="label-refined">Primary Mobile</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input placeholder="+91 XXX XXX XXXX" className="input-refined w-full pl-10 font-mono font-bold" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="label-refined">Residential Coordinates</label>
+              <label className="label-refined">Email Digital ID</label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input placeholder="Full street address, city..." className="input-refined w-full pl-10" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input type="email" placeholder="patient@wellnesshive.com" className="input-refined w-full pl-10 italic" />
               </div>
             </div>
-          </section>
-        </div>
-
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Discard</Button>
-          <Button variant="gradient" className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Initialize Profile</Button>
-        </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="label-refined">Residential Coordinates</label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input placeholder="Full street address, city..." className="input-refined w-full pl-10" />
+            </div>
+          </div>
+        </section>
       </div>
-    </div>
+    </RightDrawer>
   );
 }
 

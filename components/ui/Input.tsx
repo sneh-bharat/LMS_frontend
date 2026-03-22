@@ -1,23 +1,21 @@
-import React from 'react';
+import * as React from "react"
+import { Input as InputPrimitive } from "@base-ui/react/input"
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    error?: string;
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <InputPrimitive
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-10 w-full min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm transition-all outline-none placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:ring-4 focus-visible:ring-emerald-500/10 disabled:pointer-events-none disabled:opacity-50 font-medium",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-    ({ error, className = '', ...props }, ref) => {
-        return (
-            <input
-                ref={ref}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    error ? 'border-red-500' : 'border-gray-300'
-                } ${className}`}
-                {...props}
-            />
-        );
-    }
-);
-
-Input.displayName = 'Input';
-
-export default Input;
+export { Input }
+export default Input
