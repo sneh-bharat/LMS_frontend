@@ -60,6 +60,7 @@ const NAV = [
         label: 'Processing Lab',
         icon: <Microscope size={20} />,
         children: [
+            { label: 'Test Packages', href: '/lab/test-packages' },
             { label: 'Units', href: '/lab/units' },
             { label: 'Invoice', href: '/lab/invoice' },
         ],
@@ -70,7 +71,7 @@ const NAV = [
         icon: <Stethoscope size={20} />,
         children: [
             { label: 'Invoice List', href: '/reception' },
-            { label: 'Manage Doctor', href: '/reception/doctors' },
+            
         ],
     },
     {
@@ -88,6 +89,7 @@ const NAV = [
         label: 'Branding',
         icon: <Palette size={20} />,
         children: [
+            { label: 'Brand', href: '/brand' },
             { label: 'Reference Value', href: '/brand/ReferenceValue' },
             { label: 'Options Mapping', href: '/brand/OptionsMaping' }
         ],
@@ -109,10 +111,14 @@ const NAV = [
         label: 'Management',
         icon: <LayoutDashboard size={20} />,
         children: [
-            { label: 'EMR', href: '/emr' },
+            { label: 'Concession Authority', href: '/ConcessionAuthority' },
             { label: 'Users', href: '/management/users' },
-            { label: 'Roles', href: '/management/roles' },
+            { label: 'Patient Information', href: '/register-patient' },
+            { label: 'Management Doctor', href: '/management/management-docotor' },
+            { label: 'Vendors & Suppliers', href: '/management/vendors' },
+            { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Settings', href: '/management/settings' },
+          
         ],
     },
 ];
