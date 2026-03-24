@@ -64,7 +64,11 @@ function BulkCollectionModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Bulk Collection"
+      title={
+        <>
+          Bulk <span className="text-emerald-200">Collection</span>
+        </>
+      }
       description="Process multiple specimens"
       footer={footer}
       maxWidth="sm"

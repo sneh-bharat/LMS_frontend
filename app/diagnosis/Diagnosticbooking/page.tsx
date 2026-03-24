@@ -30,10 +30,10 @@ import {
   Ruler,
   Info
 } from 'lucide-react';
-import { 
-  Button, 
-  Badge, 
-  RightDrawer, 
+import {
+  Button,
+  Badge,
+  RightDrawer,
   Card,
   Input,
   Label,
@@ -138,7 +138,11 @@ function AddInvestigationsModal({ isOpen, onClose, onAdd }: { isOpen: boolean; o
     <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Add Investigations"
+      title={
+        <>
+          Add <span className="text-emerald-200">Investigations</span>
+        </>
+      }
       description="Search and select lab tests"
       footer={footer}
     >
@@ -208,10 +212,10 @@ export default function DiagnosticBookingPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <AddInvestigationsModal 
-        isOpen={addInvOpen} 
-        onClose={() => setAddInvOpen(false)} 
-        onAdd={(inv) => setInvestigations(prev => [...prev, ...inv])} 
+      <AddInvestigationsModal
+        isOpen={addInvOpen}
+        onClose={() => setAddInvOpen(false)}
+        onAdd={(inv) => setInvestigations(prev => [...prev, ...inv])}
       />
 
       {/* ── Header ── */}
@@ -224,7 +228,7 @@ export default function DiagnosticBookingPage() {
             Diagnostic Booking
           </h1>
           <p className="text-slate-500 text-sm font-semibold mt-1 flex items-center gap-2">
-            Patient Intake Workflow <span className="w-1 h-1 rounded-full bg-slate-300"></span> 
+            Patient Intake Workflow <span className="w-1 h-1 rounded-full bg-slate-300"></span>
             <span className="text-emerald-600 font-bold">HO(IP) Branch</span>
           </p>
         </div>
@@ -241,7 +245,7 @@ export default function DiagnosticBookingPage() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
         {/* ── Main Form Column ── */}
         <div className="xl:col-span-8 space-y-8">
-          
+
           {/* Section 1: Identity & Sync */}
           <Card className="p-6 border-gray-300 overflow-hidden relative shadow-sm">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
@@ -378,13 +382,13 @@ export default function DiagnosticBookingPage() {
                   {DISEASES.map(d => {
                     const active = form.diseases.includes(d);
                     return (
-                      <button 
-                        key={d} 
-                        onClick={() => toggleDisease(d)} 
+                      <button
+                        key={d}
+                        onClick={() => toggleDisease(d)}
                         className={cn(
                           "px-4 py-2 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 border",
-                          active 
-                            ? "bg-[#050b18] text-white border-transparent shadow-lg" 
+                          active
+                            ? "bg-[#050b18] text-white border-transparent shadow-lg"
                             : "bg-white border-gray-300 text-slate-400 hover:border-emerald-200 hover:text-slate-600 shadow-sm"
                         )}
                       >
@@ -536,7 +540,7 @@ export default function DiagnosticBookingPage() {
                     <span className="text-xs font-black text-slate-900 uppercase text-gray-500">Final Amount Due</span>
                     <span className="text-2xl font-black text-[#050b18]">₹{totalDue.toLocaleString()}</span>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 gap-3">
                     <div className="relative group">
                       <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />

@@ -70,7 +70,11 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="New Registration"
+      title={
+        <>
+          New <span className="text-emerald-200">Registration</span>
+        </>
+      }
       description="Institutional Patient Intake"
       footer={footer}
       maxWidth="md"

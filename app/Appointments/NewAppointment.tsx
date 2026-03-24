@@ -209,7 +209,11 @@ export default function NewAppointment({
     <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={initial ? 'Update Visit' : 'Schedule Visit'}
+      title={
+        <>
+          {initial ? 'Update' : 'Schedule'} <span className="text-emerald-200">Visit</span>
+        </>
+      }
       description="Patient Consultation Workflow"
       footer={footer}
       maxWidth="md"

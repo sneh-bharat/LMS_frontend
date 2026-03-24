@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export default function Topbar({ onToggleSidebar }) {
     return (
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 gap-4 sticky top-0 z-[100] transition-all shadow-sm">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 gap-4 sticky top-0 z-49 transition-all shadow-sm">
             {/* ── Hamburger ── */}
             <button
                 onClick={onToggleSidebar}
