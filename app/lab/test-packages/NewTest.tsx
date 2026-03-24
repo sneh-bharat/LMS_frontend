@@ -444,7 +444,9 @@ function TestSelectionModal({
           {/* CATEGORY SELECT */}
           <Select
             value={selectedCategory}
-            onValueChange={(value: string) => setSelectedCategory(value)}
+            onValueChange={(value) => {
+              if (value !== null) setSelectedCategory(value);
+            }}
           >
             <SelectTrigger className="w-full sm:w-[180px] px-4 py-2.5 h-[42px] rounded-lg border border-slate-300 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
               <SelectValue placeholder="Category" />
