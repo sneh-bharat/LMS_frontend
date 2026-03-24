@@ -99,11 +99,11 @@ const NAV = [
         label: 'Accounts',
         icon: <CreditCard size={20} />,
         children: [
-            { label: 'Cash Expense', href: '/accounts/cash' },
-            { label: 'Bank Expense', href: '/accounts/bank' },
+            { label: 'Cash Expense', href: '/accounts/cash-expense' },
+            { label: 'Bank Expense', href: '/accounts/bank-expense' },
             { label: 'Franchise Due List', href: '/accounts/franchise-due' },
             { label: 'Franchise Ledger', href: '/accounts/franchise-ledger' },
-            { label: 'Vendors', href: '/accounts/vendors' },
+            { label: 'Invoice', href: '/accounts/invoice' },
         ],
     },
     {
