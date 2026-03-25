@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
-
+import { RightDrawer } from '@/components/ui/right-drawer'; 
 interface Doctor {
   id: number;
   name: string;
@@ -139,34 +139,33 @@ export default function NewDoctorModal({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={handleClose}
-      />
-
-      {/* Main Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-teal-50 to-blue-50 px-8 py-6 border-b border-teal-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                {editData ? 'Edit' : 'Add New'} <span className="text-teal-600">Doctor</span>
-              </h2>
-              <p className="text-sm text-slate-600">
-                {editData ? 'Update doctor information' : 'Add a new doctor to the system'}
-              </p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
-            >
-              <X size={24} />
-            </button>
-          </div>
-
+      <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editData ? 'Edit Doctor' : 'New Doctor'}
+      description={editData ? 'Update doctor details' : 'Add a new doctor'}
+      footer={
+        <div className="flex gap-3 w-full">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="concession-form"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+          >
+            Save
+          </button>
+        </div>
+      }
+      maxWidth="md"
+    >
           {/* Content */}
-          <div className="p-8 space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto">
+        
             {/* Basic Information */}
             <div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
@@ -459,25 +458,8 @@ export default function NewDoctorModal({
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="bg-slate-50 px-8 py-4 border-t border-slate-200 flex gap-3 justify-end">
-            <button
-              onClick={handleClose}
-              className="px-6 py-2 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-all text-sm"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold hover:from-teal-600 hover:to-blue-600 transition-all text-sm shadow-md"
-            >
-              {editData ? 'Update' : 'Add'} Doctor
-            </button>
-          </div>
-        </div>
-      </div>
+          
+    </RightDrawer>
     </>
   );
 }

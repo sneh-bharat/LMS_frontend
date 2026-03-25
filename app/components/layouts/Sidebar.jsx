@@ -29,7 +29,6 @@ const NAV = [
             { label: 'Diagnostic Booking', href: '/diagnosis/Diagnosticbooking' },
             { label: 'Report Unlock Request', href: '/report-unlock' },
             { label: 'Find Register Patient', href: '/register-patient' },
-            { label: 'User Access Control', href: '#' },
             { label: 'Error Invoices', href: '#' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Daily Worksheet', href: '#' },
@@ -70,6 +69,9 @@ const NAV = [
         label: 'Polyclinic',
         icon: <Stethoscope size={20} />,
         children: [
+            { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
+            { label: 'OPD Schedule', href: '/polyclinic/opdschedule' },
+            { label: 'Patient Queue', href: '/polyclinic/patientqueue' },
             { label: 'Invoice List', href: '/reception' },
             
         ],
@@ -81,6 +83,7 @@ const NAV = [
         children: [
             { label: 'Pathology Parameter', href: '/reports/pathology-parameter' },
             { label: 'Signature', href: '/reports/Signature' },
+            { label: 'Result Verification', href: '/reports/result-verification' },
             { label: 'Report Unlock', href: '/report-unlock' },
         ],
     },
@@ -113,6 +116,7 @@ const NAV = [
         children: [
             { label: 'Concession Authority', href: '/ConcessionAuthority' },
             { label: 'Users', href: '/management/users' },
+              { label: 'User Access Control', href: '/management/userAccess' },
             { label: 'Patient Information', href: '/register-patient' },
             { label: 'Management Doctor', href: '/management/management-docotor' },
             { label: 'Vendors & Suppliers', href: '/management/vendors' },

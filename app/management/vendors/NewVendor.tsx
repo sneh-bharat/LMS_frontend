@@ -2,6 +2,18 @@
 
 import { useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
+import { RightDrawer } from '@/components/ui/right-drawer'; 
+import {
+  Input,
+  Button,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui';
+
 
 export interface FormData {
   name: string;
@@ -72,23 +84,32 @@ export default function NewVendor({ isOpen, onClose, onSubmit, editData }: NewVe
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-slate-200 bg-white">
-          <h2 className="text-xl font-bold text-slate-900">
-            {editData ? 'Edit Vendor' : 'Add New Vendor'}
-          </h2>
+     <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editData ? 'Edit Vendor' : ' Add Vendor'}
+      description={editData ? 'Update doctor details' : 'Add a new doctor'}
+      footer={
+        <div className="flex gap-3 w-full">
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+            className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
           >
-            <X size={24} className="text-slate-400" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="concession-form"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+          >
+            Save
           </button>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      }
+      maxWidth="md"
+    >
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Vendor Name */}
           <div>
             <label className="block text-sm font-semibold text-slate-900 mb-2">
@@ -273,25 +294,8 @@ export default function NewVendor({ isOpen, onClose, onSubmit, editData }: NewVe
               </div>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 justify-end pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Save
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+          
+    </RightDrawer>
   );
 }

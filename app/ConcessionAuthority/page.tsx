@@ -10,7 +10,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-
+import { RightDrawer } from '@/components/ui/right-drawer'; 
 interface ConcessionAuthority {
   id: number;
   name: string;
@@ -72,93 +72,83 @@ function NewConcessionModal({
     e.preventDefault();
     onSubmit(formData);
     setFormData({ name: '', allowedPercentage: 1 });
+    onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">
-            {editData ? 'Edit Concession Authority' : 'New Concession Authority.'}
-          </h2>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editData ? 'Edit Concession Authority' : 'New Concession Authority'}
+      description={editData ? 'Update concession details' : 'Add a new concession authority'}
+      footer={
+        <div className="flex gap-3 w-full">
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+            className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
           >
-            <X size={20} className="text-slate-400" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="concession-form"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+          >
+            Save
           </button>
         </div>
+      }
+      maxWidth="md"
+    >
+      <form id="concession-form" onSubmit={handleSubmit} className="space-y-6">
+        {/* Name Field */}
+        <div>
+          <label className="block text-sm font-bold text-slate-900 mb-2">
+            Name
+          </label>
+          <input
+            type="text"
+            placeholder="Enter concession name"
+            value={formData.name}
+            onChange={(e) =>
+              setFormData({ ...formData, name: e.target.value })
+            }
+            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 placeholder-slate-400"
+            required
+          />
+        </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name Field */}
-          <div>
-            <label className="block text-sm font-medium text-slate-900 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              placeholder="Name"
-              value={formData.name}
+        {/* Percentage Field */}
+        <div>
+          <label className="block text-sm font-bold text-slate-900 mb-2">
+            Concession Allowed (%)
+          </label>
+          <div className="relative">
+            <select
+              value={formData.allowedPercentage}
               onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+                setFormData({
+                  ...formData,
+                  allowedPercentage: Number(e.target.value),
+                })
               }
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 placeholder-slate-400"
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 appearance-none bg-white cursor-pointer"
+            >
+              {PERCENTAGE_OPTIONS.map((percentage) => (
+                <option key={percentage} value={percentage}>
+                  {percentage}%
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={18}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
             />
           </div>
-
-          {/* Percentage Field */}
-          <div>
-            <label className="block text-sm font-medium text-slate-900 mb-2">
-              Concession Allowed (%)
-            </label>
-            <div className="relative">
-              <select
-                value={formData.allowedPercentage}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    allowedPercentage: Number(e.target.value),
-                  })
-                }
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 appearance-none bg-white cursor-pointer"
-              >
-                {PERCENTAGE_OPTIONS.map((percentage) => (
-                  <option key={percentage} value={percentage}>
-                    {percentage} %
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={18}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 justify-end pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
-              
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </RightDrawer>
   );
 }
 

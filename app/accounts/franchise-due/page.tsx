@@ -320,7 +320,8 @@ const FranchiseDueList = () => {
               </button>
               <button
                 onClick={() => { setEditingRecord(null); setIsModalOpen(true); }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-xl hover:from-teal-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+
               >
                 <Plus size={20} /> Add Due
               </button>
