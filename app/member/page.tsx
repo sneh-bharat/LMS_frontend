@@ -217,7 +217,7 @@ export default function MembersPage() {
     {
       key: 'cashbackPercentage',
       label: 'Cashback',
-      align: 'center',
+      align: 'center' as const,
       render: (value: number) => (
         <div className="text-sm font-bold text-emerald-600 tracking-tight">{value}%</div>
       ),
@@ -225,7 +225,7 @@ export default function MembersPage() {
     {
       key: 'discountPercentage',
       label: 'Discount',
-      align: 'center',
+      align: 'center' as const,
       render: (value: number) => (
         <div className="text-sm font-bold text-blue-600 tracking-tight">{value}%</div>
       ),
@@ -268,7 +268,7 @@ export default function MembersPage() {
     {
       key: 'actions',
       label: 'Actions',
-      align: 'center',
+      align: 'center' as const,
       render: (_: any, row: Member) => (
         <div className="flex items-center justify-center gap-2">
           <button

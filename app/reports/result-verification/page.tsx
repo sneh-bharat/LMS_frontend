@@ -5,8 +5,7 @@ import Table from '@/components/ui/table';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
-import Modal from '@/components/ui/modal';
-import {filterdata} from './filter';
+import { RightDrawer } from '@/components/ui/right-drawer';
 import { 
   Search, 
   CheckCircle, 
@@ -298,7 +297,7 @@ export default function ResultVerificationPage() {
       key: 'actions',
       label: 'Actions',
       width: '180px',
-      align: 'right',
+      align: 'right' as const,
       render: (_: any, row: PendingResult) => (
         <div className="flex gap-2 justify-end">
           {row.status === 'Pending' && (
@@ -459,14 +458,15 @@ export default function ResultVerificationPage() {
       </div>
 
       {/* Verification Modal */}
-      <Modal
+      <RightDrawer
         isOpen={isVerifyModalOpen}
         onClose={() => setIsVerifyModalOpen(false)}
         title={
           <>
-            Verify <span className="text-emerald-600">Result</span>
+            Verify <span className="text-emerald-200">Result</span>
           </>
         }
+        description="Review and verify the test result before approval"
         footer={
           <div className="flex gap-3 w-full">
             <Button
@@ -479,7 +479,7 @@ export default function ResultVerificationPage() {
             </Button>
             <Button
               type="button"
-              variant="success"
+              variant="gradient"
               onClick={handleConfirmVerification}
               className="flex-1 gap-2"
             >
@@ -610,7 +610,7 @@ export default function ResultVerificationPage() {
             )}
           </div>
         )}
-      </Modal>
+      </RightDrawer>
     </div>
   );
 }
