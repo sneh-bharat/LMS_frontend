@@ -21,110 +21,97 @@ import {
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import Table from '@/components/ui/table';
-
 // ─── Data Types ──────────────────────────────────────────────────────────────
 
-export interface PaymentHistory {
+export interface BankHistory {
   id: number;
 
-  // Patient Info
-  patientId: number;
-  patientName: string;
-  mobileNumber: string;
+  // Bank Info
+  bankId: number;
+  bankName: string;
 
-  // Invoice Info
-  invoiceId: string;
-  visitType: 'OPD' | 'Diagnostic';
-
-  // Payment Details
+  // Transaction Info
+  type: 'Deposit' | 'Withdrawal' | 'Transfer';
   amount: number;
-  paymentMode: 'Cash' | 'Card' | 'UPI' | 'Bank Transfer';
-  transactionId?: string;
 
-  // Optional Breakdown
-  discount?: number;
-  tax?: number;
-  netAmount: number;
+  // Transfer-specific (optional)
+  fromBank?: string;
+  toBank?: string;
+
+  // Details
+  referenceNumber?: string;
+  description?: string;
 
   // Dates
-  paymentDate: string; // ISO format
+  transactionDate: string; // ISO format
   createdAt: string;
 
   // Status
-  status: 'Paid' | 'Pending' | 'Failed' | 'Refunded';
+  status: 'Success' | 'Pending' | 'Failed';
 
-  // Extra Info
-  remarks?: string;
+  // Balance Tracking
+  balanceAfterTransaction?: number;
 }
 
-export const SAMPLE_PAYMENT_HISTORY: PaymentHistory[] = [
+export const SAMPLE_BANK_HISTORY: BankHistory[] = [
   {
     id: 1,
-    patientId: 101,
-    patientName: 'Rahul Sharma',
-    mobileNumber: '9876543210',
-    invoiceId: 'INV-1001',
-    visitType: 'Diagnostic',
-    amount: 1500,
-    paymentMode: 'UPI',
-    transactionId: 'UPI123456',
-    discount: 100,
-    tax: 50,
-    netAmount: 1450,
-    paymentDate: '2026-03-25T10:00:00Z',
-    createdAt: '2026-03-25T10:00:00Z',
-    status: 'Paid',
-    remarks: 'Blood test payment',
+    bankId: 1,
+    bankName: 'State Bank of India',
+    type: 'Deposit',
+    amount: 5000,
+    referenceNumber: 'TXN12345',
+    description: 'Patient payment deposit',
+    transactionDate: '2026-03-25T10:30:00Z',
+    createdAt: '2026-03-25T10:30:00Z',
+    status: 'Success',
+    balanceAfterTransaction: 15000,
   },
   {
     id: 2,
-    patientId: 102,
-    patientName: 'Priya Das',
-    mobileNumber: '9123456780',
-    invoiceId: 'INV-1002',
-    visitType: 'OPD',
-    amount: 500,
-    paymentMode: 'Cash',
-    netAmount: 500,
-    paymentDate: '2026-03-25T11:30:00Z',
-    createdAt: '2026-03-25T11:30:00Z',
-    status: 'Paid',
+    bankId: 1,
+    bankName: 'State Bank of India',
+    type: 'Withdrawal',
+    amount: 2000,
+    referenceNumber: 'TXN12346',
+    description: 'Lab equipment purchase',
+    transactionDate: '2026-03-25T12:00:00Z',
+    createdAt: '2026-03-25T12:00:00Z',
+    status: 'Success',
+    balanceAfterTransaction: 13000,
   },
   {
     id: 3,
-    patientId: 103,
-    patientName: 'Amit Khan',
-    mobileNumber: '9988776655',
-    invoiceId: 'INV-1003',
-    visitType: 'Diagnostic',
-    amount: 2000,
-    paymentMode: 'Card',
-    transactionId: 'CARD78910',
-    netAmount: 2000,
-    paymentDate: '2026-03-25T12:45:00Z',
-    createdAt: '2026-03-25T12:45:00Z',
+    bankId: 2,
+    bankName: 'HDFC Bank',
+    type: 'Transfer',
+    amount: 3000,
+    fromBank: 'HDFC Bank',
+    toBank: 'ICICI Bank',
+    referenceNumber: 'TXN12347',
+    description: 'Fund transfer',
+    transactionDate: '2026-03-25T14:00:00Z',
+    createdAt: '2026-03-25T14:00:00Z',
     status: 'Pending',
+    balanceAfterTransaction: 7000,
   },
 ];
-
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'Paid': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'Success': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
     case 'Pending': return 'bg-amber-100 text-amber-700 border-amber-200';
     case 'Failed': return 'bg-rose-100 text-rose-700 border-rose-200';
-    case 'Refunded': return 'bg-blue-100 text-blue-700 border-blue-200';
     default: return 'bg-slate-100 text-slate-600 border-slate-200';
   }
 }
 
-function getPaymentModeColor(mode: string): string {
-  switch (mode) {
-    case 'Cash': return 'text-green-600';
-    case 'Card': return 'text-blue-600';
-    case 'UPI': return 'text-purple-600';
-    case 'Bank Transfer': return 'text-indigo-600';
+function getTypeColor(type: string): string {
+  switch (type) {
+    case 'Deposit': return 'text-emerald-600';
+    case 'Withdrawal': return 'text-rose-600';
+    case 'Transfer': return 'text-blue-600';
     default: return 'text-slate-600';
   }
 }
@@ -142,93 +129,98 @@ function formatDate(isoString: string): string {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-}
-
-function formatTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
   });
 }
 
-function getPaymentModeIcon(mode: string) {
-  switch (mode) {
-    case 'Cash': return <ArrowDownLeft size={16} />;
-    case 'Card': return <ArrowRightLeft size={16} />;
-    case 'UPI': return <Activity size={16} />;
-    case 'Bank Transfer': return <Building2 size={16} />;
+function getTransactionIcon(type: string) {
+  switch (type) {
+    case 'Deposit': return <ArrowDownLeft size={16} />;
+    case 'Withdrawal': return <ArrowUpRight size={16} />;
+    case 'Transfer': return <ArrowRightLeft size={16} />;
     default: return <Activity size={16} />;
   }
 }
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
-export default function PaymentHistoryPage() {
-  const [history, setHistory] = useState<PaymentHistory[]>(SAMPLE_PAYMENT_HISTORY);
+export default function BankHistoryPage() {
+  const [history, setHistory] = useState<BankHistory[]>(SAMPLE_BANK_HISTORY);
   const [search, setSearch] = useState('');
-  const [visitTypeFilter, setVisitTypeFilter] = useState<string>('All');
+  const [typeFilter, setTypeFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>('All');
 
   const filteredHistory = history.filter(record => {
     const matchesSearch =
-      record.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      record.mobileNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      record.invoiceId?.toLowerCase().includes(search.toLowerCase());
+      record.bankName.toLowerCase().includes(search.toLowerCase()) ||
+      record.referenceNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      record.description?.toLowerCase().includes(search.toLowerCase());
     
-    const matchesVisitType = visitTypeFilter === 'All' || record.visitType === visitTypeFilter;
+    const matchesType = typeFilter === 'All' || record.type === typeFilter;
     const matchesStatus = statusFilter === 'All' || record.status === statusFilter;
-    const matchesPaymentMode = paymentModeFilter === 'All' || record.paymentMode === paymentModeFilter;
+    const matchesDateRange = dateRangeFilter === 'All'; // Can be enhanced with actual date range logic
     
-    return matchesSearch && matchesVisitType && matchesStatus && matchesPaymentMode;
+    return matchesSearch && matchesType && matchesStatus && matchesDateRange;
   });
 
   const columns = [
     {
-      key: 'paymentDate',
+      key: 'transactionDate',
       label: 'Date & Time',
-      render: (value: string, row: PaymentHistory) => (
+      render: (value: string, row: BankHistory) => (
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Calendar size={14} className="text-slate-400" />
             <span className="font-bold text-slate-900 text-sm">{formatDate(value)}</span>
           </div>
           <div className="text-xs text-slate-500">
-            {formatTime(value)}
+            {new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       ),
     },
     {
-      key: 'patientName',
-      label: 'Patient Name',
-      render: (value: string, row: PaymentHistory) => (
-        <div>
-          <div className="font-bold text-slate-900 text-sm">{value}</div>
-          <div className="text-xs text-slate-500">{row.mobileNumber}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'invoiceId',
-      label: 'Invoice',
-      render: (value: string, row: PaymentHistory) => (
-        <div>
-          <div className="font-bold text-slate-900 text-sm">{value}</div>
-          <div className="text-xs text-slate-500">{row.visitType}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'paymentMode',
-      label: 'Payment Mode',
-      render: (value: string, row: PaymentHistory) => (
+      key: 'type',
+      label: 'Type',
+      render: (value: string, row: BankHistory) => (
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-slate-100 ${getPaymentModeColor(value)}`}>
-            {getPaymentModeIcon(value)}
+          <div className={`p-1.5 rounded-lg bg-slate-100 ${getTypeColor(value)}`}>
+            {getTransactionIcon(value)}
           </div>
-          <span className="font-bold text-slate-900 text-sm">{value}</span>
+          <span className="font-bold text-slate-900">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'bankName',
+      label: 'Bank Details',
+      render: (_: any, row: BankHistory) => (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Building2 size={14} className="text-slate-400" />
+            <span className="font-bold text-slate-900">{row.bankName}</span>
+          </div>
+          {row.type === 'Transfer' && row.fromBank && row.toBank && (
+            <div className="text-[10px] text-slate-500">
+              {row.fromBank} → {row.toBank}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      render: (value: string, row: BankHistory) => (
+        <div>
+          <div className="font-bold text-slate-900 text-sm">{value || '—'}</div>
+          {row.referenceNumber && (
+            <div className="text-[10px] text-slate-500 font-mono">
+              Ref: {row.referenceNumber}
+            </div>
+          )}
         </div>
       ),
     },
@@ -236,22 +228,17 @@ export default function PaymentHistoryPage() {
       key: 'amount',
       label: 'Amount',
       align: 'right' as const,
-      render: (value: number, row: PaymentHistory) => (
+      render: (value: number, row: BankHistory) => (
         <div className="text-right">
-          <div className="text-sm font-black text-emerald-600">
-            {formatCurrency(value)}
+          <div className={`text-sm font-black ${getTypeColor(row.type)}`}>
+            {row.type === 'Deposit' ? '+' : '-'}{formatCurrency(value)}
           </div>
-          {row.discount && (
-            <div className="text-xs text-slate-500">
-              Discount: {formatCurrency(row.discount)}
-            </div>
-          )}
         </div>
       ),
     },
     {
-      key: 'netAmount',
-      label: 'Net Amount',
+      key: 'balanceAfterTransaction',
+      label: 'Balance After',
       align: 'right' as const,
       render: (value: number) => (
         <div className="text-right">
@@ -264,12 +251,11 @@ export default function PaymentHistoryPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (value: string, row: PaymentHistory) => (
+      render: (value: string, row: BankHistory) => (
         <Badge className={`${getStatusColor(value)} border font-bold`}>
-          {value === 'Paid' && <CheckCircle size={12} className="mr-1" />}
+          {value === 'Success' && <CheckCircle size={12} className="mr-1" />}
           {value === 'Pending' && <Clock size={12} className="mr-1" />}
           {value === 'Failed' && <XCircle size={12} className="mr-1" />}
-          {value === 'Refunded' && <ArrowDownLeft size={12} className="mr-1" />}
           {value}
         </Badge>
       ),
@@ -277,10 +263,10 @@ export default function PaymentHistoryPage() {
   ];
 
   const stats = {
-    totalPayments: history.length,
-    totalAmount: history.reduce((sum, h) => sum + h.netAmount, 0),
-    paidPayments: history.filter(h => h.status === 'Paid').length,
-    pendingPayments: history.filter(h => h.status === 'Pending').length,
+    totalTransactions: history.length,
+    totalDeposits: history.filter(h => h.type === 'Deposit').reduce((sum, h) => sum + h.amount, 0),
+    totalWithdrawals: history.filter(h => h.type === 'Withdrawal').reduce((sum, h) => sum + h.amount, 0),
+    pendingTransactions: history.filter(h => h.status === 'Pending').length,
   };
 
   return (
@@ -290,9 +276,9 @@ export default function PaymentHistoryPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
             <FileText size={28} className="text-emerald-600" />
-            Payment History
+            Bank Transaction History
           </h1>
-          <p className="text-sm text-slate-500">Track all patient payments and invoices</p>
+          <p className="text-sm text-slate-500">Track all bank transactions and transfers</p>
         </div>
       </div>
 
@@ -303,9 +289,9 @@ export default function PaymentHistoryPage() {
             <div className="w-10 h-10 rounded-xl bg-blue-400/30 flex items-center justify-center">
               <Activity size={20} className="text-blue-600" />
             </div>
-            <span className="text-blue-700 font-bold text-xs uppercase tracking-wider">Total Payments</span>
+            <span className="text-blue-700 font-bold text-xs uppercase tracking-wider">Total Transactions</span>
           </div>
-          <div className="text-3xl font-black text-slate-900">{stats.totalPayments}</div>
+          <div className="text-3xl font-black text-slate-900">{stats.totalTransactions}</div>
         </div>
 
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
@@ -313,19 +299,19 @@ export default function PaymentHistoryPage() {
             <div className="w-10 h-10 rounded-xl bg-emerald-400/30 flex items-center justify-center">
               <TrendingUp size={20} className="text-emerald-600" />
             </div>
-            <span className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Total Amount</span>
+            <span className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Total Deposits</span>
           </div>
-          <div className="text-2xl font-black text-emerald-600">{formatCurrency(stats.totalAmount)}</div>
+          <div className="text-2xl font-black text-emerald-600">{formatCurrency(stats.totalDeposits)}</div>
         </div>
 
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-green-400/30 flex items-center justify-center">
-              <CheckCircle size={20} className="text-green-600" />
+            <div className="w-10 h-10 rounded-xl bg-rose-400/30 flex items-center justify-center">
+              <TrendingDown size={20} className="text-rose-600" />
             </div>
-            <span className="text-green-700 font-bold text-xs uppercase tracking-wider">Paid</span>
+            <span className="text-rose-700 font-bold text-xs uppercase tracking-wider">Total Withdrawals</span>
           </div>
-          <div className="text-3xl font-black text-slate-900">{stats.paidPayments}</div>
+          <div className="text-2xl font-black text-rose-600">{formatCurrency(stats.totalWithdrawals)}</div>
         </div>
 
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
@@ -335,7 +321,7 @@ export default function PaymentHistoryPage() {
             </div>
             <span className="text-amber-700 font-bold text-xs uppercase tracking-wider">Pending</span>
           </div>
-          <div className="text-3xl font-black text-slate-900">{stats.pendingPayments}</div>
+          <div className="text-3xl font-black text-slate-900">{stats.pendingTransactions}</div>
         </div>
       </div>
 
@@ -346,7 +332,7 @@ export default function PaymentHistoryPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by patient name, phone, or invoice..."
+            placeholder="Search by bank, reference, or description..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
           />
         </div>
@@ -354,13 +340,14 @@ export default function PaymentHistoryPage() {
           <div className="relative flex-1 lg:w-40 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
-              value={visitTypeFilter}
-              onChange={(e) => setVisitTypeFilter(e.target.value)}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
             >
-              <option value="All">All Visit Types</option>
-              <option value="OPD">OPD</option>
-              <option value="Diagnostic">Diagnostic</option>
+              <option value="All">All Types</option>
+              <option value="Deposit">Deposit</option>
+              <option value="Withdrawal">Withdrawal</option>
+              <option value="Transfer">Transfer</option>
             </select>
           </div>
           <div className="relative flex-1 lg:w-40 group">
@@ -371,24 +358,9 @@ export default function PaymentHistoryPage() {
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
             >
               <option value="All">All Status</option>
-              <option value="Paid">Paid</option>
+              <option value="Success">Success</option>
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
-              <option value="Refunded">Refunded</option>
-            </select>
-          </div>
-          <div className="relative flex-1 lg:w-40 group">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <select
-              value={paymentModeFilter}
-              onChange={(e) => setPaymentModeFilter(e.target.value)}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-            >
-              <option value="All">All Payment Modes</option>
-              <option value="Cash">Cash</option>
-              <option value="Card">Card</option>
-              <option value="UPI">UPI</option>
-              <option value="Bank Transfer">Bank Transfer</option>
             </select>
           </div>
         </div>
@@ -399,11 +371,11 @@ export default function PaymentHistoryPage() {
         <Table columns={columns} data={filteredHistory} />
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Showing {filteredHistory.length} of {history.length} Payments
+            Showing {filteredHistory.length} of {history.length} Transactions
           </span>
           <span className="text-[10px] font-bold text-slate-500">
-            Total Collected: <span className='text-emerald-600'>
-              {formatCurrency(filteredHistory.reduce((sum, h) => sum + h.netAmount, 0))}
+            Net Flow: <span className={stats.totalDeposits >= stats.totalWithdrawals ? 'text-emerald-600' : 'text-rose-600'}>
+              {formatCurrency(stats.totalDeposits - stats.totalWithdrawals)}
             </span>
           </span>
         </div>

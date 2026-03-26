@@ -104,9 +104,12 @@ const NAV = [
         children: [
             { label: 'Cash Expense', href: '/accounts/cash-expense' },
             { label: 'Bank Expense', href: '/accounts/bank-expense' },
-            { label: 'Franchise Due List', href: '/accounts/franchise-due' },
+            { label: 'Bank Info', href: '/accounts/BankInfo' },
+            { label: 'Bank History', href: '/accounts/bank-history' },
+            { label: 'Payment History', href: '/accounts/payment-history' },
             { label: 'Franchise Ledger', href: '/accounts/franchise-ledger' },
             { label: 'Invoice', href: '/accounts/invoice' },
+            { label: 'Financial reports', href: '/accounts/financial-reports' },
         ],
     },
     {
