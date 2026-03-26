@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'Enterprise-grade laboratory and diagnostic management system for seamless clinical workflows and quality control.',
   keywords: ['diagnostic', 'lab management', 'wellnesshive', 'clinical workflow', 'healthcare systems'],
   icons: {
-    icon: '/images/favicon2.png',
+    icon: '/images/favicon.jpg',
   },
 };
 

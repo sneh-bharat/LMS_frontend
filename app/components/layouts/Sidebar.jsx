@@ -14,6 +14,7 @@ import {
     Activity
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NAV DATA
@@ -159,7 +160,7 @@ export default function Sidebar({ isOpen }) {
     return (
         <aside
             className={cn(
-                "flex flex-col h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-blue-950 border-r border-white/10 transition-all duration-300 ease-in-out relative z-49 shadow-2xl",
+                "flex flex-col h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-blue-950 border-r border-white/10 transition-all duration-300 ease-in-out relative z-49 shadow-2xl overflow-y-auto",
                 isOpen ? 'w-72' : 'w-20'
             )}
         >
@@ -176,13 +177,13 @@ export default function Sidebar({ isOpen }) {
                 )}>
                     {isOpen ? (
                         <img 
-                            src="/images/sneh-bharat-logo.jpeg" 
+                            src="/images/logo.webp" 
                             alt="WellnessHive Logo" 
                             className="w-full h-auto object-contain max-h-16"
                         />
                     ) : (
                         <img 
-                            src="/images/favicon2.png" 
+                            src="/images/favicon.jpg" 
                             alt="Icon" 
                             className="w-full h-full object-contain"
                         />
@@ -260,7 +261,11 @@ export default function Sidebar({ isOpen }) {
                         </div>
                     );
                 })}
+                 <div className="h-24"/>
             </nav>
+           
+               
+            
         </aside>
     );
 }

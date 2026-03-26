@@ -1,6 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Button,
+  Input,
+  Label,
+  RightDrawer,
+} from '@/components/ui';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Beaker, ShieldCheck, Microscope, Layers, Activity, Code2 } from 'lucide-react';
 
 interface Parameter {
   id: number; name: string; nabl: string; specimenType: string;
@@ -10,14 +24,6 @@ interface Parameter {
   interface2: string; calc: string; paramCode: string;
 }
 
-const inp: React.CSSProperties = {
-  width: '100%', border: '1.5px solid #d1d5db', borderRadius: 5,
-  padding: '7px 9px', fontSize: 13, color: '#333', outline: 'none',
-  background: '#fff', boxSizing: 'border-box' as const, fontFamily: 'inherit',
-};
-const selS: React.CSSProperties = { ...inp, cursor: 'pointer' };
-const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
-
 const BLANK_PARAM: Omit<Parameter, 'id'> = {
   name: '', nabl: 'NA', specimenType: 'N/A', method: '', unit: '',
   type: 'Input Box', priority: '', isRequired: 'N/A',
@@ -25,132 +31,262 @@ const BLANK_PARAM: Omit<Parameter, 'id'> = {
   interface1: 'Instrument 1', interface2: 'Instrument 2', calc: 'No', paramCode: '',
 };
 
-// ─── Parameter Modal Component ───────────────────────────────────────────────
 export function ParameterModal({ isOpen, onClose, onSave }: {
   isOpen: boolean; onClose: () => void; onSave: (p: Parameter) => void;
 }) {
   const [form, setForm] = useState({ ...BLANK_PARAM });
-  const s = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
 
-  if (!isOpen) return null;
-  
+  const handleSubmit = () => {
+    onSave({ id: Date.now(), ...form });
+    setForm({ ...BLANK_PARAM });
+    onClose();
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 8, width: 480, maxWidth: '95vw', padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '92vh', overflowY: 'auto' as const }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Parameter</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#666' }}>×</button>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Configure Parameter Details"
+      description="Manage clinical methodology, specimen requirements, and analytical interfaces for this parameter."
+      footer={
+        <div className="flex w-full gap-3">
+          <Button variant="outline" className="flex-1 rounded-xl h-12 font-bold" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="gradient" className="flex-1 rounded-xl h-12 font-bold shadow-lg shadow-green-500/20" onClick={handleSubmit}>
+            Update Configuration
+          </Button>
         </div>
-
-        {/* Row 1: Parameter Name + NABL */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Parameter Name</label>
-            <input value={form.name} onChange={s('name')} style={inp} />
+      }
+    >
+      <div className="space-y-8 pb-8">
+        {/* Basic Identification */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Beaker className="text-emerald-500" size={18} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Identification</h4>
           </div>
-          <div>
-            <label style={lbl}>NABL</label>
-            <select value={form.nabl} onChange={s('nabl')} style={selS}>
-              <option>NA</option><option>Yes</option><option>No</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 2: Specimen + Method + Unit */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Specimen Type</label>
-            <select value={form.specimenType} onChange={s('specimenType')} style={selS}>
-              <option>N/A</option><option>Blood</option><option>Urine</option><option>Serum</option><option>Plasma</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Method</label>
-            <input value={form.method} onChange={s('method')} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Unit</label>
-            <input value={form.unit} onChange={s('unit')} style={inp} />
-          </div>
-        </div>
-
-        {/* Row 3: Type + Priority + Is Required */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Type</label>
-            <select value={form.type} onChange={s('type')} style={selS}>
-              <option>Input Box</option><option>Dropdown</option><option>Textarea</option><option>Checkbox</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Priority</label>
-            <input value={form.priority} onChange={s('priority')} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Is Required</label>
-            <select value={form.isRequired} onChange={s('isRequired')} style={selS}>
-              <option>N/A</option><option>Yes</option><option>No</option>
-            </select>
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-8 space-y-2">
+              <Label htmlFor="param-name">Parameter Name</Label>
+              <Input
+                id="param-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Glucose Fasting"
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
+            <div className="col-span-4 space-y-2">
+              <Label htmlFor="nabl">NABL</Label>
+              <Select value={form.nabl} onValueChange={(v) => setForm({ ...form, nabl: v ?? '' })}>
+                <SelectTrigger id="nabl" className="rounded-xl h-11 font-bold border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="NA">NA</SelectItem>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
-        {/* Row 4: Validation + Left + Bottom + Top */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 70px', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Validation</label>
-            <select value={form.validation} onChange={s('validation')} style={selS}>
-              <option>Alphanumeric</option><option>Numeric</option><option>Text</option>
-            </select>
+        {/* Methodology */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Microscope className="text-blue-500" size={18} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Clinical Methodology</h4>
           </div>
-          <div>
-            <label style={lbl}>Left</label>
-            <select value={form.left} onChange={s('left')} style={selS}>
-              {['0','1','2','3','4','5'].map((v, i) => <option key={`left-${i}`}>{v}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="specimen">Specimen Type</Label>
+              <Select value={form.specimenType} onValueChange={(v) => setForm({ ...form, specimenType: v ?? '' })}>
+                <SelectTrigger id="specimen" className="rounded-xl h-11 font-bold border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="N/A">N/A</SelectItem>
+                  <SelectItem value="Blood">Blood</SelectItem>
+                  <SelectItem value="Urine">Urine</SelectItem>
+                  <SelectItem value="Serum">Serum</SelectItem>
+                  <SelectItem value="Plasma">Plasma</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="method">Method</Label>
+              <Input
+                id="method"
+                value={form.method}
+                onChange={(e) => setForm({ ...form, method: e.target.value })}
+                placeholder="e.g. GOD-PAP"
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
           </div>
-          <div>
-            <label style={lbl}>Bottom</label>
-            <select value={form.bottom} onChange={s('bottom')} style={selS}>
-              {['0','1','2','3','4','5'].map((v, i) => <option key={`bottom-${i}`}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Top</label>
-            <select value={form.top} onChange={s('top')} style={selS}>
-              {['0','1','2','3','4','5'].map((v, i) => <option key={`top-${i}`}>{v}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Input Component Type</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v ?? '' })}>
+                <SelectTrigger id="type" className="rounded-xl h-11 font-bold border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Input Box">Input Box</SelectItem>
+                  <SelectItem value="Dropdown">Dropdown</SelectItem>
+                  <SelectItem value="Textarea">Textarea</SelectItem>
+                  <SelectItem value="Checkbox">Checkbox</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unit</Label>
+              <Input
+                id="unit"
+                value={form.unit}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                placeholder="e.g. mg/dL"
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Row 5: Interface1 + Interface2 + Calc + Param Code */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 1fr', gap: 12, marginBottom: 20 }}>
-          <div>
-            <label style={lbl}>Interface 1</label>
-            <input value={form.interface1} onChange={s('interface1')} placeholder="Instrument 1" style={inp} />
+        {/* Validation & Constraints */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck className="text-amber-500" size={18} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Logic & Constraints</h4>
           </div>
-          <div>
-            <label style={lbl}>Interface 2</label>
-            <input value={form.interface2} onChange={s('interface2')} placeholder="Instrument 2" style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Calc</label>
-            <select value={form.calc} onChange={s('calc')} style={selS}>
-              <option>No</option><option>Yes</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Param Code</label>
-            <input value={form.paramCode} onChange={s('paramCode')} placeholder="Code" style={inp} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="priority">Sorting Priority</Label>
+              <Input
+                id="priority"
+                type="number"
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="required">Field Requirement</Label>
+              <Select value={form.isRequired} onValueChange={(v) => setForm({ ...form, isRequired: v ?? '' })}>
+                <SelectTrigger id="required" className="rounded-xl h-11 font-bold border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="N/A">N/A</SelectItem>
+                  <SelectItem value="Yes">Yes (Mandatory)</SelectItem>
+                  <SelectItem value="No">No (Optional)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e8edf3', paddingTop: 16 }}>
-          <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 5, border: '1.5px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Close</button>
-          <button onClick={() => { onSave({ id: Date.now(), ...form }); setForm({ ...BLANK_PARAM }); onClose(); }}
-            style={{ padding: '7px 18px', borderRadius: 5, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Create</button>
+        {/* Formatting */}
+        <div className="space-y-4 p-5 bg-slate-50/80 border border-slate-100 rounded-3xl">
+          <div className="flex items-center gap-2 mb-2">
+            <Layers className="text-indigo-500" size={18} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Visual Offsets (Margins)</h4>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-slate-500 text-[10px] font-black">LEFT</Label>
+              <Select value={form.left} onValueChange={(v) => setForm({ ...form, left: v ?? '' })}>
+                <SelectTrigger className="rounded-xl h-10 font-bold bg-white border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {['0', '1', '2', '3', '4', '5'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-500 text-[10px] font-black">BOTTOM</Label>
+              <Select value={form.bottom} onValueChange={(v) => setForm({ ...form, bottom: v ?? '' })}>
+                <SelectTrigger className="rounded-xl h-10 font-bold bg-white border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {['0', '1', '2', '3', '4', '5'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-500 text-[10px] font-black">TOP</Label>
+              <Select value={form.top} onValueChange={(v) => setForm({ ...form, top: v ?? '' })}>
+                <SelectTrigger className="rounded-xl h-10 font-bold bg-white border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {['0', '1', '2', '3', '4', '5'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Technical Integration */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="text-rose-500" size={18} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Technical Integration</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="iface1" className="text-slate-500">Analyzer Interface 1</Label>
+              <Input
+                id="iface1"
+                value={form.interface1}
+                onChange={(e) => setForm({ ...form, interface1: e.target.value })}
+                placeholder="Device ID 1"
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="iface2" className="text-slate-500">Analyzer Interface 2</Label>
+              <Input
+                id="iface2"
+                value={form.interface2}
+                onChange={(e) => setForm({ ...form, interface2: e.target.value })}
+                placeholder="Device ID 2"
+                className="rounded-xl h-11 border-slate-200"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-4 space-y-2">
+              <Label htmlFor="calc">Computed</Label>
+              <Select value={form.calc} onValueChange={(v) => setForm({ ...form, calc: v ?? '' })}>
+                <SelectTrigger id="calc" className="rounded-xl h-11 font-bold border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-8 space-y-2">
+              <Label htmlFor="pcode">LIS Parameter Code</Label>
+              <div className="relative group">
+                <Code2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" size={16} />
+                <Input
+                  id="pcode"
+                  value={form.paramCode}
+                  onChange={(e) => setForm({ ...form, paramCode: e.target.value })}
+                  placeholder="e.g. LIS_GLU_001"
+                  className="rounded-xl h-11 pl-10 border-slate-200"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </RightDrawer>
   );
 }

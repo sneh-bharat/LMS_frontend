@@ -1,6 +1,28 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  ChevronLeft,
+  Plus,
+  Trash2,
+  Info,
+  Clock,
+} from 'lucide-react';
+import {
+  Button,
+  Input,
+  Label,
+  Card,
+  Badge,
+  Table
+} from '@/components/ui';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface RangeRow {
   id: number; gender: string; ageType: string;
@@ -24,129 +46,213 @@ interface PathologyParam {
   parameters: Parameter[];
 }
 
-const inp: React.CSSProperties = {
-  width: '100%', border: '1.5px solid #d1d5db', borderRadius: 5,
-  padding: '7px 9px', fontSize: 13, color: '#333', outline: 'none',
-  background: '#fff', boxSizing: 'border-box' as const, fontFamily: 'inherit',
-};
-const selS: React.CSSProperties = { ...inp, cursor: 'pointer' };
-const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
-const sectionWrap: React.CSSProperties = {
-  background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0',
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden',
-};
-
 const BLANK_RANGE: Omit<RangeRow, 'id'> = {
   gender: 'Male', ageType: 'Days', minAge: '', maxAge: '', minRange: '', maxRange: '', refRange: '',
 };
 
-// ─── Reference Range Form Component ──────────────────────────────────────────
-export function ReferenceRangeForm({ 
-  param, 
-  onAddRange, 
-  onDeleteRange 
-}: { 
-  param: PathologyParam; 
+export function ReferenceRangeForm({
+  param,
+  onAddRange,
+  onDeleteRange,
+  onBack
+}: {
+  param: PathologyParam;
   onAddRange: (range: RangeRow) => void;
   onDeleteRange: (id: number) => void;
+  onBack: () => void;
 }) {
-  const [ranges] = useState<RangeRow[]>(param.ranges);
   const [form, setForm] = useState({ ...BLANK_RANGE });
-  
-  const s = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleAdd = () => {
     onAddRange({ id: Date.now(), ...form });
     setForm({ ...BLANK_RANGE });
   };
 
-  return (
-    <div style={{ padding: '20px 24px' }}>
-      <h2 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 600, color: '#1e293b' }}>
-        {param.name} – Reference Range
-      </h2>
+  const columns = [
+    {
+      key: 'sn',
+      label: '#',
+      width: '60px',
+      align: 'center' as const,
+      render: (_: any, __: any, index: number) => (
+        <span className="font-black text-slate-400 text-xs">{index + 1}</span>
+      )
+    },
+    {
+      key: 'gender',
+      label: 'Gender',
+      render: (val: string) => (
+        <Badge variant="secondary" className="font-black uppercase text-[10px] tracking-widest px-2 py-1">
+          {val}
+        </Badge>
+      )
+    },
+    {
+      key: 'ageGroup',
+      label: 'Age Group',
+      render: (_: any, row: RangeRow) => (
+        <div className="flex items-center gap-2 font-bold text-slate-700">
+          <Clock size={14} className="text-slate-400" />
+          {row.minAge} {row.ageType} <span className="text-slate-300 mx-1">→</span> {row.maxAge} {row.ageType === 'Days' ? 'Years' : row.ageType}
+        </div>
+      )
+    },
+    {
+      key: 'refRange',
+      label: 'Ref Range',
+      render: (val: string, row: RangeRow) => (
+        <div className="font-black text-slate-900 bg-slate-50 px-3 py-1.5 rounded-lg inline-block border border-slate-100">
+          {val || `${row.minRange} – ${row.maxRange}`}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Action',
+      width: '100px',
+      align: 'right' as const,
+      render: (_: any, row: RangeRow) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDeleteRange(row.id)}
+          className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 w-8 rounded-xl"
+        >
+          <Trash2 size={16} />
+        </Button>
+      )
+    }
+  ];
 
-      {/* Existing ranges table */}
-      <div style={{ ...sectionWrap, marginBottom: 24 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              {['#', 'Gender', 'Age Group', 'Ref Range', 'Action'].map((h, i) => (
-                <th key={`${h}-${i}`} style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 600, color: '#374151' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ranges.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No ranges defined yet.</td></tr>
-            ) : ranges.map((r, i) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td style={{ padding: '10px 14px', color: '#64748b' }}>{i + 1}</td>
-                <td style={{ padding: '10px 14px' }}>{r.gender}</td>
-                <td style={{ padding: '10px 14px', fontWeight: 500 }}>
-                  {r.minAge} {r.ageType} To {r.maxAge} Years
-                </td>
-                <td style={{ padding: '10px 14px' }}>
-                  {r.refRange || `${r.minRange}–${r.maxRange}`}
-                </td>
-                <td style={{ padding: '10px 14px' }}>
-                  <button onClick={() => onDeleteRange(r.id)} style={{
-                    background: '#dc2626', color: '#fff', border: 'none',
-                    borderRadius: 5, padding: '4px 12px', fontSize: 12, cursor: 'pointer',
-                  }}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={onBack} className="rounded-2xl border-slate-200">
+            <ChevronLeft size={20} />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              {param.name}
+              <Badge variant="secondary" className="font-black">REFERENCE RANGE</Badge>
+            </h2>
+            <p className="text-slate-500 font-medium">Configure biological reference intervals for this parameter.</p>
+          </div>
+        </div>
       </div>
 
-      {/* Add range form */}
-      <div style={{ ...sectionWrap, padding: '20px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 110px 1fr 1fr 1fr 1fr', gap: 12, marginBottom: 14, alignItems: 'end' }}>
-          <div>
-            <label style={lbl}>Gender</label>
-            <select value={form.gender} onChange={s('gender')} style={selS}>
-              <option>Male</option><option>Female</option><option>Both</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Age Type</label>
-            <select value={form.ageType} onChange={s('ageType')} style={selS}>
-              <option>Days</option><option>Month</option><option>Year</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Min Age</label>
-            <input value={form.minAge} onChange={s('minAge')} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Max Age</label>
-            <input value={form.maxAge} onChange={s('maxAge')} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Min Range</label>
-            <input value={form.minRange} onChange={s('minRange')} style={inp} />
-          </div>
-          <div>
-            <label style={lbl}>Max Range</label>
-            <input value={form.maxRange} onChange={s('maxRange')} style={inp} />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Existing Ranges */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          <Card className="rounded-[2.5rem] border border-white/40 shadow-xl overflow-hidden glass">
+            <Table
+              columns={columns}
+              data={param.ranges}
+            />
+          </Card>
         </div>
 
-        <div style={{ marginBottom: 6 }}>
-          <label style={lbl}>Reference Range (Optional) – It will show on report irrespective of Min &amp; Max Range.</label>
-          <textarea value={form.refRange} onChange={s('refRange')} rows={4}
-            style={{ ...inp, resize: 'vertical' as const }} />
-        </div>
-        <p style={{ fontSize: 11, color: '#dc2626', margin: '0 0 14px' }}>for new line use | sign</p>
+        {/* Add Range Form */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="p-8 rounded-[2.5rem] border border-white/40 shadow-xl glass sticky top-6">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600">
+                <Plus size={20} strokeWidth={3} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Add New Range</h3>
+            </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={handleAdd} style={{
-            background: '#2563eb', color: '#fff', border: 'none',
-            borderRadius: 5, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}>Confirm</button>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gender</Label>
+                  <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v ?? '' })}>
+                    <SelectTrigger className="rounded-xl font-bold h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Age Type</Label>
+                  <Select value={form.ageType} onValueChange={(v) => setForm({ ...form, ageType: v ?? '' })}>
+                    <SelectTrigger className="rounded-xl font-bold h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Days">Days</SelectItem>
+                      <SelectItem value="Month">Month</SelectItem>
+                      <SelectItem value="Year">Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Min Age</Label>
+                  <Input
+                    value={form.minAge}
+                    onChange={e => setForm({ ...form, minAge: e.target.value })}
+                    className="rounded-xl h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Max Age</Label>
+                  <Input
+                    value={form.maxAge}
+                    onChange={e => setForm({ ...form, maxAge: e.target.value })}
+                    className="rounded-xl h-11 border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Min Range</Label>
+                  <Input
+                    value={form.minRange}
+                    onChange={e => setForm({ ...form, minRange: e.target.value })}
+                    className="rounded-xl h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Max Range</Label>
+                  <Input
+                    value={form.maxRange}
+                    onChange={e => setForm({ ...form, maxRange: e.target.value })}
+                    className="rounded-xl h-11 border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reference Range Override</Label>
+                <textarea
+                  value={form.refRange}
+                  onChange={e => setForm({ ...form, refRange: e.target.value })}
+                  rows={3}
+                  placeholder="Enter descriptive range text (optional)"
+                  className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all font-medium"
+                />
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 mt-1">
+                  <Info size={12} /> Use | for line breaks
+                </div>
+              </div>
+
+              <Button
+                onClick={handleAdd}
+                className="w-full h-12 rounded-2xl shadow-lg shadow-green-500/20"
+                variant="gradient"
+              >
+                Confirm Range
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

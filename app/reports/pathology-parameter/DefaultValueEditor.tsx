@@ -1,6 +1,25 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  ChevronLeft,
+  Save,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  Undo2,
+  Redo2,
+  CheckCircle2
+} from 'lucide-react';
+import {
+  Button,
+  Card,
+  Badge,
+} from '@/components/ui';
 
 interface PathologyParam {
   id: number; sn: number; name: string; unit: string;
@@ -10,66 +29,116 @@ interface PathologyParam {
   parameters: any[];
 }
 
-const inp: React.CSSProperties = {
-  width: '100%', border: '1.5px solid #d1d5db', borderRadius: 5,
-  padding: '7px 9px', fontSize: 13, color: '#333', outline: 'none',
-  background: '#fff', boxSizing: 'border-box' as const, fontFamily: 'inherit',
-};
-const selS: React.CSSProperties = { ...inp, cursor: 'pointer' };
-const sectionWrap: React.CSSProperties = {
-  background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0',
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden',
-};
-
-// ─── Default Value Editor Component ──────────────────────────────────────────
-export function DefaultValueEditor({ 
-  param, 
-  onSave 
-}: { 
-  param: PathologyParam; 
+export function DefaultValueEditor({
+  param,
+  onSave,
+  onBack
+}: {
+  param: PathologyParam;
   onSave: (value: string) => void;
+  onBack: () => void;
 }) {
   const [value, setValue] = useState(param.defaultValue);
 
   return (
-    <div style={{ padding: '20px 24px' }}>
-      <h2 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 600, color: '#1e293b' }}>
-        {param.name} – Default Value
-      </h2>
-      <div style={{ ...sectionWrap }}>
-        {/* Menu bar */}
-        <div style={{ display: 'flex', gap: 16, padding: '8px 14px', borderBottom: '1px solid #e2e8f0', fontSize: 13, color: '#374151' }}>
-          {['File','Edit','View','Insert','Format'].map((m, i) => (
-            <button key={`menu-${i}`} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', padding: '2px 4px' }}>{m}</button>
-          ))}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={onBack} className="rounded-2xl border-slate-200">
+            <ChevronLeft size={20} />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              {param.name}
+              <Badge variant="secondary" className="font-black text-emerald-600 bg-emerald-50 border-emerald-100">DEFAULT VALUE</Badge>
+            </h2>
+            <p className="text-slate-500 font-medium">Define a pre-filled value or template for this parameter's output.</p>
+          </div>
         </div>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' as const, background: '#fafafa' }}>
-          {['↩','↪'].map((t, i) => (
-            <button key={`undo-${i}`} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '3px 5px', fontSize: 14, color: '#555', borderRadius: 3 }}>{t}</button>
-          ))}
-          <select style={{ ...selS, width: 110, fontSize: 12 }}><option>Paragraph</option><option>Heading 1</option><option>Heading 2</option></select>
-          {['B','I','U','⊞','≡','🖼'].map((t, i) => (
-            <button key={`tool-${i}`} style={{ background: 'none', border: '1px solid #e2e8f0', cursor: 'pointer', padding: '3px 7px', fontSize: 13, color: '#374151', borderRadius: 3, fontWeight: t==='B'?700:'normal', fontStyle: t==='I'?'italic':'normal' }}>{t}</button>
-          ))}
-        </div>
-        {/* Editor area */}
-        <textarea
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          rows={10}
-          style={{ width: '100%', border: 'none', outline: 'none', padding: '14px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
-          placeholder="Enter default value..."
-        />
-        {/* Status bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 12px', fontSize: 11, color: '#94a3b8', borderTop: '1px solid #e2e8f0', background: '#fafafa' }}>
-          <span>p</span>
-          <span>Press Alt+0 for help</span>
-          <span>{value.trim().split(/\s+/).filter(Boolean).length} words &nbsp; 🔎 tiny</span>
-        </div>
+        <Button
+          onClick={() => onSave(value)}
+          variant="gradient"
+          className="gap-2 px-6 h-12 shadow-lg shadow-green-500/20"
+        >
+          <Save size={18} />
+          Save Template
+        </Button>
       </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <button onClick={() => onSave(value)} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Confirm</button>
+
+      <Card className="rounded-[2.5rem] border border-white/40 shadow-2xl overflow-hidden glass min-h-[500px] flex flex-col">
+        {/* Editor Toolbar */}
+        <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex flex-wrap items-center gap-2">
+          <div className="flex items-center bg-white rounded-xl p-1 border border-slate-200 shadow-sm mr-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><Undo2 size={16} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><Redo2 size={16} /></Button>
+          </div>
+
+          <div className="flex items-center bg-white rounded-xl p-1 border border-slate-200 shadow-sm mr-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg font-bold"><Bold size={16} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg italic"><Italic size={16} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg underline"><Underline size={16} /></Button>
+          </div>
+
+          <div className="flex items-center bg-white rounded-xl p-1 border border-slate-200 shadow-sm mr-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><AlignLeft size={16} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><AlignCenter size={16} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><AlignRight size={16} /></Button>
+          </div>
+
+          <div className="flex items-center bg-white rounded-xl p-1 border border-slate-200 shadow-sm mr-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><List size={16} /></Button>
+          </div>
+
+          <div className="flex-1" />
+
+          <Badge variant="outline" className="font-bold text-slate-400 border-slate-200 text-[10px] uppercase tracking-widest px-3 py-1 bg-white">
+            Rich Text Mode
+          </Badge>
+        </div>
+
+        {/* Editor Content */}
+        <div className="flex-1 relative">
+          <textarea
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            className="w-full h-full min-h-[400px] p-8 text-lg font-medium text-slate-700 focus:outline-none resize-none bg-transparent leading-relaxed"
+            placeholder="Start typing your default response template here..."
+          />
+        </div>
+
+        {/* Editor Status Bar */}
+        <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+          <div className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+            <span>{value.trim().split(/\s+/).filter(Boolean).length} Words</span>
+            <span className="w-1 h-1 rounded-full bg-slate-200" />
+            <span>{value.length} Characters</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-black text-emerald-500 uppercase tracking-widest">
+            <CheckCircle2 size={12} />
+            Auto-saved
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-6 rounded-3xl bg-blue-50/50 border border-blue-100">
+          <h4 className="font-black text-blue-900 text-sm mb-2">Pro Tip</h4>
+          <p className="text-xs text-blue-700 font-medium leading-relaxed">
+            Use descriptive templates to standardize reporting across different testing locations.
+          </p>
+        </div>
+        <div className="p-6 rounded-3xl bg-amber-50/50 border border-amber-100">
+          <h4 className="font-black text-amber-900 text-sm mb-2">Variables</h4>
+          <p className="text-xs text-amber-700 font-medium leading-relaxed">
+            Templates are automatically applied to new report entries for this parameter.
+          </p>
+        </div>
+        <div className="p-6 rounded-3xl bg-green-50/50 border border-green-100">
+          <h4 className="font-black text-green-900 text-sm mb-2">Formatting</h4>
+          <p className="text-xs text-green-700 font-medium leading-relaxed">
+            Standard formatting will be preserved in the final generated clinical reports.
+          </p>
+        </div>
       </div>
     </div>
   );

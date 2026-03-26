@@ -1,73 +1,131 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Button,
+  Input,
+  Label,
+  RightDrawer,
+} from '@/components/ui';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// ─── Add Parameter Modal Component ───────────────────────────────────────────
 export function AddParameterModal({ isOpen, onClose, onSave }: {
   isOpen: boolean; onClose: () => void;
   onSave: (p: { sn: number; name: string; unit: string; inputType: string; priority: number; linked: number; isHeader: boolean }) => void;
 }) {
-  const [form, setForm] = useState({ sn: '', name: '', unit: '', inputType: 'txt', priority: '1', linked: 0, isHeader: false });
-  const s = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
-    
-  const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
-  const inp: React.CSSProperties = {
-    width: '100%', border: '1.5px solid #d1d5db', borderRadius: 5,
-    padding: '7px 9px', fontSize: 13, color: '#333', outline: 'none',
-    background: '#fff', boxSizing: 'border-box' as const, fontFamily: 'inherit',
-  };
-  const selS: React.CSSProperties = { ...inp, cursor: 'pointer' };
+  const [form, setForm] = useState({
+    name: '',
+    unit: '',
+    inputType: 'txt',
+    priority: '1',
+    isHeader: false
+  });
 
-  if (!isOpen) return null;
-  
+  const handleSubmit = () => {
+    if (!form.name.trim()) return;
+    onSave({
+      sn: Date.now(),
+      name: form.name,
+      unit: form.unit,
+      inputType: form.inputType,
+      priority: Number(form.priority) || 1,
+      linked: 0,
+      isHeader: form.isHeader
+    });
+    setForm({ name: '', unit: '', inputType: 'txt', priority: '1', isHeader: false });
+    onClose();
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 8, width: 480, maxWidth: '95vw', padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Add Pathology Parameter</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#666' }}>×</button>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Pathology Parameter"
+      description="Define a new parameter for laboratory reports, including its unit and input type."
+      footer={
+        <div className="flex w-full gap-3">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="gradient" className="flex-1" onClick={handleSubmit}>
+            Create Parameter
+          </Button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>Parameter Name *</label>
-            <input value={form.name} onChange={s('name')} style={inp} placeholder="Parameter name" />
+      }
+    >
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="name">Parameter Name *</Label>
+          <Input
+            id="name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="e.g. Creatine Phosphokinase"
+            className="rounded-xl h-11"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="unit">Unit</Label>
+            <Input
+              id="unit"
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              placeholder="e.g. mg/dL"
+              className="rounded-xl h-11"
+            />
           </div>
-          <div>
-            <label style={lbl}>Unit</label>
-            <input value={form.unit} onChange={s('unit')} style={inp} placeholder="e.g. mg/dL" />
-          </div>
-          <div>
-            <label style={lbl}>Input Type</label>
-            <select value={form.inputType} onChange={s('inputType')} style={selS}>
-              <option value="txt">txt</option>
-              <option value="op">op</option>
-              <option value="textarea">textarea</option>
-              <option value="%">%</option>
-            </select>
-          </div>
-          <div>
-            <label style={lbl}>Priority</label>
-            <input value={form.priority} onChange={s('priority')} type="number" style={inp} />
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <Input
+              id="priority"
+              type="number"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              className="rounded-xl h-11"
+            />
           </div>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-            <input type="checkbox" checked={form.isHeader} onChange={e => setForm(f => ({ ...f, isHeader: e.target.checked }))}
-              style={{ width: 15, height: 15, accentColor: '#2563eb' }} />
-            Is Header (section title)
-          </label>
+
+        <div className="space-y-2">
+          <Label htmlFor="input-type">Input Type</Label>
+          <Select
+            value={form.inputType}
+            onValueChange={(value) => setForm({ ...form, inputType: value ?? '' })}
+          >
+            <SelectTrigger id="input-type" className="rounded-xl h-11 font-bold">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="txt">txt (Text Input)</SelectItem>
+              <SelectItem value="op">op (Option/Select)</SelectItem>
+              <SelectItem value="textarea">textarea (Large Text)</SelectItem>
+              <SelectItem value="%">% (Percentage)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e8edf3', paddingTop: 14 }}>
-          <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 5, border: '1.5px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-          <button onClick={() => {
-            if (!form.name.trim()) return;
-            onSave({ sn: Date.now(), name: form.name, unit: form.unit, inputType: form.inputType, priority: Number(form.priority) || 1, linked: 0, isHeader: form.isHeader });
-            setForm({ sn: '', name: '', unit: '', inputType: 'txt', priority: '1', linked: 0, isHeader: false });
-            onClose();
-          }} style={{ padding: '7px 18px', borderRadius: 5, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Create</button>
+
+        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <input
+            type="checkbox"
+            id="isHeader"
+            checked={form.isHeader}
+            onChange={e => setForm(f => ({ ...f, isHeader: e.target.checked }))}
+            className="w-5 h-5 accent-green-600 rounded-md cursor-pointer"
+          />
+          <div>
+            <Label htmlFor="isHeader" className="font-black text-slate-900 cursor-pointer block">Is Header</Label>
+            <p className="text-[10px] font-bold text-slate-400">Mark this parameter as a section title / header.</p>
+          </div>
         </div>
       </div>
-    </div>
+    </RightDrawer>
   );
 }

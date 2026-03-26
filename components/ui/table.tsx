@@ -15,6 +15,7 @@ interface TableProps {
   loading?: boolean;
   onRowClick?: (row: any) => void;
   className?: string;
+  rowClassName?: (row: any, index: number) => string;
   children?: React.ReactNode;
 }
 
@@ -24,6 +25,7 @@ export default function Table({
   loading = false,
   onRowClick,
   className,
+  rowClassName,
   children
 }: TableProps) {
   if (children) {
@@ -52,8 +54,8 @@ export default function Table({
           <thead className="bg-slate-50/50 border-b border-slate-100">
             <tr>
               {columns.map((col) => (
-                <th 
-                  key={col.key} 
+                <th
+                  key={col.key}
                   className={cn(
                     "px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest",
                     col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'
@@ -71,7 +73,7 @@ export default function Table({
                 <td colSpan={columns.length || 1} className="px-8 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 mb-0.5">No records found</h4>
@@ -87,12 +89,13 @@ export default function Table({
                   onClick={() => onRowClick?.(row)}
                   className={cn(
                     "hover:bg-emerald-50/30 transition-all group",
-                    onRowClick && "cursor-pointer"
+                    onRowClick && "cursor-pointer",
+                    rowClassName?.(row, idx)
                   )}
                 >
                   {columns.map((col) => (
-                    <td 
-                      key={col.key} 
+                    <td
+                      key={col.key}
                       className={cn(
                         "px-8 py-5 text-slate-700 font-bold transition-colors group-hover:text-emerald-700",
                         col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left'

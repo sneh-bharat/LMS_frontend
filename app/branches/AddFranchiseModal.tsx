@@ -1,10 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import Modal from '@/components/ui/modal';
-import FormGroup from '@/components/ui/form-group';
-import Input from '@/components/ui/input';
-import Button from '@/components/ui/button';
+import { Button, Input, Label, RightDrawer } from '@/components/ui';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface AddFranchiseModalProps {
     isOpen: boolean;
@@ -30,82 +34,117 @@ export default function AddFranchiseModal({ isOpen, onClose, onSave, initialData
     };
 
     return (
-        <Modal 
-            isOpen={isOpen} 
-            onClose={onClose} 
-            onSave={handleSubmit}
-            title={initialData ? 'Edit Franchise' : 'Add Franchise'}
+        <RightDrawer
+            isOpen={isOpen}
+            onClose={onClose}
+            title={initialData ? 'Edit Franchise' : 'Add New Franchise'}
+            description="Enter the details of the new diagnostic center or partner lab."
+            footer={
+                <div className="flex w-full gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button variant="gradient" className="flex-1" onClick={handleSubmit}>
+                        {initialData ? 'Update Entity' : 'Save Entity'}
+                    </Button>
+                </div>
+            }
         >
-            <div className="space-y-4">
-                <FormGroup label="Franchise Name">
+            <div className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="name">Franchise Name</Label>
                     <Input
+                        id="name"
                         type="text"
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         placeholder="Enter franchise name"
                     />
-                </FormGroup>
+                </div>
 
-                <FormGroup label="Mobile Number">
+                <div className="space-y-2">
+                    <Label htmlFor="mobile">Mobile Number</Label>
                     <Input
+                        id="mobile"
                         type="tel"
                         value={form.mobile}
                         onChange={(e) => setForm({ ...form, mobile: e.target.value })}
                         placeholder="Enter mobile number"
                     />
-                </FormGroup>
+                </div>
 
-                <FormGroup label="Email">
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
                     <Input
+                        id="email"
                         type="email"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         placeholder="Enter email address"
                     />
-                </FormGroup>
+                </div>
 
-                <FormGroup label="Organization Type">
-                    <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={form.orgType}
-                        onChange={(e) => setForm({ ...form, orgType: e.target.value })}
-                    >
-                        <option value="B2B">B2B</option>
-                        <option value="B2C">B2C</option>
-                    </select>
-                </FormGroup>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="org-type">Organization Type</Label>
+                        <Select
+                            value={form.orgType}
+                            onValueChange={(value) => setForm({ ...form, orgType: value ?? '' })}
+                        >
+                            <SelectTrigger id="org-type">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="B2B">B2B</SelectItem>
+                                <SelectItem value="B2C">B2C</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                <FormGroup label="Operation Type">
-                    <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <Select
+                            value={form.status}
+                            onValueChange={(value) => setForm({ ...form, status: value ?? '' })}
+                        >
+                            <SelectTrigger id="status">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="op-type">Operation Type</Label>
+                    <Select
                         value={form.opType}
-                        onChange={(e) => setForm({ ...form, opType: e.target.value })}
+                        onValueChange={(value) => setForm({ ...form, opType: value ?? '' })}
                     >
-                        <option value="Postpaid - Credit">Postpaid - Credit</option>
-                        <option value="Prepaid">Prepaid</option>
-                    </select>
-                </FormGroup>
+                        <SelectTrigger id="op-type">
+                            <SelectValue placeholder="Select operation type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Postpaid - Credit">Postpaid - Credit</SelectItem>
+                            <SelectItem value="Prepaid">Prepaid</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                <FormGroup label="Status">
-                    <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={form.status}
-                        onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                    </select>
-                </FormGroup>
-
-                <FormGroup label="Amount">
+                <div className="space-y-2">
+                    <Label htmlFor="amount">Initial Amount / Credit Limit</Label>
                     <Input
+                        id="amount"
                         type="number"
                         value={form.amount}
                         onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                        placeholder="Enter amount"
+                        placeholder="0.00"
                     />
-                </FormGroup>
+                </div>
             </div>
-        </Modal>
+        </RightDrawer>
     );
 }
