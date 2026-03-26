@@ -126,6 +126,7 @@ const NAV = [
             { label: 'Vendors & Suppliers', href: '/management/vendors' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Settings', href: '/management/settings' },
+            { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
           
         ],
     },
