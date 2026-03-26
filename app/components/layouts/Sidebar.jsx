@@ -34,7 +34,6 @@ const NAV = [
             { label: 'Daily Worksheet', href: '#' },
             { label: 'Appointments', href: '/Appointments' },
             { label: 'Bulk Report Print', href: '/reports/BulkReport' },
-            { label: 'MIS Reports', href: '/reports' },
             { label: 'Invoice Journey', href: '#' },
         ],
     },
@@ -84,7 +83,9 @@ const NAV = [
             { label: 'Pathology Parameter', href: '/reports/pathology-parameter' },
             { label: 'Signature', href: '/reports/Signature' },
             { label: 'Result Verification', href: '/reports/result-verification' },
+            { label: 'Urine Sensitivity', href: '/reports/urineSensitivity' },
             { label: 'Report Unlock', href: '/report-unlock' },
+            { label: 'MIS Reports', href: '/reports/MisReports' },
         ],
     },
     {
