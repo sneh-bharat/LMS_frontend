@@ -1,11 +1,9 @@
 'use client';
-
 import { useState } from 'react';
 import {
   Search,
   Plus,
   Calendar,
-  ChevronRight,
   MoreHorizontal,
   Filter,
   Stethoscope,
@@ -14,11 +12,7 @@ import {
   Video,
   Home,
   Building2,
-  CheckCircle2,
   CalendarCheck,
-  Phone,
-  Mail,
-  MapPin,
   Trash2,
   Edit3
 } from 'lucide-react';
@@ -32,9 +26,27 @@ import Badge from '@/components/ui/badge';
 
 // ─── Inline sample data ──────────────────────────────────────────────────────
 const SAMPLE_APPOINTMENTS: Appointment[] = [
-  { id: 1, patientName: 'Dr. Mohib Ahmed', age: 50, gender: 'Male', phone: '9934362019', consultingType: 'Clinic Visit', department: 'Cardiology', doctor: 'Dr. Suresh Kumar', slot: '10:00 AM - 10:30 AM', date: '2026-03-20', email: 'mohib@example.com', whatsapp: '9934362019', permanentAddress: 'Hyderabad', localAddress: '', pincode: '500001', city: 'Hyderabad', country: 'India', contactNumber: '9934362019' },
-  { id: 2, patientName: 'Ms. Srabanti', age: 44, gender: 'Female', phone: '8617269047', consultingType: 'Video Consultation', department: 'Dermatology', doctor: 'Dr. Kavitha Rao', slot: '04:00 PM - 04:30 PM', date: '2026-03-20', email: 'srabanti@example.com', whatsapp: '8617269047', permanentAddress: 'Kolkata', localAddress: '', pincode: '700001', city: 'Kolkata', country: 'India', contactNumber: '8617269047' },
-  { id: 3, patientName: 'Mr. Saber', age: 45, gender: 'Male', phone: '9848834451', consultingType: 'Hospital Visit', department: 'General Medicine', doctor: 'Dr. Rajan Mehta', slot: '11:00 AM - 11:30 AM', date: '2026-03-21', email: '', whatsapp: '9848834451', permanentAddress: 'Mumbai', localAddress: '', pincode: '400001', city: 'Mumbai', country: 'India', contactNumber: '9848834451' },
+  {
+    id: 1,
+    patientName: 'Rahul Sen',
+    age: 32,
+    gender: 'Male',
+    phone: '9876543210',
+    consultingType: 'Home Collection',
+    department: 'Blood Test',
+    selectedTest: 'Complete Blood Count (CBC)',
+    slot: '10:00 AM - 10:30 AM',
+    date: '2026-03-28',
+    email: 'rahul@example.com',
+    whatsapp: '9876543210',
+    permanentAddress: 'Kolkata',
+    localAddress: '',
+    pincode: '700001',
+    city: 'Kolkata',
+    country: 'India',
+    contactNumber: '9876543210',
+    doctor: '',
+  },
 ];
 
 // ─── Type Badge ───────────────────────────────────────────────────────────────
@@ -67,8 +79,7 @@ export default function AppointmentBookingPage() {
 
   const filtered = appointments.filter(a =>
     (deptFilter === 'All' || a.department === deptFilter) &&
-    (a.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      a.doctor.toLowerCase().includes(search.toLowerCase()))
+    (a.patientName.toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleSave = (form: FormState) => {
@@ -106,9 +117,16 @@ export default function AppointmentBookingPage() {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            Doctor <span className="text-emerald-600">Appointments</span>
-          </h1>
+         <h1 className="flex items-center gap-3 text-3xl font-bold text-slate-900 tracking-tight mb-1">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                <CalendarCheck size={20} />
+              </div>
+
+              <span>
+                Test <span className="text-emerald-600">Appointments</span>
+              </span>
+
+            </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Schedule and manage patient visits across departments.
           </p>
@@ -124,7 +142,7 @@ export default function AppointmentBookingPage() {
             className="gap-2 shadow-sm"
           >
             <Plus size={16} />
-            New Appointment
+              Book Test
           </Button>
         </div>
       </div>
@@ -137,7 +155,7 @@ export default function AppointmentBookingPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search patient or doctor..."
+            placeholder="Search patient or test...."
             className="input-refined w-full py-2.5 pl-10 pr-4 font-bold"
           />
         </div>
@@ -213,7 +231,7 @@ export default function AppointmentBookingPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm font-bold text-slate-800">
-                    {appt.doctor}
+                    {appt.department}
                   </div>
                 </td>
                 <td className="px-6 py-4">

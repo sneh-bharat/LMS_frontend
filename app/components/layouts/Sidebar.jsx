@@ -11,7 +11,10 @@ import {
     CreditCard,
     LayoutDashboard,
     ChevronDown,
-    Activity
+    Activity,
+    Scan ,
+    UserPlus,
+    Layers  ,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui';
@@ -25,35 +28,55 @@ const NAV = [
         label: 'Quick Activity',
         icon: <Zap size={20} />,
         children: [
-            { label: 'Online Booking Request', href: '#' },
+           
             { label: 'Find Diagnostic Invoice', href: '/diagnosis/invoice-list' },
-            { label: 'Diagnostic Booking', href: '/diagnosis/Diagnosticbooking' },
             { label: 'Report Unlock Request', href: '/report-unlock' },
             { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Error Invoices', href: '#' },
-            { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Daily Worksheet', href: '#' },
-            { label: 'Appointments', href: '/Appointments' },
             { label: 'Bulk Report Print', href: '/reports/BulkReport' },
             { label: 'Invoice Journey', href: '#' },
         ],
+    },
+    {         id: 'booking', label: 'Booking & Registration', 
+            icon: <UserPlus size={20} />,
+        children: [
+
+            { label: 'Online Booking Request', href: '/OnlineBooking' },
+            { label: 'Diagnostic Booking', href: '/diagnosis/Diagnosticbooking' },
+            { label: 'Radiology Booking', href: '#' },
+            { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
+            { label: 'Find Register Patient', href: '/register-patient' },
+            { label: 'Appointments', href: '/Appointments' },
+
+        ] 
     },
     {
         id: 'diagnostic',
         label: 'Diagnostic',
         icon: <FlaskConical size={20} />,
         children: [
+            
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Doctors', href: '/doctor' },
-            { label: 'Collectors', href: '/collector' },
-            { label: 'Members', href: '/member' },
             { label: 'Estimations', href: '/estimation' },
-            { label: 'Branch & B2B', href: '/branches' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Investigations', href: '/investigation' },
+             { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Bulk Report Download', href: '/reports/bulk-download' },
         ],
     },
+     {
+        id: 'radiology',
+        label: 'Radiology',
+        icon: <Scan size={20} />,
+        children: [
+            
+            { label: 'Radiology Schedule', href: '#' },
+            { label: 'Radiology Reports', href: '#' },
+            { label: ' Radiology Invoice', href: '#' },
+        ],
+    },
+
     {
         id: 'lab',
         label: 'Processing Lab',
@@ -69,13 +92,26 @@ const NAV = [
         label: 'Polyclinic',
         icon: <Stethoscope size={20} />,
         children: [
-            { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
+          
             { label: 'OPD Schedule', href: '/polyclinic/opdschedule' },
             { label: 'Patient Queue', href: '/polyclinic/patientqueue' },
             { label: 'Invoice List', href: '/reception' },
             
         ],
     },
+    { id: 'masters', label: 'Masters',
+        icon: <Layers  size={20} />,
+         children: [
+
+            { label: 'Doctors', href: '/doctor' },
+            { label: 'Collectors', href: '/collector' },
+            { label: 'Members', href: '/member' },
+            { label: 'Referrers', href: '/referrer' },
+            { label: 'Branch & B2B', href: '/branches' },
+            { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
+         ]
+    },
+
     {
         id: 'report',
         label: 'Report',
@@ -120,14 +156,15 @@ const NAV = [
         icon: <LayoutDashboard size={20} />,
         children: [
             { label: 'Concession Authority', href: '/ConcessionAuthority' },
-            { label: 'Users', href: '/management/users' },
-              { label: 'User Access Control', href: '/management/userAccess' },
+            { label: 'Lab Branchs', href: '/management/branch' },
+            { label: 'Branch Lab Test', href: '/management/branch-test' },
+            { label: 'User Access Control', href: '/management/userAccess' },
             { label: 'Patient Information', href: '/register-patient' },
             { label: 'Management Doctor', href: '/management/management-docotor' },
             { label: 'Vendors & Suppliers', href: '/management/vendors' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Settings', href: '/management/settings' },
-            { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
+           
           
         ],
     },

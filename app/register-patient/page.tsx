@@ -163,9 +163,14 @@ export default function FindRegisterPatientPage() {
       {/* ═══ HEADER ═════════════════════════════════════════════ */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            Patient <span className="text-emerald-600">Information</span>
-          </h1>
+          <h1 className="flex items-center gap-3 text-3xl font-bold text-slate-900 tracking-tight mb-1">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+              <User size={20} />
+            </div>
+              <span>
+                Patient <span className="text-emerald-600">Information</span>
+              </span>
+            </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Universal master index for patient health records and histories.
           </p>
