@@ -185,6 +185,7 @@ export default function OnlineBookingPage() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
               <CalendarIcon size={20} />
+              
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Online Bookings</h1>

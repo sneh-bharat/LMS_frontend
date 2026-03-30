@@ -170,7 +170,7 @@ export default function AddLabTest({
               <option value="">Choose a Branch</option>
               {branches.map(branch => (
                 <option key={branch} value={branch}>
-                  {branch} - {BRANCH_NAMES[branch] || 'Unknown'}
+                  {BRANCH_NAMES[branch] || branch} ({branch}) - {BRANCH_LOCATIONS[branch] || 'Unknown'}
                 </option>
               ))}
             </select>

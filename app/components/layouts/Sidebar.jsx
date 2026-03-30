@@ -48,6 +48,7 @@ const NAV = [
             { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
             { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Appointments', href: '/Appointments' },
+            { label: 'Test Order', href: '/lab/test-order' },
 
         ] 
     },
@@ -85,6 +86,8 @@ const NAV = [
             { label: 'Test Packages', href: '/lab/test-packages' },
             { label: 'Units', href: '/lab/units' },
             { label: 'Invoice', href: '/lab/invoice' },
+            { label: 'Lab Tests', href: '/lab/tests' },
+            { label: 'Test Sample ', href: '/lab/sample' }
         ],
     },
     {
@@ -163,8 +166,7 @@ const NAV = [
             { label: 'Management Doctor', href: '/management/management-docotor' },
             { label: 'Vendors & Suppliers', href: '/management/vendors' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
-            { label: 'Settings', href: '/management/settings' },
-           
+            { label: 'Settings', href: '/management/settings' }
           
         ],
     },

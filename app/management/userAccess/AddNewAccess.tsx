@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, AlertCircle } from 'lucide-react';
 
 export interface FormData {
   userId: string;
   userName: string;
   email: string;
   role: string;
+  branchId: string;
+  branchName: string;
   status: 'active' | 'inactive';
   permissions: {
     view: boolean;
@@ -24,6 +26,7 @@ interface AddUserProps {
   onSubmit: (data: FormData) => void;
   editData?: FormData | null;
   roles?: string[];
+  branches?: string[];
 }
 
 const DEFAULT_ROLES = [
@@ -42,6 +45,12 @@ const PERMISSION_OPTIONS = [
   { key: 'delete', label: 'Delete', icon: '🗑' },
   { key: 'approve', label: 'Approve/Verify', icon: '✅' },
 ];
+const BRANCH_NAMES: Record<string, string> = {
+  'BR001': 'Downtown Medical Center',
+  'BR002': 'Suburban Clinic',
+  'BR003': 'North Campus Hospital',
+  'BR004': 'South District Facility',
+};
 
 export default function AddUser({
   isOpen,
@@ -49,6 +58,7 @@ export default function AddUser({
   onSubmit,
   editData,
   roles = DEFAULT_ROLES,
+  branches = [],
 }: AddUserProps) {
   const [formData, setFormData] = useState<FormData>(
     editData || {
@@ -56,6 +66,8 @@ export default function AddUser({
       userName: '',
       email: '',
       role: '',
+      branchId: '',
+      branchName: '',
       status: 'active',
       permissions: {
         view: false,
@@ -67,6 +79,8 @@ export default function AddUser({
     }
   );
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (editData) {
       setFormData(editData);
@@ -76,6 +90,8 @@ export default function AddUser({
         userName: '',
         email: '',
         role: '',
+        branchId: '',
+        branchName: '',
         status: 'active',
         permissions: {
           view: false,
@@ -86,6 +102,7 @@ export default function AddUser({
         },
       });
     }
+    setErrors({});
   }, [editData, isOpen]);
 
   const handleChange = (
@@ -122,6 +139,8 @@ export default function AddUser({
         userName: '',
         email: '',
         role: '',
+        branchId: '',
+        branchName: '',
         status: 'active',
         permissions: {
           view: false,
@@ -131,6 +150,21 @@ export default function AddUser({
           approve: false,
         },
       });
+    }
+  };
+
+  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const branchId = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      branchId: branchId,
+      branchName: BRANCH_NAMES[branchId] || ''
+    }));
+    if (errors.branchId) {
+      setErrors(prev => ({
+        ...prev,
+        branchId: '',
+      }));
     }
   };
 
@@ -251,6 +285,30 @@ export default function AddUser({
                 <span className="text-sm text-slate-700">Inactive</span>
               </label>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Select Branch *
+            </label>
+            <select
+              value={formData.branchId}
+              onChange={handleBranchChange}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-900 appearance-none bg-white cursor-pointer ${
+                errors.branchId ? 'border-red-500' : 'border-slate-300'
+              }`}
+            >
+              <option value="">Choose a Branch</option>
+              {branches.map(branch => (
+                <option key={branch} value={branch}>
+                  {BRANCH_NAMES[branch] || branch} ({branch})
+                </option>
+              ))}
+            </select>
+            {errors.branchId && (
+              <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                <AlertCircle size={14} /> {errors.branchId}
+              </p>
+            )}
           </div>
 
           {/* Divider */}

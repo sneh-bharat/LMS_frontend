@@ -15,3 +15,7 @@ export const DropdownMenuItem = ({ children, onClick }: any) => (
     {children}
   </div>
 );
+
+export const DropdownMenuSeparator = () => (
+  <div style={{ height: '1px', backgroundColor: '#ddd', margin: '4px 0' }} />
+);
