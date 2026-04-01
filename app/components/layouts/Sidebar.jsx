@@ -87,7 +87,8 @@ const NAV = [
             { label: 'Units', href: '/lab/units' },
             { label: 'Invoice', href: '/lab/invoice' },
             { label: 'Lab Tests', href: '/lab/tests' },
-            { label: 'Test Sample ', href: '/lab/sample' }
+            { label: 'Test Sample ', href: '/lab/sample'},
+            { label: 'Sample Receipt', href: '/lab/sample-receipt' }
         ],
     },
     {

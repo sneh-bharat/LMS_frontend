@@ -50,6 +50,7 @@ const SAMPLE_DATA: TestSample[] = [
     sampleType: 'Blood',
     collectedAt: '2026-03-30 10:30 AM',
     status: 'Pending',
+    location: 'Clinic',
     createdAt: '2026-03-30T10:30:00Z',
   },
   {
@@ -61,6 +62,7 @@ const SAMPLE_DATA: TestSample[] = [
     sampleType: 'Urine',
     collectedAt: '2026-03-30 11:00 AM',
     status: 'Complete',
+    location: 'Laboratory',
     createdAt: '2026-03-30T11:00:00Z',
   },
   {
@@ -72,6 +74,7 @@ const SAMPLE_DATA: TestSample[] = [
     sampleType: 'Blood',
     collectedAt: '2026-03-30 09:15 AM',
     status: 'Processing',
+    location: 'Clinic',
     createdAt: '2026-03-30T09:15:00Z',
   },
   {
@@ -83,6 +86,7 @@ const SAMPLE_DATA: TestSample[] = [
     sampleType: 'Nasal Swab',
     collectedAt: '2026-03-29 02:45 PM',
     status: 'Complete',
+    location: 'Home',
     createdAt: '2026-03-29T14:45:00Z',
   },
   {
@@ -94,6 +98,7 @@ const SAMPLE_DATA: TestSample[] = [
     sampleType: 'Blood',
     collectedAt: '2026-03-30 01:20 PM',
     status: 'Failed',
+    location: 'Clinic',
     createdAt: '2026-03-30T13:20:00Z',
   },
 ];
@@ -183,6 +188,7 @@ export default function TestPackagePage() {
         sampleType: newPackageData.sampleType,
         collectedAt: newPackageData.collectedAt,
         status: newPackageData.status,
+        location: newPackageData.location || 'Clinic',
         createdAt: newPackageData.createdAt || new Date().toISOString(),
         notes: newPackageData.notes,
         tubes: newPackageData.tubes,
@@ -217,7 +223,7 @@ export default function TestPackagePage() {
             </div>
             <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-                    Test <span className="text-emerald-600">Samples</span>
+                    Test <span className="text-emerald-600">Samples Collection</span>
             </h1>
             <p className="text-slate-500 text-sm font-medium max-w-xl">
             Manage diagnostic test packages and bundled offerings.

@@ -67,6 +67,9 @@ export default function NewTest({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [parameters, setParameters] = useState([
+    { name: '', unit: '', min: '', max: '' }
+  ]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -83,6 +86,28 @@ export default function NewTest({
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
+  const handleParameterChange = (
+    index: number,
+    field: string,
+    value: string
+  ) => {
+  const updated = [...parameters];
+  updated[index][field as keyof typeof updated[0]] = value;
+  setParameters(updated);
+};
+
+const addParameter = () => {
+  setParameters([
+    ...parameters,
+    { name: '', unit: '', min: '', max: '' }
+  ]);
+};
+
+const removeParameter = (index: number) => {
+  const updated = [...parameters];
+  updated.splice(index, 1);
+  setParameters(updated);
+};
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -281,6 +306,81 @@ export default function NewTest({
             )}
           </div>
         </div>
+        {/* Parameters */}
+     
+<div>
+      <div className="flex items-center justify-between mb-3">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+          Parameters
+        </Label>
+
+        <Button
+          type="button"
+          onClick={addParameter}
+          className="flex items-center gap-1 px-3 py-1 text-xs bg-emerald-500 text-white rounded-lg"
+        >
+          <Plus size={14} /> Add
+        </Button>
+      </div>
+
+  <div className="space-y-4">
+    {parameters.map((param, index) => (
+      <div
+        key={index}
+        className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50"
+      >
+        {/* Name */}
+        <Input
+          placeholder="Parameter Name (e.g. Hemoglobin)"
+          value={param.name}
+          onChange={(e) =>
+            handleParameterChange(index, 'name', e.target.value)
+          }
+        />
+
+        {/* Unit */}
+        <Input
+          placeholder="Unit (e.g. g/dL)"
+          value={param.unit}
+          onChange={(e) =>
+            handleParameterChange(index, 'unit', e.target.value)
+          }
+        />
+
+        {/* Min */}
+        <Input
+          type="number"
+          placeholder="Min"
+          value={param.min}
+          onChange={(e) =>
+            handleParameterChange(index, 'min', e.target.value)
+          }
+        />
+
+        {/* Max */}
+        <Input
+          type="number"
+          placeholder="Max"
+          value={param.max}
+          onChange={(e) =>
+            handleParameterChange(index, 'max', e.target.value)
+          }
+        />
+
+        {/* Delete */}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => removeParameter(index)}
+          className="flex items-center justify-center"
+        >
+          <Trash2 size={16} className="text-rose-500" />
+        </Button>
+      </div>
+    ))}
+  </div>
+</div>
+
 
         {/* Price and Status */}
         <div className="grid grid-cols-1  gap-6">

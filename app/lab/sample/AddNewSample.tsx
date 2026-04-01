@@ -32,6 +32,7 @@ export interface TestSample {
   sampleType: string;
   collectedAt: string;
   status: 'Pending' | 'Processing' | 'Complete' | 'Failed';
+  location: 'Clinic' | 'Laboratory' | 'Home';
   createdAt?: string;
   notes?: string;
   tubes?: TubeDetail[];
@@ -58,6 +59,7 @@ const SAMPLE_TYPES = [
 ];
 
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Complete', 'Failed'];
+const LOCATION_OPTIONS = ['Clinic', 'Laboratory', 'Home'];
 
 const AVAILABLE_TESTS = [
   'Complete Blood Count (CBC)',
@@ -95,6 +97,7 @@ export default function AddNewSample({
       sampleType: '',
       collectedAt: '',
       status: 'Pending',
+      location: 'Clinic',
       notes: '',
       tubes: [],
     }
@@ -119,6 +122,7 @@ export default function AddNewSample({
         sampleType: '',
         collectedAt: '',
         status: 'Pending',
+        location: 'Clinic',
         notes: '',
         tubes: [],
       });
@@ -217,6 +221,7 @@ export default function AddNewSample({
       sampleType: '',
       collectedAt: '',
       status: 'Pending',
+      location: 'Clinic',
       notes: '',
       tubes: [],
     });
@@ -410,6 +415,34 @@ export default function AddNewSample({
             )}
           </div>
         </div>
+        {/* Sample Collect at Location */}
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location *</Label>
+            <Select
+              value={formData.location}
+              onValueChange={(value) =>
+                handleSelectChange('location', value as any)
+              }
+            >
+              <SelectTrigger
+                id="status"
+                className={errors.status ? 'border-red-500' : ''}
+              >
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {LOCATION_OPTIONS.map((location) => (
+                  <SelectItem key={location} value={location}>
+                    {location}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.location && (
+              <p className="text-xs text-red-500">{errors.location}</p>
+            )}
+          </div>
 
         {/* Notes */}
         <div className="space-y-2">

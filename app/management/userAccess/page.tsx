@@ -20,6 +20,8 @@ interface User {
   userName: string;
   email: string;
   role: string;
+  branchId: string;
+  branchName: string;
   status: 'active' | 'inactive';
   permissions: {
     view: boolean;
@@ -39,6 +41,8 @@ const SAMPLE_USERS: User[] = [
     userName: 'Dr. Rajesh Kumar',
     email: 'rajesh.kumar@hospital.com',
     role: 'Doctor',
+    branchId: 'BR001',
+    branchName: 'Downtown Medical Center',
     status: 'active',
     permissions: {
       view: true,
@@ -56,6 +60,8 @@ const SAMPLE_USERS: User[] = [
     userName: 'Priya Sharma',
     email: 'priya.sharma@hospital.com',
     role: 'Lab Technician',
+    branchId: 'BR002',
+    branchName: 'Suburban Clinic',
     status: 'active',
     permissions: {
       view: true,
@@ -73,6 +79,8 @@ const SAMPLE_USERS: User[] = [
     userName: 'Amit Patel',
     email: 'amit.patel@hospital.com',
     role: 'Receptionist',
+    branchId: 'BR001',
+    branchName: 'Downtown Medical Center',
     status: 'active',
     permissions: {
       view: true,
@@ -90,6 +98,8 @@ const SAMPLE_USERS: User[] = [
     userName: 'Admin User',
     email: 'admin@hospital.com',
     role: 'Admin',
+    branchId: 'BR003',
+    branchName: 'North Campus Hospital',
     status: 'active',
     permissions: {
       view: true,
