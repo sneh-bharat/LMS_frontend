@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -31,9 +31,18 @@ import Input from '@/components/ui/input';
 import Textarea from '@/components/ui/form-group';
 import NewTest from './NewTest';
 import TestDetailsView from './TestDetailsView';
+import {
+  fetchTests,
+  createTest,
+  updateTest,
+  deleteTest,
+  toggleTestStatus,
+  type Test,
+  type CreateTestInput,
+} from '@/app/Apis/lab/TestApis';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-import { TestPackage, TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
+import { TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
 
 const DEPARTMENTS = [
   { id: 1, name: 'Biochemistry' },
@@ -51,78 +60,21 @@ const CATEGORIES_LIST = [
 
 const CATEGORIES = ['All', 'Biochemistry', 'Hematology', 'Microbiology', 'Pathology'];
 
-const SAMPLE_TESTS: TestPackage[] = [
-  {
-    id: '1',
-    testCode: 'LIPID_001',
-    testName: 'Lipid Profile',
-    departmentId: 1,
-    categoryId: 5,
-    loincCode: '24331-1',
-    tatHours: 24,
-    isActive: true,
-    version: {
-      versionNo: 1,
-      method: 'Enzymatic Colorimetric',
-      unit: 'mg/dL',
-      price: 500.00,
-      cghsPrice: 350.00,
-      criticalLow: 40.0,
-      criticalHigh: 300.0,
-      effectiveFrom: '2024-01-01',
-      effectiveTo: null
-    },
-    parameters: [
-      {
-        parameterName: 'Total Cholesterol',
-        unit: 'mg/dL',
-        criticalLow: null,
-        criticalHigh: 240.0,
-        resultType: 'Numeric',
-        isCalculated: false,
-        referenceRanges: [
-          {
-            gender: 'Male',
-            ageMin: 18,
-            ageMax: 100,
-            minValue: 125.0,
-            maxValue: 200.0,
-            unit: 'mg/dL'
-          }
-        ]
-      },
-      {
-        parameterName: 'HDL Cholesterol',
-        unit: 'mg/dL',
-        criticalLow: 20.0,
-        criticalHigh: null,
-        resultType: 'Numeric',
-        isCalculated: false,
-        referenceRanges: []
-      }
-    ],
-    sampleRequirements: [
-      {
-        sampleType: 'Blood_Serum',
-        volumeMl: 5.0,
-        containerColor: 'Yellow',
-        storageCondition: 'Refrigerated',
-        transportCondition: 'Cold Chain'
-      }
-    ],
-    createdAt: '2026-03-30T10:00:00Z',
-  },
-];
-
 // ─── Components ───────────────────────────────────────────────────────────────
 function PackageActions({
   pkg,
   onView,
   onEdit,
+  onEditSample,
+  onEditParameters,
+  onEditPricing,
 }: {
-  pkg: TestPackage;
-  onView: (pkg: TestPackage) => void;
-  onEdit: (pkg: TestPackage) => void;
+  pkg: Test;
+  onView: (pkg: Test) => void;
+  onEdit: (pkg: Test) => void;
+  onEditSample: (pkg: Test) => void;
+  onEditParameters: (pkg: Test) => void;
+  onEditPricing: (pkg: Test) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -136,7 +88,7 @@ function PackageActions({
         <MoreHorizontal size={20} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
           <button
             onClick={() => {
               onView(pkg);
@@ -146,6 +98,35 @@ function PackageActions({
           >
             <Eye size={14} /> View Details
           </button>
+          <div className="h-[1px] bg-slate-100 my-2"></div>
+          <button
+            onClick={() => {
+              onEditSample(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <Package size={14} /> Edit Sample
+          </button>
+          <button
+            onClick={() => {
+              onEditParameters(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-purple-600 hover:bg-purple-50 flex items-center gap-2"
+          >
+            <FlaskConical size={14} /> Edit Parameters
+          </button>
+          <button
+            onClick={() => {
+              onEditPricing(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-orange-600 hover:bg-orange-50 flex items-center gap-2"
+          >
+            <CreditCard size={14} /> Edit Pricing
+          </button>
+          <div className="h-[1px] bg-slate-100 my-2"></div>
           <button
             onClick={() => {
               onEdit(pkg);
@@ -153,7 +134,7 @@ function PackageActions({
             }}
             className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"
           >
-            <Edit2 size={14} /> Edit Test
+            <Edit2 size={14} /> Edit Full Test
           </button>
           <div className="h-[1px] bg-slate-100 my-2"></div>
           <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2">
@@ -165,82 +146,163 @@ function PackageActions({
   );
 }
 
+interface NewTestProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: TestItem) => void;
+  editData?: Test | null;
+  isEditMode?: boolean;
+  activeTab?: 'test' | 'sample' | 'parameters' | 'pricing';
+}
+
 export default function TestPackagePage() {
-  const [packages, setPackages] = useState<TestPackage[]>(SAMPLE_TESTS);
+  const [packages, setPackages] = useState<Test[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<TestPackage | null>(null);
+  const [editingPackage, setEditingPackage] = useState<Test | null>(null);
+  const [activeTab, setActiveTab] = useState<'test' | 'sample' | 'parameters' | 'pricing'>('test');
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<TestPackage | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<Test | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
-  const filteredPackages = packages.filter((pkg) => {
-    const matchesSearch =
-      pkg.testName.toLowerCase().includes(search.toLowerCase()) ||
-      pkg.testCode.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    loadTests();
+  }, [currentPage, statusFilter]);
 
-    const matchesCategory = categoryFilter === 'All' ||
-      CATEGORIES.find(c => c === categoryFilter && DEPARTMENTS.some(d => d.id === pkg.departmentId)) || // This is a bit complex, let's simplify
-      true; // For now let's just match search
-
-    const matchesStatus =
-      statusFilter === 'All' ||
-      (statusFilter === 'Active' && pkg.isActive) ||
-      (statusFilter === 'Inactive' && !pkg.isActive);
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleNewTestSubmit = (newPackageData: TestPackage) => {
-    console.log('New package created:', newPackageData);
-
-    if (editingPackage) {
-      setPackages(
-        packages.map((p) =>
-          p.id === editingPackage.id ? { ...newPackageData, id: p.id } : p
-        )
-      );
-      setEditingPackage(null);
-    } else {
-      const nextId = String(Math.max(...packages.map((p) => parseInt(p.id)), 0) + 1);
-      const newPackage: TestPackage = {
-        ...newPackageData,
-        id: nextId,
-        createdAt: new Date().toISOString(),
-      };
-      setPackages([...packages, newPackage]);
+  const loadTests = async () => {
+    setLoading(true);
+    try {
+      console.log('=== LOAD TESTS FUNCTION CALLED ===');
+      console.log('Current page:', currentPage);
+      console.log('Status filter:', statusFilter);
+      console.log('Search:', search);
+      
+      const status = statusFilter === 'All' ? undefined : statusFilter === 'Active' ? 'true' : 'false';
+      console.log('Converted status for API:', status);
+      
+      console.log('Calling fetchTests with:', { currentPage, pageSize, search: search || undefined, status });
+      const response = await fetchTests(currentPage, pageSize, search || undefined, status);
+      
+      console.log('=== FETCH RESPONSE ===');
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
+      console.log('Content array:', response.data?.content);
+      console.log('Content length:', response.data?.content?.length);
+      console.log('Total elements:', response.data?.totalElements);
+      console.log('Total pages:', response.data?.totalPages);
+      
+      const testsArray = response.data?.content || [];
+      console.log('Tests array to display:', testsArray);
+      
+      setPackages(testsArray);
+      setTotalPages(response.data?.totalPages || 0);
+      setTotalElements(response.data?.totalElements || 0);
+      
+      console.log('✅ Successfully loaded', testsArray.length, 'tests out of', response.data?.totalElements, 'total');
+    } catch (error) {
+      console.error('❌ FAILED TO LOAD TESTS');
+      console.error('Error:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      setPackages([]);
+      setTotalPages(0);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
+      console.log('Loading state set to false');
     }
   };
 
-  const handleEdit = (pkg: TestPackage) => {
+  const handleSearch = () => {
+    setCurrentPage(0);
+    loadTests();
+  };
+
+  const handleNewTestSubmit = async (newPackageData: Test) => {
+    console.log('=== PARENT COMPONENT NOTIFICATION ===');
+    console.log('Test saved successfully, reloading list...');
+    // Just reload the tests - the API call is already done in NewTest component
+    loadTests();
+  };
+
+  const handleEdit = (pkg: Test) => {
+    console.log('=== EDIT BUTTON CLICKED ===');
+    console.log('Editing package:', pkg);
+    console.log('Package ID:', pkg.id);
     setEditingPackage(pkg);
+    setActiveTab('test');
+    console.log('editingPackage state set');
+    setIsModalOpen(true);
+    console.log('isModalOpen set to true');
+  };
+
+  const handleEditSample = (pkg: Test) => {
+    console.log('=== EDIT SAMPLE CLICKED ===');
+    setEditingPackage(pkg);
+    setActiveTab('sample');
     setIsModalOpen(true);
   };
 
-  const handleViewDetails = (pkg: TestPackage) => {
+  const handleEditParameters = (pkg: Test) => {
+    console.log('=== EDIT PARAMETERS CLICKED ===');
+    setEditingPackage(pkg);
+    setActiveTab('parameters');
+    setIsModalOpen(true);
+  };
+
+  const handleEditPricing = (pkg: Test) => {
+    console.log('=== EDIT PRICING CLICKED ===');
+    setEditingPackage(pkg);
+    setActiveTab('pricing');
+    setIsModalOpen(true);
+  };
+
+  const handleViewDetails = (pkg: Test) => {
     setSelectedPackage(pkg);
     setDetailsOpen(true);
   };
 
-  const handleDetailsEdit = (pkg: TestPackage) => {
+  const handleDetailsEdit = (pkg: Test) => {
     setDetailsOpen(false);
     setSelectedPackage(null);
     setTimeout(() => {
       setEditingPackage(pkg);
+      setActiveTab('test');
       setIsModalOpen(true);
     }, 300);
   };
 
-  const handleDetailsDelete = (testId: string) => {
-    setPackages(packages.filter((p) => p.id !== testId));
-    setDetailsOpen(false);
-    setSelectedPackage(null);
+  const handleDetailsDelete = async (testId: number) => {
+    if (window.confirm('Are you sure you want to delete this test?')) {
+      try {
+        await deleteTest(testId);
+        setDetailsOpen(false);
+        setSelectedPackage(null);
+        loadTests();
+      } catch (error) {
+        console.error('Failed to delete test:', error);
+      }
+    }
+  };
+
+  const handleToggleStatus = async (id: number, isActive: boolean) => {
+    try {
+      await toggleTestStatus(id, isActive);
+      loadTests();
+    } catch (error) {
+      console.error('Failed to toggle status:', error);
+    }
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingPackage(null);
+    setActiveTab('test');
   };
 
   const handleCloseDetails = () => {
@@ -268,7 +330,11 @@ export default function TestPackagePage() {
             variant="gradient"
             size="sm"
             className="gap-2 shadow-sm px-8"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setIsModalOpen(true);
+              setEditingPackage(null);
+              setActiveTab('test');
+            }}
             suppressHydrationWarning
           >
             <Plus size={16} /> Create Test
@@ -280,32 +346,19 @@ export default function TestPackagePage() {
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-4">
         <div className="relative flex-1 group w-full">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#006D77] transition-colors"
             size={18}
           />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search packages..."
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Search tests..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             suppressHydrationWarning
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="relative flex-1 lg:w-40 group">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-              suppressHydrationWarning
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
-          </div>
           <div className="relative flex-1 lg:w-40 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
@@ -320,7 +373,7 @@ export default function TestPackagePage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200" suppressHydrationWarning>
+          <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200" onClick={handleSearch} suppressHydrationWarning>
             <Settings size={18} />
           </Button>
         </div>
@@ -356,79 +409,99 @@ export default function TestPackagePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredPackages.map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-slate-50 transition-colors group cursor-pointer">
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <span className="text-xs font-bold text-slate-600 font-mono hover:text-emerald-600 transition-colors">
-                      {pkg.testCode}
-                    </span>
-                  </td>
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                        <Package size={20} />
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm mb-0.5">
-                          {pkg.testName}
-                        </div>
-                        <div className="text-xs text-slate-500 line-clamp-1">
-                          {pkg.version.method} • {pkg.version.unit}
-                        </div>
-                      </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-5 w-5 border-2 border-[#006D77] border-t-transparent rounded-full"></div>
+                      <span>Loading tests...</span>
                     </div>
-                  </td>
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                      {pkg.categoryId === 5 ? 'Lipid Profile' : 'Other'}
-                    </Badge>
-                  </td>
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <span className="text-sm font-semibold text-slate-700">
-                      {pkg.parameters[0]?.parameterName || 'Multiple'}
-                      {pkg.parameters.length > 1 && ` (+${pkg.parameters.length - 1} more)`}
-                    </span>
-                  </td>
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <div className="text-sm font-bold text-slate-900 tracking-tight font-mono">
-                      ₹{new Intl.NumberFormat('en-IN').format(Number(pkg.version.price || 0))}
-                    </div>
-                  </td>
-                  <td
-                    className="px-6 py-4"
-                    onClick={() => handleViewDetails(pkg)}
-                  >
-                    <Badge
-                      variant={pkg.isActive ? 'success' : 'secondary'}
-                      className="text-[10px] font-bold"
-                    >
-                      {pkg.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <PackageActions
-                      pkg={pkg}
-                      onView={handleViewDetails}
-                      onEdit={handleEdit}
-                    />
                   </td>
                 </tr>
-              ))}
+              ) : packages.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                    No tests found. Create your first test to get started.
+                  </td>
+                </tr>
+              ) : (
+                packages.map((pkg) => (
+                  <tr key={pkg.id} className="hover:bg-slate-50 transition-colors group cursor-pointer">
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <span className="text-xs font-bold text-slate-600 font-mono hover:text-[#00AC80] transition-colors">
+                        {pkg.testCode}
+                      </span>
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#006D77] group-hover:text-white transition-all">
+                          <Package size={20} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 group-hover:text-[#006D77] transition-colors text-sm mb-0.5">
+                            {pkg.testName}
+                          </div>
+                          <div className="text-xs text-slate-500 line-clamp-1">
+                            {pkg.version?.method || 'N/A'} • {pkg.version?.unit || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
+                        {pkg.categoryId === 5 ? 'Lipid Profile' : 'Other'}
+                      </Badge>
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <span className="text-sm font-semibold text-slate-700">
+                        {pkg.parameters?.[0]?.parameterName || 'N/A'}
+                        {pkg.parameters && pkg.parameters.length > 1 && ` (+${pkg.parameters.length - 1} more)`}
+                      </span>
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <div className="text-sm font-bold text-slate-900 tracking-tight font-mono">
+                        ₹{new Intl.NumberFormat('en-IN').format(Number(pkg.version?.price || 0))}
+                      </div>
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={() => handleViewDetails(pkg)}
+                    >
+                      <Badge
+                        variant={pkg.isActive ? 'success' : 'secondary'}
+                        className="text-[10px] font-bold"
+                      >
+                        {pkg.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <PackageActions
+                        pkg={pkg}
+                        onView={handleViewDetails}
+                        onEdit={handleEdit}
+                        onEditSample={handleEditSample}
+                        onEditParameters={handleEditParameters}
+                        onEditPricing={handleEditPricing}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -436,23 +509,32 @@ export default function TestPackagePage() {
         {/* ═══ FOOTER ═════════════════════════════════════════════ */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <span>Showing {filteredPackages.length} of {packages.length} Tests</span>
+            <span>Showing {packages.length} of {totalElements} Tests</span>
             <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-            <span className="text-emerald-600">Test Packages v1.0</span>
+            <span className="text-[#FF671F]">Test Packages v1.0</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]" suppressHydrationWarning>
-              Prev
-            </Button>
             <Button
-              variant="secondary"
+              variant="outline"
               size="sm"
               className="px-4 py-1 text-[10px]"
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
               suppressHydrationWarning
             >
-              1
+              Prev
             </Button>
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]" suppressHydrationWarning>
+            <span className="px-4 py-1 text-xs font-bold text-slate-600">
+              Page {currentPage + 1} of {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-4 py-1 text-[10px]"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+              suppressHydrationWarning
+            >
               Next
             </Button>
           </div>
@@ -463,9 +545,10 @@ export default function TestPackagePage() {
       <NewTest
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={(data) => handleNewTestSubmit(data as TestPackage)}
-        editData={editingPackage as any}
+        onSubmit={(data) => handleNewTestSubmit(data as CreateTestInput)}
+        editData={editingPackage}
         isEditMode={!!editingPackage}
+        activeTab={activeTab}
       />
 
       {/* ═══ DETAILS VIEW MODAL ═══════════════════════════════════ */}
@@ -474,7 +557,10 @@ export default function TestPackagePage() {
         onClose={handleCloseDetails}
         testData={selectedPackage}
         onEdit={handleDetailsEdit}
-        onDelete={handleDetailsDelete}
+        onDelete={(id) => handleDetailsDelete(Number(id))}
+        onEditSample={handleEditSample}
+        onEditParameters={handleEditParameters}
+        onEditPricing={handleEditPricing}
       />
     </div>
   );

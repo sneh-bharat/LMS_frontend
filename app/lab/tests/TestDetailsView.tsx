@@ -17,29 +17,23 @@ import {
   Copy,
   Download,
   Share2,
+  ListChecks,
+  IndianRupee,
 } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-
-interface TestPackage {
-  id: string;
-  testCode: string;
-  testName: string;
-  description: string;
-  category: string;
-  sample: string;
-  price: number;
-  isActive: boolean;
-  createdAt: string;
-}
+import type { Test } from '@/app/Apis/lab/TestApis';
 
 interface TestDetailsViewProps {
   isOpen: boolean;
   onClose: () => void;
-  testData: TestPackage | null;
-  onEdit?: (test: TestPackage) => void;
-  onDelete?: (testId: string) => void;
+  testData: Test | null;
+  onEdit?: (test: Test) => void;
+  onDelete?: (testId: number) => void;
+  onEditSample?: (test: Test) => void;
+  onEditParameters?: (test: Test) => void;
+  onEditPricing?: (test: Test) => void;
 }
 
 export default function TestDetailsView({
@@ -48,6 +42,9 @@ export default function TestDetailsView({
   testData,
   onEdit,
   onDelete,
+  onEditSample,
+  onEditParameters,
+  onEditPricing,
 }: TestDetailsViewProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -89,21 +86,47 @@ export default function TestDetailsView({
     }
   };
 
+  // Pre-calculate values to avoid hydration mismatch
+  const formattedDate = formatDate(testData.createdAt);
+  const formattedPrice = testData.version?.price ? testData.version.price.toLocaleString('en-IN') : '0';
+
   const footer = (
-    <div className="flex gap-3 justify-end w-full">
+    <div className="flex gap-3 justify-end w-full flex-wrap">
       <Button
         variant="outline"
         onClick={onClose}
         className="px-6 py-2 rounded-lg font-bold transition-all text-sm border-slate-300 text-slate-700"
+        suppressHydrationWarning
       >
         Close
       </Button>
-      <Button
-        onClick={handleEdit}
-        className="px-6 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
-      >
-        <Edit2 size={16} /> Edit Test
-      </Button>
+      {onEditSample && (
+        <Button
+          onClick={() => onEditSample(testData)}
+          className="px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
+          suppressHydrationWarning
+        >
+          <Beaker size={16} /> Edit Sample
+        </Button>
+      )}
+      {onEditParameters && (
+        <Button
+          onClick={() => onEditParameters(testData)}
+          className="px-6 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
+          suppressHydrationWarning
+        >
+          <ListChecks size={16} /> Edit Parameters
+        </Button>
+      )}
+      {onEditPricing && (
+        <Button
+          onClick={() => onEditPricing(testData)}
+          className="px-6 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
+          suppressHydrationWarning
+        >
+          <IndianRupee size={16} /> Edit Pricing
+        </Button>
+      )}
     </div>
   );
 
@@ -134,7 +157,7 @@ export default function TestDetailsView({
                 </h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
-                    {testData.category}
+                    {testData.categoryId ? `Category ${testData.categoryId}` : 'N/A'}
                   </Badge>
                   <Badge
                     variant={testData.isActive ? 'success' : 'secondary'}
@@ -156,12 +179,14 @@ export default function TestDetailsView({
                       variant="outline"
                       onClick={() => setShowDeleteConfirm(false)}
                       className="px-4 py-2 text-sm"
+                      suppressHydrationWarning
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleDelete}
                       className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm"
+                      suppressHydrationWarning
                     >
                       Delete
                     </Button>
@@ -190,6 +215,7 @@ export default function TestDetailsView({
                 onClick={handleCopyCode}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-emerald-600"
                 title="Copy code"
+                suppressHydrationWarning
               >
                 <Copy size={16} />
               </button>
@@ -207,7 +233,9 @@ export default function TestDetailsView({
                 Sample Type
               </span>
             </div>
-            <p className="text-lg font-bold text-slate-900">{testData.sample}</p>
+            <p className="text-lg font-bold text-slate-900">
+              {testData.sampleRequirements?.[0]?.sampleType || 'N/A'}
+            </p>
           </div>
 
           {/* Price */}
@@ -218,8 +246,8 @@ export default function TestDetailsView({
                 Price
               </span>
             </div>
-            <p className="text-lg font-bold text-slate-900 font-mono">
-              ₹{testData.price.toLocaleString('en-IN')}
+            <p className="text-lg font-bold text-slate-900 font-mono" suppressHydrationWarning>
+              ₹{formattedPrice}
             </p>
           </div>
 
@@ -231,8 +259,8 @@ export default function TestDetailsView({
                 Created
               </span>
             </div>
-            <p className="text-sm font-semibold text-slate-900">
-              {formatDate(testData.createdAt)}
+            <p className="text-sm font-semibold text-slate-900" suppressHydrationWarning>
+              {formattedDate}
             </p>
           </div>
         </div>
@@ -286,9 +314,15 @@ export default function TestDetailsView({
             </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 font-medium">Department</span>
+                <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
+                  {testData.departmentId ? `Dept ${testData.departmentId}` : 'N/A'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600 font-medium">Category</span>
                 <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                  {testData.category}
+                  {testData.categoryId ? `Cat ${testData.categoryId}` : 'N/A'}
                 </Badge>
               </div>
             </div>

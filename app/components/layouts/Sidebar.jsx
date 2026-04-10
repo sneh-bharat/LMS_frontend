@@ -248,6 +248,7 @@ export default function Sidebar({ isOpen }) {
                             <button
                                 onClick={() => toggleGroup(group.id)}
                                 title={!isOpen ? group.label : ''}
+                                suppressHydrationWarning
                                 className={cn(
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
                                     groupOpen && isOpen
