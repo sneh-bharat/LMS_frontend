@@ -275,7 +275,7 @@ export default function BankHistoryPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <FileText size={28} className="text-emerald-600" />
+            <FileText size={28} className="text-[#FF671F]" />
             Bank Transaction History
           </h1>
           <p className="text-sm text-slate-500">Track all bank transactions and transfers</p>
@@ -287,7 +287,7 @@ export default function BankHistoryPage() {
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-blue-400/30 flex items-center justify-center">
-              <Activity size={20} className="text-blue-600" />
+              <Activity size={20} className="text-[#FF671F]" />
             </div>
             <span className="text-blue-700 font-bold text-xs uppercase tracking-wider">Total Transactions</span>
           </div>
@@ -297,7 +297,7 @@ export default function BankHistoryPage() {
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-emerald-400/30 flex items-center justify-center">
-              <TrendingUp size={20} className="text-emerald-600" />
+              <TrendingUp size={20} className="text-[#FF671F]" />
             </div>
             <span className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Total Deposits</span>
           </div>

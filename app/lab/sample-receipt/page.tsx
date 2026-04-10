@@ -263,7 +263,7 @@ export default function SampleReceiptPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-              Sample <span className="text-emerald-600">Collection & Acceptance</span>
+              Sample <span className="text-[#FF671F]">Collection & Acceptance</span>
             </h1>
             <p className="text-slate-500 text-sm font-medium max-w-xl">
               Manage and track diagnostic sample collections.

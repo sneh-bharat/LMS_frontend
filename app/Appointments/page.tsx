@@ -123,7 +123,7 @@ export default function AppointmentBookingPage() {
               </div>
 
               <span>
-                Test <span className="text-emerald-600">Appointments</span>
+                Test <span className="text-[#FF671F]">Appointments</span>
               </span>
 
             </h1>

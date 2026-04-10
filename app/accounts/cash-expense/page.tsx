@@ -197,7 +197,7 @@ const CashExpensePage = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                <span className="text-green-600">Daily</span> Expense Management
+                <span className="text-[#FF671F]">Daily</span> Expense Management
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 Track and manage daily cash expenses across different categories.

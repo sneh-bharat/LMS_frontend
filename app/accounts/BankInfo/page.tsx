@@ -282,7 +282,7 @@ export default function BankInfoPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <Building2 size={28} className="text-emerald-600" />
+            <Building2 size={28} className="text-[#FF671F]" />
             Bank Information Management
           </h1>
           <p className="text-sm text-slate-500">Manage bank accounts and track transactions</p>
@@ -302,7 +302,7 @@ export default function BankInfoPage() {
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-emerald-400/30 flex items-center justify-center">
-              <Building2 size={20} className="text-emerald-600" />
+              <Building2 size={20} className="text-[#FF671F]" />
             </div>
             <span className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Total Banks</span>
           </div>
@@ -312,7 +312,7 @@ export default function BankInfoPage() {
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-blue-400/30 flex items-center justify-center">
-              <CheckCircle size={20} className="text-blue-600" />
+              <CheckCircle size={20} className="text-[#FF671F]" />
             </div>
             <span className="text-blue-700 font-bold text-xs uppercase tracking-wider">Active</span>
           </div>

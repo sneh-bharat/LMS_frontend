@@ -214,7 +214,7 @@ export default function MachineInstrumentPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                Instrument <span className="text-blue-600">&</span> Machine
+                Instrument <span className="text-[#FF671F]">&</span> Machine
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 Manage medical instruments, machines, AMC contracts, and maintenance schedules.

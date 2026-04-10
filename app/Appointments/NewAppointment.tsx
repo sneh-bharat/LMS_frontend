@@ -352,7 +352,7 @@ export default function NewAppointment({
 
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-2 mb-3">
-              <User size={16} className="text-blue-600" />
+              <User size={16} className="text-[#FF671F]" />
               <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Basic Information</span>
             </div>
 
@@ -399,7 +399,7 @@ export default function NewAppointment({
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-2 mb-3">
-              <Phone size={16} className="text-emerald-600" />
+              <Phone size={16} className="text-[#FF671F]" />
               <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Contact Information</span>
             </div>
 

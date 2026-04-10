@@ -113,7 +113,7 @@ const FranchiseLedger = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                <span className="text-blue-600">Franchise</span> Ledger
+                <span className="text-[#FF671F]">Franchise</span> Ledger
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 View and print B2B franchise ledger records by date range.

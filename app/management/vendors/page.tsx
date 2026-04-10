@@ -191,7 +191,7 @@ export default function VendorSupplierPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                Vendor <span className="text-blue-600">&</span> Suppliers
+                Vendor <span className="text-[#FF671F]">&</span> Suppliers
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 Manage vendor information, contact details, and registration status.

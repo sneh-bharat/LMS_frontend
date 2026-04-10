@@ -223,7 +223,7 @@ export default function TestPackagePage() {
             </div>
             <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-                    Test <span className="text-emerald-600">Samples Collection</span>
+                    Test <span className="text-[#FF671F]">Samples Collection</span>
             </h1>
             <p className="text-slate-500 text-sm font-medium max-w-xl">
             Manage diagnostic test packages and bundled offerings.
@@ -379,7 +379,7 @@ export default function TestPackagePage() {
           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             <span>Showing {filteredPackages.length} of {packages.length} Tests</span>
             <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-            <span className="text-emerald-600">Test Packages v1.0</span>
+            <span className="text-[#FF671F]">Test Packages v1.0</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]">

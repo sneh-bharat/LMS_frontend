@@ -139,7 +139,7 @@ export default function SampleTrackingPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            Sample <span className="text-emerald-600">Tracking</span>
+            Sample <span className="text-[#FF671F]">Tracking</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Real-time monitoring of diagnostic specimens.

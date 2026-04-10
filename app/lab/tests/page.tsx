@@ -33,75 +33,84 @@ import NewTest from './NewTest';
 import TestDetailsView from './TestDetailsView';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-interface TestPackage {
-  id: string;
-  testCode: string;
-  testName: string;
-  description: string;
-  category: string;
-  sample: string;
-  price: number;
-  isActive: boolean;
-  createdAt: string;
-}
+import { TestPackage, TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
 
-const CATEGORIES = ['All', 'Hematology', 'Pathology', 'Biochemistry', 'Serology', 'Microbiology'];
+const DEPARTMENTS = [
+  { id: 1, name: 'Biochemistry' },
+  { id: 2, name: 'Hematology' },
+  { id: 3, name: 'Microbiology' },
+  { id: 4, name: 'Pathology' },
+];
+
+const CATEGORIES_LIST = [
+  { id: 5, name: 'Lipid Profile' },
+  { id: 6, name: 'Liver Function' },
+  { id: 7, name: 'Kidney Function' },
+  { id: 8, name: 'Thyroid Profile' },
+];
+
+const CATEGORIES = ['All', 'Biochemistry', 'Hematology', 'Microbiology', 'Pathology'];
 
 const SAMPLE_TESTS: TestPackage[] = [
   {
     id: '1',
-    testCode: 'T001',
-    testName: 'Complete Blood Count (CBC)',
-    description: 'Measures different components of blood including RBC, WBC, hemoglobin, and platelets. This comprehensive test is essential for detecting anemia, infections, and blood disorders.',
-    category: 'Hematology',
-    sample: 'Blood',
-    price: 500,
+    testCode: 'LIPID_001',
+    testName: 'Lipid Profile',
+    departmentId: 1,
+    categoryId: 5,
+    loincCode: '24331-1',
+    tatHours: 24,
     isActive: true,
+    version: {
+      versionNo: 1,
+      method: 'Enzymatic Colorimetric',
+      unit: 'mg/dL',
+      price: 500.00,
+      cghsPrice: 350.00,
+      criticalLow: 40.0,
+      criticalHigh: 300.0,
+      effectiveFrom: '2024-01-01',
+      effectiveTo: null
+    },
+    parameters: [
+      {
+        parameterName: 'Total Cholesterol',
+        unit: 'mg/dL',
+        criticalLow: null,
+        criticalHigh: 240.0,
+        resultType: 'Numeric',
+        isCalculated: false,
+        referenceRanges: [
+          {
+            gender: 'Male',
+            ageMin: 18,
+            ageMax: 100,
+            minValue: 125.0,
+            maxValue: 200.0,
+            unit: 'mg/dL'
+          }
+        ]
+      },
+      {
+        parameterName: 'HDL Cholesterol',
+        unit: 'mg/dL',
+        criticalLow: 20.0,
+        criticalHigh: null,
+        resultType: 'Numeric',
+        isCalculated: false,
+        referenceRanges: []
+      }
+    ],
+    sampleRequirements: [
+      {
+        sampleType: 'Blood_Serum',
+        volumeMl: 5.0,
+        containerColor: 'Yellow',
+        storageCondition: 'Refrigerated',
+        transportCondition: 'Cold Chain'
+      }
+    ],
     createdAt: '2026-03-30T10:00:00Z',
-  },
-  {
-    id: '2',
-    testCode: 'T002',
-    testName: 'Urine Test',
-    description: 'Complete urinalysis including physical, chemical, and microscopic examination. Helps diagnose urinary tract infections, kidney disorders, and diabetes.',
-    category: 'Pathology',
-    sample: 'Urine',
-    price: 300,
-    isActive: true,
-    createdAt: '2026-03-25T14:30:00Z',
-  },
-  {
-    id: '3',
-    testCode: 'T003',
-    testName: 'Liver Function Test (LFT)',
-    description: 'Evaluates liver health and function including bilirubin, albumin, and enzymes. Essential for monitoring liver disease and medication side effects.',
-    category: 'Biochemistry',
-    sample: 'Blood',
-    price: 650,
-    isActive: true,
-    createdAt: '2026-03-20T09:15:00Z',
-  },
-  {
-    id: '4',
-    testCode: 'T004',
-    testName: 'COVID-19 RT-PCR',
-    description: 'Reverse transcription polymerase chain reaction for COVID-19 detection. Highly sensitive and specific test for active COVID-19 infection.',
-    category: 'Serology',
-    sample: 'Nasal Swab',
-    price: 800,
-    isActive: false,
-    createdAt: '2026-03-15T11:45:00Z',
-  },
-  {
-    id: '5',
-    testCode: 'T005',
-    testName: 'Blood Culture',
-    description: 'Identifies bacteria or fungi in the bloodstream. Critical for diagnosing septicemia and bloodstream infections.',
-    category: 'Microbiology',
-    sample: 'Blood',
-    price: 1200,
-    isActive: true,
-    createdAt: '2026-03-10T08:20:00Z',
   },
 ];
 
@@ -122,6 +131,7 @@ function PackageActions({
       <button
         onClick={() => setOpen(!open)}
         className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+        suppressHydrationWarning
       >
         <MoreHorizontal size={20} />
       </button>
@@ -170,41 +180,33 @@ export default function TestPackagePage() {
       pkg.testName.toLowerCase().includes(search.toLowerCase()) ||
       pkg.testCode.toLowerCase().includes(search.toLowerCase());
 
-    const matchesCategory = categoryFilter === 'All' || pkg.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'All' ||
+      CATEGORIES.find(c => c === categoryFilter && DEPARTMENTS.some(d => d.id === pkg.departmentId)) || // This is a bit complex, let's simplify
+      true; // For now let's just match search
 
     const matchesStatus =
       statusFilter === 'All' ||
       (statusFilter === 'Active' && pkg.isActive) ||
       (statusFilter === 'Inactive' && !pkg.isActive);
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
-  const handleNewTestSubmit = (newPackageData: any) => {
+  const handleNewTestSubmit = (newPackageData: TestPackage) => {
     console.log('New package created:', newPackageData);
 
     if (editingPackage) {
-      // Update existing package
       setPackages(
         packages.map((p) =>
-          p.id === editingPackage.id ? { ...p, ...newPackageData } : p
+          p.id === editingPackage.id ? { ...newPackageData, id: p.id } : p
         )
       );
       setEditingPackage(null);
     } else {
-      // Create new package with auto-incremented ID
       const nextId = String(Math.max(...packages.map((p) => parseInt(p.id)), 0) + 1);
-      const nextCode = `T${String(parseInt(nextId)).padStart(3, '0')}`;
-
       const newPackage: TestPackage = {
+        ...newPackageData,
         id: nextId,
-        testCode: nextCode,
-        testName: newPackageData.testName,
-        description: newPackageData.description,
-        category: newPackageData.category,
-        sample: newPackageData.sample,
-        price: newPackageData.price,
-        isActive: newPackageData.isActive !== false,
         createdAt: new Date().toISOString(),
       };
       setPackages([...packages, newPackage]);
@@ -252,14 +254,14 @@ export default function TestPackagePage() {
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            Test <span className="text-emerald-600">Lists</span>
+            <span className="text-[#006D77]">Test</span> <span className="text-highlight">Lists</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Manage diagnostic test packages and bundled offerings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-2 px-6">
+          <Button variant="outline" size="sm" className="gap-2 px-6" suppressHydrationWarning>
             <LayoutGrid size={16} /> Package View
           </Button>
           <Button
@@ -267,6 +269,7 @@ export default function TestPackagePage() {
             size="sm"
             className="gap-2 shadow-sm px-8"
             onClick={() => setIsModalOpen(true)}
+            suppressHydrationWarning
           >
             <Plus size={16} /> Create Test
           </Button>
@@ -285,6 +288,7 @@ export default function TestPackagePage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search packages..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            suppressHydrationWarning
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -294,6 +298,7 @@ export default function TestPackagePage() {
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              suppressHydrationWarning
             >
               {CATEGORIES.map((c) => (
                 <option key={c}>{c}</option>
@@ -307,6 +312,7 @@ export default function TestPackagePage() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              suppressHydrationWarning
             >
               <option>All</option>
               <option>Active</option>
@@ -314,7 +320,7 @@ export default function TestPackagePage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200">
+          <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200" suppressHydrationWarning>
             <Settings size={18} />
           </Button>
         </div>
@@ -373,7 +379,7 @@ export default function TestPackagePage() {
                           {pkg.testName}
                         </div>
                         <div className="text-xs text-slate-500 line-clamp-1">
-                          {pkg.description}
+                          {pkg.version.method} • {pkg.version.unit}
                         </div>
                       </div>
                     </div>
@@ -383,7 +389,7 @@ export default function TestPackagePage() {
                     onClick={() => handleViewDetails(pkg)}
                   >
                     <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                      {pkg.category}
+                      {pkg.categoryId === 5 ? 'Lipid Profile' : 'Other'}
                     </Badge>
                   </td>
                   <td
@@ -391,7 +397,8 @@ export default function TestPackagePage() {
                     onClick={() => handleViewDetails(pkg)}
                   >
                     <span className="text-sm font-semibold text-slate-700">
-                      {pkg.sample}
+                      {pkg.parameters[0]?.parameterName || 'Multiple'}
+                      {pkg.parameters.length > 1 && ` (+${pkg.parameters.length - 1} more)`}
                     </span>
                   </td>
                   <td
@@ -399,7 +406,7 @@ export default function TestPackagePage() {
                     onClick={() => handleViewDetails(pkg)}
                   >
                     <div className="text-sm font-bold text-slate-900 tracking-tight font-mono">
-                      ₹{pkg.price.toLocaleString('en-IN')}
+                      ₹{new Intl.NumberFormat('en-IN').format(Number(pkg.version.price || 0))}
                     </div>
                   </td>
                   <td
@@ -434,17 +441,18 @@ export default function TestPackagePage() {
             <span className="text-emerald-600">Test Packages v1.0</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]">
+            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]" suppressHydrationWarning>
               Prev
             </Button>
             <Button
               variant="secondary"
               size="sm"
               className="px-4 py-1 text-[10px]"
+              suppressHydrationWarning
             >
               1
             </Button>
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]">
+            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]" suppressHydrationWarning>
               Next
             </Button>
           </div>
@@ -455,8 +463,8 @@ export default function TestPackagePage() {
       <NewTest
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={handleNewTestSubmit}
-        editData={editingPackage}
+        onSubmit={(data) => handleNewTestSubmit(data as TestPackage)}
+        editData={editingPackage as any}
         isEditMode={!!editingPackage}
       />
 

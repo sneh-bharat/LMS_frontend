@@ -12,9 +12,9 @@ import {
     LayoutDashboard,
     ChevronDown,
     Activity,
-    Scan ,
+    Scan,
     UserPlus,
-    Layers  ,
+    Layers,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui';
@@ -28,7 +28,7 @@ const NAV = [
         label: 'Quick Activity',
         icon: <Zap size={20} />,
         children: [
-           
+
             { label: 'Find Diagnostic Invoice', href: '/diagnosis/invoice-list' },
             { label: 'Report Unlock Request', href: '/report-unlock' },
             { label: 'Find Register Patient', href: '/register-patient' },
@@ -38,8 +38,9 @@ const NAV = [
             { label: 'Invoice Journey', href: '#' },
         ],
     },
-    {         id: 'booking', label: 'Booking & Registration', 
-            icon: <UserPlus size={20} />,
+    {
+        id: 'booking', label: 'Booking & Registration',
+        icon: <UserPlus size={20} />,
         children: [
 
             { label: 'Online Booking Request', href: '/OnlineBooking' },
@@ -50,28 +51,28 @@ const NAV = [
             { label: 'Appointments', href: '/Appointments' },
             { label: 'Test Order', href: '/lab/test-order' },
 
-        ] 
+        ]
     },
     {
         id: 'diagnostic',
         label: 'Diagnostic',
         icon: <FlaskConical size={20} />,
         children: [
-            
+
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
             { label: 'Estimations', href: '/estimation' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Investigations', href: '/investigation' },
-             { label: 'Sample Tracking', href: '/SampleTracking' },
+            { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Bulk Report Download', href: '/reports/bulk-download' },
         ],
     },
-     {
+    {
         id: 'radiology',
         label: 'Radiology',
         icon: <Scan size={20} />,
         children: [
-            
+
             { label: 'Radiology Schedule', href: '#' },
             { label: 'Radiology Reports', href: '#' },
             { label: ' Radiology Invoice', href: '#' },
@@ -87,8 +88,11 @@ const NAV = [
             { label: 'Units', href: '/lab/units' },
             { label: 'Invoice', href: '/lab/invoice' },
             { label: 'Lab Tests', href: '/lab/tests' },
-            { label: 'Test Sample ', href: '/lab/sample'},
-            { label: 'Sample Receipt', href: '/lab/sample-receipt' }
+            { label: 'Test Categories', href: '/lab/categories' },
+            { label: 'Test Sample ', href: '/lab/sample' },
+            { label: 'Sample Receipt', href: '/lab/sample-receipt' },
+            { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
+            { label: 'Test Result', href: '/lab/test-result' },
         ],
     },
     {
@@ -96,16 +100,17 @@ const NAV = [
         label: 'Polyclinic',
         icon: <Stethoscope size={20} />,
         children: [
-          
+
             { label: 'OPD Schedule', href: '/polyclinic/opdschedule' },
             { label: 'Patient Queue', href: '/polyclinic/patientqueue' },
             { label: 'Invoice List', href: '/reception' },
-            
+
         ],
     },
-    { id: 'masters', label: 'Masters',
-        icon: <Layers  size={20} />,
-         children: [
+    {
+        id: 'masters', label: 'Masters',
+        icon: <Layers size={20} />,
+        children: [
 
             { label: 'Doctors', href: '/doctor' },
             { label: 'Collectors', href: '/collector' },
@@ -113,7 +118,7 @@ const NAV = [
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
-         ]
+        ]
     },
 
     {
@@ -168,7 +173,7 @@ const NAV = [
             { label: 'Vendors & Suppliers', href: '/management/vendors' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Settings', href: '/management/settings' }
-          
+
         ],
     },
 ];
@@ -200,7 +205,7 @@ export default function Sidebar({ isOpen }) {
     return (
         <aside
             className={cn(
-                "flex flex-col h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-blue-950 border-r border-white/10 transition-all duration-300 ease-in-out relative z-49 shadow-2xl overflow-y-auto",
+                "flex flex-col h-screen bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-r border-white/10 transition-all duration-300 ease-in-out relative z-49 shadow-2xl overflow-y-auto",
                 isOpen ? 'w-72' : 'w-20'
             )}
         >
@@ -211,20 +216,20 @@ export default function Sidebar({ isOpen }) {
             )}>
                 <div className={cn(
                     "flex items-center justify-center transition-all duration-500 group relative overflow-hidden",
-                    isOpen 
-                        ? "w-full bg-white rounded-xl shadow-2xl border border-white/10 hover:scale-[1.02] transform transition-transform" 
+                    isOpen
+                        ? "w-full bg-white rounded-xl shadow-2xl border border-white/10 hover:scale-[1.02] transform transition-transform"
                         : "w-12 h-12 bg-white rounded-lg p-1 shadow-lg border border-white/10"
                 )}>
                     {isOpen ? (
-                        <img 
-                            src="/images/logo.webp" 
-                            alt="WellnessHive Logo" 
+                        <img
+                            src="/images/logo.png"
+                            alt="snehbharat"
                             className="w-full h-auto object-contain max-h-16"
                         />
                     ) : (
-                        <img 
-                            src="/images/favicon.jpg" 
-                            alt="Icon" 
+                        <img
+                            src="/images/favicon.jpg"
+                            alt="Icon"
                             className="w-full h-full object-contain"
                         />
                     )}
@@ -247,12 +252,12 @@ export default function Sidebar({ isOpen }) {
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
                                     groupOpen && isOpen
                                         ? 'bg-white/10 text-white'
-                                        : isGroupActive && !isOpen ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
+                                        : isGroupActive && !isOpen ? 'bg-[#00AC80]/20 text-[#00AC80]' : 'text-slate-100/70 hover:bg-white/5 hover:text-white'
                                 )}
                             >
                                 <span className={cn(
                                     "transition-all duration-200",
-                                    (groupOpen && isOpen) || (isGroupActive && !isOpen) ? 'text-white' : 'text-blue-200 group-hover:text-white'
+                                    (groupOpen && isOpen) || (isGroupActive && !isOpen) ? 'text-white' : 'text-teal-100/80 group-hover:text-white'
                                 )}>
                                     {group.icon}
                                 </span>
@@ -286,7 +291,7 @@ export default function Sidebar({ isOpen }) {
                                                     "block py-2 px-4 ml-10 mr-2 rounded-lg text-[13px] transition-all duration-200 group relative",
                                                     active
                                                         ? 'text-white font-bold bg-white/20 backdrop-blur-md shadow-sm border border-white/10'
-                                                        : 'text-blue-100/70 hover:text-white hover:bg-white/10'
+                                                        : 'text-teal-50/70 hover:text-white hover:bg-white/10'
                                                 )}
                                             >
                                                 {active && (
@@ -301,11 +306,11 @@ export default function Sidebar({ isOpen }) {
                         </div>
                     );
                 })}
-                 <div className="h-24"/>
+                <div className="h-24" />
             </nav>
-           
-               
-            
+
+
+
         </aside>
     );
 }

@@ -219,7 +219,7 @@ const OneInvoicePage = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                <span className="text-blue-600">One</span> Invoice
+                <span className="text-[#FF671F]">One</span> Invoice
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 Manage consolidated B2B invoices, track payments, and generate new invoice records.
@@ -337,7 +337,7 @@ const OneInvoicePage = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <FileText size={14} className="text-blue-600" />
+                            <FileText size={14} className="text-[#FF671F]" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-900">{r.b2bDetails}</p>

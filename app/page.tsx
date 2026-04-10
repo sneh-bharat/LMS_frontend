@@ -25,7 +25,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            System <span className="text-emerald-600">Overview</span>
+            System <span className="text-[#FF671F]">Overview</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Real-time performance metrics and branch management.

@@ -29,7 +29,7 @@ export default function Topbar({ onToggleSidebar }) {
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-nowrap">Hive Lab Management</span>
                 </div>
                 <span className="font-bold text-lg text-slate-900 leading-none tracking-tight text-nowrap">
-                    Customer Support & <span className="text-blue-600">Quality Control</span>
+                    Customer Support & <span className="text-[#FF671F]">Quality Control</span>
                 </span>
             </div>
 
@@ -61,11 +61,11 @@ export default function Topbar({ onToggleSidebar }) {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2">
-                    <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group" aria-label="Notifications">
+                    <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group" aria-label="Notifications" suppressHydrationWarning>
                         <Bell size={22} className="group-hover:animate-shake" />
                         <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 border-2 border-white rounded-full"></span>
                     </button>
-                    <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" aria-label="Apps">
+                    <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" aria-label="Apps" suppressHydrationWarning>
                         <CalendarCheck size={22} />
                     </button>
                 </div>

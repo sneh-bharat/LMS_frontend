@@ -244,7 +244,7 @@ export default function BranchLabTestPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                <span className="text-emerald-600">🧪 Branch Lab</span> Tests
+                <span className="text-[#FF671F]">🧪 Branch Lab</span> Tests
               </h1>
               <p className="text-slate-600 text-base max-w-2xl">
                 Manage laboratory tests, medical services, and diagnostic facilities across branches.

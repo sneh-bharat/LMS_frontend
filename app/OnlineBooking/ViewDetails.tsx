@@ -265,7 +265,7 @@ export default function ViewDetails({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Calendar size={20} className="text-emerald-600" />
+                  <Calendar size={20} className="text-[#FF671F]" />
                   Booking Information
                 </CardTitle>
               </CardHeader>
@@ -311,7 +311,7 @@ export default function ViewDetails({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <User size={20} className="text-emerald-600" />
+                  <User size={20} className="text-[#FF671F]" />
                   Patient Information
                 </CardTitle>
               </CardHeader>
@@ -358,7 +358,7 @@ export default function ViewDetails({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package size={20} className="text-emerald-600" />
+                  <Package size={20} className="text-[#FF671F]" />
                   Test & Collection Details
                 </CardTitle>
               </CardHeader>
@@ -406,7 +406,7 @@ export default function ViewDetails({
             <Card className="border-emerald-200 bg-emerald-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg text-emerald-900">
-                  <DollarSign size={20} className="text-emerald-600" />
+                  <DollarSign size={20} className="text-[#FF671F]" />
                   Payment Information
                 </CardTitle>
               </CardHeader>
@@ -490,7 +490,7 @@ export default function ViewDetails({
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                          <FileText size={20} className="text-emerald-600" />
+                          <FileText size={20} className="text-[#FF671F]" />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-900">
