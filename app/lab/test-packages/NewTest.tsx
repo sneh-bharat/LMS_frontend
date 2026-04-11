@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Plus,
@@ -12,8 +12,10 @@ import {
   FlaskConical,
   Edit2,
   Search,
+  Percent,
+  Loader,
 } from 'lucide-react';
-import { RightDrawer } from '@/components/ui/right-drawer'; 
+import { RightDrawer } from '@/components/ui/right-drawer';
 import {
   Input,
   Button,
@@ -25,76 +27,192 @@ import {
   SelectItem
 } from '@/components/ui';
 
-interface TestItem {
+// ─── API Service Imports ──────────────────────────────────────────────────────
+
+import {
+  CreateTestPackageInput,
+  UpdateTestPackageInput,
+  TestPackageDetail,
+} from '@/app/Apis/lab/TestPackage';
+import {
+  fetchTests,
+  Test
+} from '@/app/Apis/lab/TestApis';
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
+
+interface AvailableTest {
   id: number;
+  testId: number;
   testName: string;
   testCode: string;
   category: string;
+  price?: number;
+}
+
+interface TestWithDiscount {
+  testId: number;
+  testName?: string;
+  testCode?: string;
+  category?: string;
+  discount: number;
 }
 
 interface FormData {
   packageCode: string;
   packageName: string;
   description: string;
-  price: number | '';
+  packagePrice: number | '';
+  specialInstructions: string;
   isActive: boolean;
-  tests: TestItem[];
+  tests: TestWithDiscount[];
 }
-
-interface TestPackage {
-  id: number;
-  packageCode: string;
-  packageName: string;
-  description: string;
-  price: number;
-  isActive: boolean;
-  tests: TestItem[];
-  createdAt: string;
-}
-
-const AVAILABLE_TESTS = [
-  { id: 1, testName: 'Complete Blood Count', testCode: 'CBC', category: 'Hematology' },
-  { id: 2, testName: 'Lipid Profile', testCode: 'LP', category: 'Biochemistry' },
-  { id: 3, testName: 'Liver Function Test', testCode: 'LFT', category: 'Biochemistry' },
-  { id: 4, testName: 'Troponin T', testCode: 'TNT', category: 'Cardiology' },
-  { id: 5, testName: 'NT-proBNP', testCode: 'NTBNP', category: 'Cardiology' },
-  { id: 6, testName: 'Homocysteine', testCode: 'HCY', category: 'Biochemistry' },
-  { id: 7, testName: 'HbA1c', testCode: 'HBA1C', category: 'Biochemistry' },
-  { id: 8, testName: 'Fasting Insulin', testCode: 'FINS', category: 'Endocrinology' },
-  { id: 9, testName: 'Microalbuminuria', testCode: 'MAU', category: 'Urinalysis' },
-  { id: 10, testName: 'T3 Total', testCode: 'T3', category: 'Endocrinology' },
-  { id: 11, testName: 'T4 Total', testCode: 'T4', category: 'Endocrinology' },
-  { id: 12, testName: 'TSH', testCode: 'TSH', category: 'Endocrinology' },
-  { id: 13, testName: 'Anti-TPO', testCode: 'ATPO', category: 'Immunology' },
-];
 
 interface NewTestProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: FormData) => void;
-  editData?: TestPackage | null;
+  onSubmit: (data: CreateTestPackageInput | UpdateTestPackageInput) => Promise<void> | void;
+  editData?: TestPackageDetail | null;
   isEditMode?: boolean;
 }
+
+// ─── Default Available Tests ──────────────────────────────────────────────────
+
+const DEFAULT_AVAILABLE_TESTS: AvailableTest[] = [
+  { id: 1, testId: 1, testName: 'Complete Blood Count', testCode: 'CBC', category: 'Hematology' },
+  { id: 2, testId: 2, testName: 'Lipid Profile', testCode: 'LP', category: 'Biochemistry' },
+  { id: 3, testId: 3, testName: 'Liver Function Test', testCode: 'LFT', category: 'Biochemistry' },
+  { id: 4, testId: 4, testName: 'Troponin T', testCode: 'TNT', category: 'Cardiology' },
+  { id: 5, testId: 5, testName: 'NT-proBNP', testCode: 'NTBNP', category: 'Cardiology' },
+  { id: 6, testId: 6, testName: 'Homocysteine', testCode: 'HCY', category: 'Biochemistry' },
+  { id: 7, testId: 7, testName: 'HbA1c', testCode: 'HBA1C', category: 'Biochemistry' },
+  { id: 8, testId: 8, testName: 'Fasting Insulin', testCode: 'FINS', category: 'Endocrinology' },
+  { id: 9, testId: 9, testName: 'Microalbuminuria', testCode: 'MAU', category: 'Urinalysis' },
+  { id: 10, testId: 10, testName: 'T3 Total', testCode: 'T3', category: 'Endocrinology' },
+  { id: 11, testId: 11, testName: 'T4 Total', testCode: 'T4', category: 'Endocrinology' },
+  { id: 12, testId: 12, testName: 'TSH', testCode: 'TSH', category: 'Endocrinology' },
+  { id: 13, testId: 13, testName: 'Anti-TPO', testCode: 'ATPO', category: 'Immunology' },
+];
+
+// ─── NewTest Component ────────────────────────────────────────────────────────
 
 export default function NewTest({
   isOpen,
   onClose,
   onSubmit,
   editData = null,
-  isEditMode = false
+  isEditMode = false,
 }: NewTestProps) {
-  const [formData, setFormData] = useState<FormData>({
-    packageCode: editData?.packageCode || '',
-    packageName: editData?.packageName || '',
-    description: editData?.description || '',
-    price: editData?.price || '',
-    isActive: editData?.isActive || true,
-    tests: editData?.tests || [],
+  // ─── State Management ───────────────────────────────────────────────────
+
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (editData) {
+      return {
+        packageCode: editData.packageCode || '',
+        packageName: editData.packageName || '',
+        description: editData.description || '',
+        packagePrice:
+          editData.packagePrice !== undefined && editData.packagePrice !== null
+            ? editData.packagePrice
+            : '',
+        specialInstructions: editData.specialInstructions || '',
+        isActive: editData.isActive !== undefined ? editData.isActive : true,
+        tests: editData.tests?.map(t => ({
+          testId: t.testId,
+          testName: t.testName,
+          testCode: t.testCode,
+          category: t.category,
+          discount: t.discount || 0,
+        })) || [],
+      };
+    }
+
+    return {
+      packageCode: '',
+      packageName: '',
+      description: '',
+      packagePrice: '',
+      specialInstructions: '',
+      isActive: true,
+      tests: [],
+    };
   });
 
   const [showTestModal, setShowTestModal] = useState(false);
-  const [selectedTests, setSelectedTests] = useState<TestItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiTests, setApiTests] = useState<AvailableTest[]>([]);
+  const [isLoadingTests, setIsLoadingTests] = useState(false);
+
+  // ─── Effects ───────────────────────────────────────────────────────────
+
+  // Fetch tests from API when component opens
+  useEffect(() => {
+    const loadTests = async () => {
+      if (isOpen && apiTests.length === 0) {
+        setIsLoadingTests(true);
+        try {
+          const response = await fetchTests(0, 1000);
+          const mappedTests: AvailableTest[] = response.data.content.map((test: Test) => ({
+            id: test.id,
+            testId: test.id,
+            testName: test.testName,
+            testCode: test.testCode,
+            category: test.departmentId?.toString() || 'General',
+            price: test.version?.price,
+          }));
+          setApiTests(mappedTests);
+        } catch (error) {
+          console.error('Error loading tests from API:', error);
+          setApiTests(DEFAULT_AVAILABLE_TESTS);
+        } finally {
+          setIsLoadingTests(false);
+        }
+      }
+    };
+
+    loadTests();
+  }, [isOpen, apiTests.length]);
+
+  // Update form when editData changes
+  useEffect(() => {
+    if (isOpen && editData) {
+      // Map tests with available test info
+      const mappedTests = editData.tests?.map(t => ({
+        testId: t.testId,
+        testName: t.testName,
+        testCode: t.testCode,
+        category: t.category,
+        discount: t.discount || 0,
+      })) || [];
+
+      setFormData({
+        packageCode: editData.packageCode || '',
+        packageName: editData.packageName || '',
+        description: editData.description || '',
+        packagePrice:
+          editData.packagePrice !== undefined && editData.packagePrice !== null
+            ? editData.packagePrice
+            : '',
+        specialInstructions: editData.specialInstructions || '',
+        isActive: editData.isActive !== undefined ? editData.isActive : true,
+        tests: mappedTests,
+      });
+    } else if (isOpen && !editData && !isEditMode) {
+      // Reset form for create mode
+      setFormData({
+        packageCode: '',
+        packageName: '',
+        description: '',
+        packagePrice: '',
+        specialInstructions: '',
+        isActive: true,
+        tests: [],
+      });
+    }
+  }, [isOpen, editData, isEditMode]);
+
+  // ─── Event Handlers ────────────────────────────────────────────────────
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -104,32 +222,76 @@ export default function NewTest({
 
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : name === 'price' ? (value === '' ? '' : Number(value)) : value,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : name === 'packagePrice'
+            ? value === ''
+              ? ''
+              : Number(value)
+            : value,
     }));
 
     // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.packageCode.trim()) newErrors.packageCode = 'Package Code is required';
-    if (!formData.packageName.trim()) newErrors.packageName = 'Package Name is required';
-    if (formData.price === '' || Number(formData.price) <= 0) newErrors.price = 'Valid price is required';
-    if (formData.tests.length === 0) newErrors.tests = 'At least one test must be added';
+    if (!formData.packageCode.trim()) {
+      newErrors.packageCode = 'Package Code is required';
+    } else if (formData.packageCode.length > 20) {
+      newErrors.packageCode = 'Package Code must be 20 characters or less';
+    }
+
+    if (!formData.packageName.trim()) {
+      newErrors.packageName = 'Package Name is required';
+    } else if (formData.packageName.length > 100) {
+      newErrors.packageName = 'Package Name must be 100 characters or less';
+    }
+
+    if (formData.packagePrice === '' || Number(formData.packagePrice) <= 0) {
+      newErrors.packagePrice = 'Valid price (greater than 0) is required';
+    }
+
+    if (formData.tests.length === 0) {
+      newErrors.tests = 'At least one test must be added';
+    }
+
+    // Check for duplicate tests
+    const testIds = new Set<number>();
+    formData.tests.forEach((test, index) => {
+      if (testIds.has(test.testId)) {
+        newErrors[`test_${index}`] = 'This test is already included';
+      }
+      testIds.add(test.testId);
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddTests = (test: TestItem) => {
-    if (!formData.tests.find(t => t.id === test.id)) {
+  const handleAddTest = (test: AvailableTest) => {
+    if (!formData.tests.find(t => t.testId === test.testId)) {
       setFormData(prev => ({
         ...prev,
-        tests: [...prev.tests, test],
+        tests: [
+          ...prev.tests,
+          {
+            testId: test.testId,
+            testName: test.testName,
+            testCode: test.testCode,
+            category: test.category,
+            discount: 0,
+          },
+        ],
       }));
     }
   };
@@ -137,14 +299,47 @@ export default function NewTest({
   const handleRemoveTest = (testId: number) => {
     setFormData(prev => ({
       ...prev,
-      tests: prev.tests.filter(t => t.id !== testId),
+      tests: prev.tests.filter(t => t.testId !== testId),
     }));
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onSubmit(formData);
+  const handleDiscountChange = (testId: number, discount: number) => {
+    setFormData(prev => ({
+      ...prev,
+      tests: prev.tests.map(t =>
+        t.testId === testId
+          ? { ...t, discount: Math.max(0, Math.min(100, discount)) }
+          : t
+      ),
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      // Transform form data to API format
+      const apiData: CreateTestPackageInput | UpdateTestPackageInput = {
+        packageCode: formData.packageCode,
+        packageName: formData.packageName,
+        description: formData.description || undefined,
+        packagePrice: Number(formData.packagePrice),
+        specialInstructions: formData.specialInstructions || undefined,
+        isActive: formData.isActive,
+        tests: formData.tests.map(t => ({
+          testId: t.testId,
+          discount: t.discount,
+        })),
+      };
+
+      await onSubmit(apiData);
       handleClose();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      // Error handling is done in parent component
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -153,7 +348,8 @@ export default function NewTest({
       packageCode: '',
       packageName: '',
       description: '',
-      price: '',
+      packagePrice: '',
+      specialInstructions: '',
       isActive: true,
       tests: [],
     });
@@ -164,19 +360,24 @@ export default function NewTest({
 
   if (!isOpen) return null;
 
+  const availableTests = apiTests.length > 0 ? apiTests : DEFAULT_AVAILABLE_TESTS;
+
   const footer = (
     <div className="flex gap-3 justify-end w-full">
       <Button
         variant="outline"
         onClick={handleClose}
-        className="px-6 py-2 rounded-lg font-bold transition-all text-sm border-slate-300 text-slate-700"
+        disabled={isSubmitting}
+        className="px-6 py-2 rounded-lg font-bold transition-all text-sm border-slate-300 text-slate-700 disabled:opacity-50"
       >
         Cancel
       </Button>
       <Button
         onClick={handleSubmit}
-        className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold hover:from-emerald-600 hover:to-teal-600 transition-all text-sm shadow-md"
+        disabled={isSubmitting}
+        className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold hover:from-emerald-600 hover:to-teal-600 transition-all text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
       >
+        {isSubmitting && <Loader size={14} className="animate-spin" />}
         {isEditMode ? 'Update' : 'Create'} Package
       </Button>
     </div>
@@ -193,7 +394,11 @@ export default function NewTest({
             <span className="text-emerald-200">Package</span>
           </>
         }
-        description={isEditMode ? 'Update diagnostic test package details' : 'Add a new diagnostic test package'}
+        description={
+          isEditMode
+            ? 'Update diagnostic test package details'
+            : 'Add a new diagnostic test package'
+        }
         footer={footer}
         maxWidth="xl"
       >
@@ -207,14 +412,16 @@ export default function NewTest({
               <Input
                 type="text"
                 name="packageCode"
-                placeholder="PKG001"
+                placeholder={isEditMode ? 'Existing package code' : 'PKG001'}
                 value={formData.packageCode}
                 onChange={handleInputChange}
                 disabled={isEditMode}
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 disabled:bg-slate-100 disabled:text-slate-500 ${errors.packageCode
-                  ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                  : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
+                maxLength={20}
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 disabled:bg-slate-100 disabled:text-slate-500 ${
+                  errors.packageCode
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               />
               {errors.packageCode && (
                 <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
@@ -230,13 +437,15 @@ export default function NewTest({
               <Input
                 type="text"
                 name="packageName"
-                placeholder="Basic Health Checkup"
+                placeholder={isEditMode ? 'Existing package name' : 'Basic Health Checkup'}
                 value={formData.packageName}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${errors.packageName
-                  ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                  : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
+                maxLength={100}
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
+                  errors.packageName
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               />
               {errors.packageName && (
                 <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
@@ -269,18 +478,21 @@ export default function NewTest({
               </Label>
               <Input
                 type="number"
-                name="price"
-                placeholder="2500"
-                value={formData.price}
+                name="packagePrice"
+                placeholder={isEditMode ? 'Existing price' : '2500'}
+                value={formData.packagePrice}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${errors.price
-                  ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                  : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
+                min="0"
+                step="0.01"
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
+                  errors.packagePrice
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               />
-              {errors.price && (
+              {errors.packagePrice && (
                 <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.price}
+                  <AlertCircle size={12} /> {errors.packagePrice}
                 </p>
               )}
             </div>
@@ -293,12 +505,28 @@ export default function NewTest({
                   checked={formData.isActive}
                   onChange={handleInputChange}
                   className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  aria-label="Mark package as active"
                 />
                 <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">
                   Active Package
                 </span>
               </label>
             </div>
+          </div>
+
+          {/* Special Instructions */}
+          <div>
+            <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
+              Special Instructions
+            </Label>
+            <textarea
+              name="specialInstructions"
+              placeholder="e.g., Fasting required for 12 hours, avoid alcohol 24 hours before..."
+              value={formData.specialInstructions}
+              onChange={handleInputChange}
+              rows={2}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 resize-none shadow-sm"
+            />
           </div>
 
           {/* Tests Section */}
@@ -318,27 +546,51 @@ export default function NewTest({
             </div>
 
             {formData.tests.length > 0 ? (
-              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-3">
                 {formData.tests.map(test => (
                   <div
-                    key={test.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100 hover:border-slate-200 transition-colors group"
+                    key={test.testId}
+                    className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-100 hover:border-slate-200 transition-colors group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 flex-shrink-0">
                         <Activity size={16} />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <div className="text-sm font-bold text-slate-900">{test.testName}</div>
                         <div className="text-xs text-slate-500 font-mono">
                           {test.testCode} • {test.category}
                         </div>
                       </div>
                     </div>
+
+                    {/* Discount Input */}
+                    <div className="flex items-center gap-2 mr-3">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={test.discount}
+                          onChange={e =>
+                            handleDiscountChange(test.testId, Number(e.target.value))
+                          }
+                          className="w-20 px-2 py-2 rounded-lg border border-slate-200 text-center text-sm font-bold text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+                          placeholder="0"
+                          aria-label={`Discount for ${test.testName}`}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
+                          %
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Delete Button */}
                     <Button
                       variant="ghost"
-                      onClick={() => handleRemoveTest(test.id)}
+                      onClick={() => handleRemoveTest(test.testId)}
                       className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100 w-8 h-8 p-0 shrink-0"
+                      aria-label={`Remove ${test.testName}`}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -349,7 +601,9 @@ export default function NewTest({
               <div className="text-center py-8 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
                 <Database size={32} className="mx-auto text-slate-300 mb-2" />
                 <p className="text-sm font-bold text-slate-500">No tests added yet</p>
-                <p className="text-xs text-slate-400 mt-1">Click "Add Tests" to include tests in this package</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Click "Add Tests" to include tests in this package
+                </p>
               </div>
             )}
 
@@ -367,19 +621,25 @@ export default function NewTest({
         <TestSelectionModal
           isOpen={showTestModal}
           onClose={() => setShowTestModal(false)}
-          onAdd={handleAddTests}
-          selectedTestIds={formData.tests.map(t => t.id)}
+          onAdd={handleAddTest}
+          selectedTestIds={formData.tests.map(t => t.testId)}
+          availableTests={availableTests}
+          isLoading={isLoadingTests}
         />
       )}
     </>
   );
 }
 
+// ─── Test Selection Modal Component ──────────────────────────────────────────
+
 interface TestSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (test: TestItem) => void;
+  onAdd: (test: AvailableTest) => void;
   selectedTestIds: number[];
+  availableTests: AvailableTest[];
+  isLoading?: boolean;
 }
 
 function TestSelectionModal({
@@ -387,14 +647,21 @@ function TestSelectionModal({
   onClose,
   onAdd,
   selectedTestIds,
+  availableTests,
+  isLoading = false,
 }: TestSelectionModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const categories = ['All', ...new Set(AVAILABLE_TESTS.map(t => t.category))];
+  const handleCategoryChange = (value: string | null) => {
+    setSelectedCategory(value ?? 'All');
+  };
 
-  const filteredTests = AVAILABLE_TESTS.filter(test => {
-    const matchesSearch = test.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const categories = ['All', ...new Set(availableTests.map(t => t.category))];
+
+  const filteredTests = availableTests.filter(test => {
+    const matchesSearch =
+      test.testName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       test.testCode.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || test.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -424,72 +691,85 @@ function TestSelectionModal({
       <div className="space-y-6">
         {/* Search and Filter */}
         <div className="flex flex-col sm:flex-row gap-3 w-full">
-
-          {/* SEARCH INPUT */}
+          {/* Search Input */}
           <div className="relative w-full sm:flex-1">
             <Input
               type="text"
               placeholder="Search tests..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 h-[42px] rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+              aria-label="Search tests by name or code"
             />
-
-            {/* ICON */}
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
               <Search size={16} />
             </span>
           </div>
 
-          {/* CATEGORY SELECT */}
-          <Select
-            value={selectedCategory}
-            onValueChange={(value) => {
-              if (value !== null) setSelectedCategory(value);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[180px] px-4 py-2.5 h-[42px] rounded-lg border border-slate-300 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+          {/* Category Select */}
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger
+              className="w-full sm:w-[180px] px-4 py-2.5 h-[42px] rounded-lg border border-slate-300 bg-white text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              aria-label="Filter by category"
+            >
               <SelectValue placeholder="Category" />
             </SelectTrigger>
 
             <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={String(cat)}>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>
                   {cat}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
         </div>
 
         {/* Tests List */}
         <div className="space-y-3">
-          {filteredTests.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+              <Loader size={32} className="mx-auto text-slate-300 mb-2 animate-spin" />
+              <p className="text-sm font-bold text-slate-500">Loading tests...</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Please wait while we fetch the test list
+              </p>
+            </div>
+          ) : filteredTests.length > 0 ? (
             filteredTests.map(test => {
-              const isSelected = selectedTestIds.includes(test.id);
+              const isSelected = selectedTestIds.includes(test.testId);
               return (
                 <button
-                  key={test.id}
-                  onClick={() => onAdd(test)}
+                  key={test.testId}
+                  onClick={() => !isSelected && onAdd(test)}
                   disabled={isSelected}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all group ${isSelected
-                    ? 'bg-emerald-50 border-emerald-300 shadow-sm'
-                    : 'bg-white border-slate-100 hover:border-blue-300 hover:bg-slate-50 hover:shadow-sm'
-                    } ${isSelected ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all group ${
+                    isSelected
+                      ? 'bg-emerald-50 border-emerald-300 shadow-sm'
+                      : 'bg-white border-slate-100 hover:border-emerald-300 hover:bg-slate-50 hover:shadow-sm'
+                  } ${isSelected ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">{test.testName}</div>
+                      <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
+                        {test.testName}
+                      </div>
                       <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
                         {test.testCode} • {test.category}
                       </div>
+                      {test.price && (
+                        <div className="text-xs text-emerald-600 font-bold mt-1">
+                          ₹{test.price.toFixed(2)}
+                        </div>
+                      )}
                     </div>
                     <div
-                      className={`w-6 h-6 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-all ${isSelected
-                        ? 'bg-emerald-500 border-emerald-500'
-                        : 'border-slate-300 group-hover:border-blue-400'
-                        }`}
+                      className={`w-6 h-6 rounded-full border-2 flex flex-shrink-0 items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-emerald-500 border-emerald-500'
+                          : 'border-slate-300 group-hover:border-emerald-400'
+                      }`}
+                      aria-hidden="true"
                     >
                       {isSelected && (
                         <svg
@@ -512,7 +792,9 @@ function TestSelectionModal({
           ) : (
             <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
               <p className="text-sm font-bold text-slate-500">No tests found</p>
-              <p className="text-xs text-slate-400 mt-1">Try adjusting your search or category filter</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Try adjusting your search or category filter
+              </p>
             </div>
           )}
         </div>

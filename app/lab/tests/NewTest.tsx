@@ -24,8 +24,32 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui';
-import { createTest, updateTest, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
-import { TestItem, TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
+import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
+import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/app/Apis/lab/TestApis';
+
+// Define TestItem locally as it's the form data structure
+interface TestItem {
+  testCode: string;
+  testName: string;
+  departmentId: string;
+  categoryId: string;
+  loincCode: string;
+  tatHours: string;
+  isActive: boolean;
+  version: {
+    versionNo: number;
+    method: string;
+    unit: string;
+    price: string;
+    cghsPrice: string;
+    criticalLow: string;
+    criticalHigh: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+  };
+  parameters: TestParameter[];
+  sampleRequirements: SampleRequirement[];
+}
 
 interface NewTestProps {
   isOpen: boolean;
@@ -133,6 +157,12 @@ export default function NewTest({
     if (editData && isEditMode && isOpen) {
       console.log('=== EDIT MODE - POPULATING FORM ===');
       console.log('Edit data received:', editData);
+      console.log('Active tab:', activeTab);
+      
+      // Set sample requirements if in sample mode or if they exist
+      if (activeTab === 'sample' && editData.sampleRequirements) {
+        console.log('Populating sample requirements:', editData.sampleRequirements);
+      }
       
       setFormData({
         testCode: editData.testCode || '',
@@ -148,8 +178,8 @@ export default function NewTest({
           unit: editData.version?.unit || '',
           price: editData.version?.price?.toString() || '',
           cghsPrice: editData.version?.cghsPrice?.toString() || '',
-          criticalLow: editData.version?.criticalLow?.toString() || '',
-          criticalHigh: editData.version?.criticalHigh?.toString() || '',
+          criticalLow: '',
+          criticalHigh: '',
           effectiveFrom: editData.version?.effectiveFrom || new Date().toISOString().split('T')[0],
           effectiveTo: editData.version?.effectiveTo || null,
         },
@@ -161,7 +191,7 @@ export default function NewTest({
       setFormData(initialFormData);
       setErrors({});
     }
-  }, [editData, isEditMode, isOpen]);
+  }, [editData, isEditMode, isOpen, activeTab]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -218,7 +248,7 @@ export default function NewTest({
       const updatedParams = [...prev.parameters];
       updatedParams[paramIndex] = {
         ...updatedParams[paramIndex],
-        referenceRanges: [...updatedParams[paramIndex].referenceRanges, defaultItem]
+        referenceRanges: [...(updatedParams[paramIndex].referenceRanges || []), defaultItem]
       };
       return { ...prev, parameters: updatedParams };
     });
@@ -227,7 +257,7 @@ export default function NewTest({
   const updateNestedArrayItem = (paramIndex: number, rangeIndex: number, field: string, value: any) => {
     setFormData(prev => {
       const updatedParams = [...prev.parameters];
-      const updatedRanges = [...updatedParams[paramIndex].referenceRanges];
+      const updatedRanges = [...(updatedParams[paramIndex].referenceRanges || [])];
       updatedRanges[rangeIndex] = { ...updatedRanges[rangeIndex], [field]: value };
       updatedParams[paramIndex] = { ...updatedParams[paramIndex], referenceRanges: updatedRanges };
       return { ...prev, parameters: updatedParams };
@@ -239,7 +269,7 @@ export default function NewTest({
       const updatedParams = [...prev.parameters];
       updatedParams[paramIndex] = {
         ...updatedParams[paramIndex],
-        referenceRanges: updatedParams[paramIndex].referenceRanges.filter((_, i) => i !== rangeIndex)
+        referenceRanges: updatedParams[paramIndex].referenceRanges?.filter((_, i) => i !== rangeIndex) || []
       };
       return { ...prev, parameters: updatedParams };
     });
@@ -298,7 +328,52 @@ export default function NewTest({
 
     setLoading(true);
     try {
-      if (isEditMode && editData?.id) {
+      // HANDLE SAMPLE REQUIREMENT UPDATE (dedicated API)
+      if (isEditMode && editData?.id && activeTab === 'sample') {
+        console.log('=== UPDATING SAMPLE REQUIREMENT VIA DEDICATED API ===');
+        console.log('Test ID:', editData.id);
+        console.log('Active tab:', activeTab);
+
+        const sampleReq = formData.sampleRequirements[0];
+        
+        if (!sampleReq) {
+          throw new Error('No sample requirement data found');
+        }
+
+        const sampleData = {
+          sampleType: sampleReq.sampleType,
+          volumeMl: Number(sampleReq.volumeMl),
+          containerColor: sampleReq.containerColor,
+          storageCondition: sampleReq.storageCondition,
+        };
+
+        console.log('Sample requirement data:', JSON.stringify(sampleData, null, 2));
+
+        let response;
+        
+        // Check if we're updating existing or creating new
+        if (sampleReq.id && sampleReq.id > 0) {
+          // UPDATE existing sample requirement using specific ID
+          console.log('📡 Updating existing sample requirement (ID:', sampleReq.id, ')');
+          response = await updateSampleRequirement(editData.id, sampleReq.id, sampleData);
+        } else {
+          // CREATE new sample requirement
+          console.log('📡 Creating new sample requirement');
+          response = await createSampleRequirement(editData.id, sampleData);
+        }
+        
+        console.log('✅ Sample requirement saved successfully:', response);
+        
+        // Notify parent to reload the list
+        onSubmit(formData as any);
+        
+        // Reset form and close
+        setFormData(initialFormData);
+        setErrors({});
+        onClose();
+      }
+      // HANDLE FULL TEST UPDATE
+      else if (isEditMode && editData?.id) {
         // UPDATE EXISTING TEST
         console.log('=== UPDATING EXISTING TEST ===');
         console.log('Test ID:', editData.id);
@@ -320,7 +395,7 @@ export default function NewTest({
             price: Number(formData.version.price),
             cghsPrice: formData.version.cghsPrice ? Number(formData.version.cghsPrice) : undefined,
             effectiveFrom: formData.version.effectiveFrom,
-            effectiveTo: formData.version.effectiveTo || undefined,
+            effectiveTo: formData.version.effectiveTo || '',
           },
           parameters: formData.parameters.map(param => ({
             id: param.id,
@@ -348,7 +423,6 @@ export default function NewTest({
             volumeMl: Number(req.volumeMl),
             containerColor: req.containerColor,
             storageCondition: req.storageCondition,
-            transportCondition: req.transportCondition,
           })),
         };
 
@@ -411,7 +485,6 @@ export default function NewTest({
             volumeMl: Number(req.volumeMl),
             containerColor: req.containerColor,
             storageCondition: req.storageCondition,
-            transportCondition: req.transportCondition,
           })),
         };
 
@@ -472,10 +545,10 @@ export default function NewTest({
         {loading ? (
           <>
             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-            {isEditMode ? 'Updating...' : 'Creating...'}
+            {isEditMode ? (activeTab === 'sample' ? 'Updating Sample...' : 'Updating...') : 'Creating...'}
           </>
         ) : (
-          isEditMode ? 'Update Test' : 'Create Test'
+          isEditMode ? (activeTab === 'sample' ? 'Update Sample' : 'Update Test') : 'Create Test'
         )}
       </Button>
     </div>
@@ -864,7 +937,7 @@ export default function NewTest({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => addArrayItem('sampleRequirements', { sampleType: '', volumeMl: '', containerColor: '', storageCondition: '', transportCondition: '' })}
+                onClick={() => addArrayItem('sampleRequirements', { sampleType: '', volumeMl: '', containerColor: '', storageCondition: '' })}
                 className="h-8 gap-1.5 text-[10px] font-black border-slate-200 text-slate-600 hover:bg-white hover:text-emerald-600 hover:border-emerald-200 transition-all uppercase tracking-widest"
                 suppressHydrationWarning
               >
@@ -917,23 +990,13 @@ export default function NewTest({
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pr-10">
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Storage Condition</Label>
-                          <Input
-                            value={req.storageCondition}
-                            onChange={(e) => updateArrayItem('sampleRequirements', idx, 'storageCondition', e.target.value)}
-                            placeholder="Refrigerated"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Transport Condition</Label>
-                          <Input
-                            value={req.transportCondition}
-                            onChange={(e) => updateArrayItem('sampleRequirements', idx, 'transportCondition', e.target.value)}
-                            placeholder="Cold Chain"
-                          />
-                        </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Storage Condition</Label>
+                        <Input
+                          value={req.storageCondition}
+                          onChange={(e) => updateArrayItem('sampleRequirements', idx, 'storageCondition', e.target.value)}
+                          placeholder="Refrigerated"
+                        />
                       </div>
                     </div>
                   ))}
@@ -956,7 +1019,7 @@ export default function NewTest({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => addArrayItem('sampleRequirements', { sampleType: '', volumeMl: '', containerColor: '', storageCondition: '', transportCondition: '' })}
+                onClick={() => addArrayItem('sampleRequirements', { sampleType: '', volumeMl: '', containerColor: '', storageCondition: '' })}
                 className="h-8 gap-1.5 text-[10px] font-black border-slate-200 text-slate-600 hover:bg-white hover:text-emerald-600 hover:border-emerald-200 transition-all uppercase tracking-widest"
                 suppressHydrationWarning
               >
@@ -1016,14 +1079,6 @@ export default function NewTest({
                             value={req.storageCondition}
                             onChange={(e) => updateArrayItem('sampleRequirements', idx, 'storageCondition', e.target.value)}
                             placeholder="Refrigerated"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Transport Condition</Label>
-                          <Input
-                            value={req.transportCondition}
-                            onChange={(e) => updateArrayItem('sampleRequirements', idx, 'transportCondition', e.target.value)}
-                            placeholder="Cold Chain"
                           />
                         </div>
                       </div>

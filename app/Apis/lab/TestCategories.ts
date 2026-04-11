@@ -54,16 +54,34 @@ export interface CreateCategoryInput {
   isActive?: boolean;
 }
 
+export interface UpdateCategoryInput {
+  categoryName?: string;
+  description?: string;
+  departmentId?: number;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
 // Line 56-81 in TestCategories.ts
 export async function fetchTestCategories(
   page: number = 0,
-  size: number = 10
+  size: number = 10,
+  search?: string,
+  statusFilter?: string
 ): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
   try {
     const params = new URLSearchParams({
       page: page.toString(),
       size: size.toString(),
     });
+
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+
+    if (statusFilter && statusFilter !== 'All') {
+      params.append('status', statusFilter);
+    }
 
     const response = await fetch(`${API_BASE_URL}/test-categories?${params}`);
     

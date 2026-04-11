@@ -44,7 +44,6 @@ export interface SampleRequirement {
   volumeMl: number;
   containerColor: string;
   storageCondition: string;
-  transportCondition: string;
 }
 
 export interface TestVersion {
@@ -136,7 +135,6 @@ export interface CreateTestInput {
     volumeMl: number;
     containerColor: string;
     storageCondition: string;
-    transportCondition: string;
   }>;
 }
 
@@ -184,8 +182,36 @@ export interface UpdateTestInput {
     volumeMl: number;
     containerColor: string;
     storageCondition: string;
-    transportCondition: string;
+   
   }>;
+}
+
+export interface SampleRequirementResponse {
+  id?: number;
+  sampleType: string;
+  volumeMl: number;
+  containerColor: string;
+  storageCondition: string;
+ 
+  testId?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateSampleRequirementInput {
+  sampleType: string;
+  volumeMl: number;
+  containerColor: string;
+  storageCondition: string;
+ 
+}
+
+export interface UpdateSampleRequirementInput {
+  sampleType?: string;
+  volumeMl?: number;
+  containerColor?: string;
+  storageCondition?: string;
+  
 }
 
 // ─── API Functions ──────────────────────────────────────────────────────────
@@ -258,7 +284,17 @@ export async function fetchTests(
     
     return responseData;
   } catch (error) {
-    console.error('Error fetching tests:', error);
+    console.error('❌ Error fetching tests:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof TypeError && (error as any).message === 'Failed to fetch') {
+      console.error('🔌 Network Error Details:');
+      console.error('- Unable to connect to:', API_BASE_URL);
+      console.error('- Check if the backend server is running');
+      console.error('- Check your network connection');
+      console.error('- Check if CORS is properly configured');
+    }
+    
     throw error;
   }
 }
@@ -557,4 +593,268 @@ export function validateTestData(data: Partial<CreateTestInput>): string[] {
   }
 
   return errors;
+}
+
+/**
+ * GET SAMPLE REQUIREMENTS - Fetch sample requirements for a test
+ * Endpoint: GET /tests/{testId}/sample-requirements
+ */
+export async function fetchSampleRequirements(
+  testId: number
+): Promise<ApiResponse<SampleRequirementResponse>> {
+  try {
+    console.log('=== FETCHING SAMPLE REQUIREMENTS ===');
+    console.log('Test ID:', testId);
+    console.log('API URL:', `${API_BASE_URL}/tests/${testId}/sample-requirements`);
+    
+    const response = await fetch(`${API_BASE_URL}/tests/${testId}/sample-requirements`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('=== ERROR FETCHING SAMPLE REQUIREMENTS ===');
+      console.error('Error response:', errorData);
+      throw new Error(errorData?.message || errorData?.error || `HTTP ${response.status}: Failed to fetch sample requirements`);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('=== SUCCESS ===');
+    console.log('Sample requirement data:', JSON.stringify(responseData, null, 2));
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error fetching sample requirements:', error);
+    throw error;
+  }
+}
+
+/**
+ * UPDATE SAMPLE REQUIREMENTS - Update sample requirements for a test
+ * Endpoint: PUT /tests/{testId}/sample-requirements
+ */
+export async function updateSampleRequirements(
+  testId: number,
+  input: SampleRequirementResponse
+): Promise<ApiResponse<SampleRequirementResponse>> {
+  try {
+    console.log('=== UPDATING SAMPLE REQUIREMENTS ===');
+    console.log('Test ID:', testId);
+    console.log('Request body:', JSON.stringify(input, null, 2));
+    console.log('API URL:', `${API_BASE_URL}/tests/${testId}/sample-requirements`);
+
+    const response = await fetch(`${API_BASE_URL}/tests/${testId}/sample-requirements`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('=== ERROR UPDATING SAMPLE REQUIREMENTS ===');
+      console.error('Error response:', errorData);
+      
+      const errorMessage = errorData?.message || errorData?.error || `HTTP ${response.status}: Failed to update sample requirements`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('=== SUCCESS ===');
+    console.log('Updated sample requirement:', JSON.stringify(responseData, null, 2));
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error updating sample requirements:', error);
+    throw error;
+  }
+}
+
+/**
+ * CREATE SAMPLE REQUIREMENT - Create a new sample requirement for a test
+ * Endpoint: POST /tests/{testId}/sample-requirements
+ */
+export async function createSampleRequirement(
+  testId: number,
+  input: CreateSampleRequirementInput
+): Promise<ApiResponse<SampleRequirementResponse>> {
+  try {
+    console.log('=== CREATING SAMPLE REQUIREMENT ===');
+    console.log('Test ID:', testId);
+    console.log('Request body:', JSON.stringify(input, null, 2));
+    console.log('API URL:', `${API_BASE_URL}/tests/${testId}/sample-requirements`);
+
+    const response = await fetch(`${API_BASE_URL}/tests/${testId}/sample-requirements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('=== ERROR CREATING SAMPLE REQUIREMENT ===');
+      console.error('Error response:', errorData);
+      
+      const errorMessage = errorData?.message || errorData?.error || `HTTP ${response.status}: Failed to create sample requirement`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('=== SUCCESS ===');
+    console.log('Created sample requirement:', JSON.stringify(responseData, null, 2));
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error creating sample requirement:', error);
+    throw error;
+  }
+}
+
+/**
+ * UPDATE SAMPLE REQUIREMENT - Update a specific sample requirement by ID
+ * Endpoint: PUT /tests/{testId}/sample-requirements/{requirementId}
+ */
+export async function updateSampleRequirement(
+  testId: number,
+  requirementId: number,
+  input: UpdateSampleRequirementInput
+): Promise<ApiResponse<SampleRequirementResponse>> {
+  try {
+    console.log('=== UPDATING SPECIFIC SAMPLE REQUIREMENT ===');
+    console.log('Test ID:', testId);
+    console.log('Requirement ID:', requirementId);
+    console.log('Request body:', JSON.stringify(input, null, 2));
+    console.log('API URL:', `${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`);
+
+    const response = await fetch(`${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('=== ERROR UPDATING SAMPLE REQUIREMENT ===');
+      console.error('Error response:', errorData);
+      
+      const errorMessage = errorData?.message || errorData?.error || `HTTP ${response.status}: Failed to update sample requirement`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('=== SUCCESS ===');
+    console.log('Updated sample requirement:', JSON.stringify(responseData, null, 2));
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error updating sample requirement:', error);
+    throw error;
+  }
+}
+
+/**
+ * DELETE SAMPLE REQUIREMENT - Delete a specific sample requirement by ID
+ * Endpoint: DELETE /tests/{testId}/sample-requirements/{requirementId}
+ */
+export async function deleteSampleRequirement(
+  testId: number,
+  requirementId: number
+): Promise<ApiResponse<void>> {
+  try {
+    console.log('=== DELETING SAMPLE REQUIREMENT ===');
+    console.log('Test ID:', testId);
+    console.log('Requirement ID:', requirementId);
+    console.log('API URL:', `${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`);
+
+    const response = await fetch(`${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('=== ERROR DELETING SAMPLE REQUIREMENT ===');
+      console.error('Error response:', errorData);
+      
+      const errorMessage = errorData?.message || errorData?.error || `HTTP ${response.status}: Failed to delete sample requirement`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('=== SUCCESS ===');
+    console.log('Delete response:', responseData);
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error deleting sample requirement:', error);
+    throw error;
+  }
 }

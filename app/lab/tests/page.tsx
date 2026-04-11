@@ -37,6 +37,7 @@ import {
   updateTest,
   deleteTest,
   toggleTestStatus,
+  fetchSampleRequirements,
   type Test,
   type CreateTestInput,
 } from '@/app/Apis/lab/TestApis';
@@ -209,6 +210,9 @@ export default function TestPackagePage() {
       console.error('❌ FAILED TO LOAD TESTS');
       console.error('Error:', error);
       console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error type:', error);
+      
+      
       setPackages([]);
       setTotalPages(0);
       setTotalElements(0);
@@ -241,11 +245,45 @@ export default function TestPackagePage() {
     console.log('isModalOpen set to true');
   };
 
-  const handleEditSample = (pkg: Test) => {
+  const handleEditSample = async (pkg: Test) => {
     console.log('=== EDIT SAMPLE CLICKED ===');
-    setEditingPackage(pkg);
-    setActiveTab('sample');
-    setIsModalOpen(true);
+    console.log('Test ID:', pkg.id);
+    
+    try {
+      // Fetch sample requirements from API
+      console.log('📡 Fetching sample requirements from API...');
+      const response = await fetchSampleRequirements(pkg.id);
+      console.log('✅ Sample requirements response:', response);
+      
+      const sampleData = response.data;
+      console.log('📦 Sample data received:', sampleData);
+      
+      // Create a modified edit data with sample requirements
+      const sampleEditData = {
+        ...pkg,
+        sampleRequirements: [{
+          id: sampleData.id || 0,
+          sampleType: sampleData.sampleType,
+          volumeMl: sampleData.volumeMl,
+          containerColor: sampleData.containerColor,
+          storageCondition: sampleData.storageCondition,
+        }]
+      };
+      
+      console.log('📝 Edit data with sample:', sampleEditData);
+      setEditingPackage(sampleEditData);
+      setActiveTab('sample');
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('❌ Failed to fetch sample requirements:', error);
+      console.error('Error details:', error);
+      
+      // Fallback to using existing data if API fails
+      console.log('⚠️ Using fallback sample data from existing test');
+      setEditingPackage(pkg);
+      setActiveTab('sample');
+      setIsModalOpen(true);
+    }
   };
 
   const handleEditParameters = (pkg: Test) => {
