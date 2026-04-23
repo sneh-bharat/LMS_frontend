@@ -20,12 +20,15 @@ import {
   AlertCircle,
   Loader,
   FlaskConical,
-  Activity
+  Activity,
+  Check,
+  X
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import Input from '@/components/ui/input';
 import NewTest from './NewTest';
+import PackageDetailsView from './PackageDetailsView';
 import {
   fetchTestPackages,
   createTestPackage,
@@ -176,14 +179,16 @@ function PackageActions({
   pkg,
   onEdit,
   onDelete,
+  onViewDetails,
 }: {
   pkg: TestPackage;
   onEdit: (pkg: TestPackage) => void;
   onDelete: (pkg: TestPackage) => Promise<void>;
+  onViewDetails: (pkg: TestPackage) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const handleDelete = async () => {
     console.log('=== PACKAGE ACTIONS: HANDLE DELETE ===');
@@ -192,57 +197,83 @@ function PackageActions({
     setIsDeleting(true);
     try {
       await onDelete(pkg);
-      setOpen(false);
+      setShowMoreMenu(false);
       setShowConfirmDelete(false);
       console.log('✅ Delete flow completed successfully');
     } catch (error) {
       console.error('❌ Delete flow failed:', error);
       setIsDeleting(false);
-      // Error is handled by parent component
     }
+  };
+
+  const handleApprove = () => {
+    console.log('Approve package:', pkg.packageName);
+    // Add approve logic here
+  };
+
+  const handleReject = () => {
+    console.log('Reject package:', pkg.packageName);
+    // Add reject logic here
   };
 
   return (
     <>
-      <div className="relative">
+      <div className="flex items-center justify-center gap-1">
+        {/* Edit Button */}
         <button
-          onClick={() => setOpen(!open)}
-          aria-label="Package actions menu"
-          aria-expanded={open}
-          className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+          onClick={() => onEdit(pkg)}
+          className="p-2 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
+          title="Edit Package"
+          aria-label="Edit package"
         >
-          <MoreHorizontal size={20} />
+          <Edit2 size={18} />
         </button>
-        {open && (
-          <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              onClick={() => {
-                onEdit(pkg);
-                setOpen(false);
-              }}
-              className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-            >
-              <Edit2 size={14} /> Edit Package
-            </button>
-            <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors">
-              <FlaskConical size={14} /> Manage Tests
-            </button>
-            <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors">
-              <Zap size={14} /> B2B Pricing
-            </button>
-            <div className="h-[1px] bg-slate-100 my-2"></div>
-            <button
-              onClick={() => {
-                console.log('🗑️ Delete button clicked for:', pkg.packageName);
-                setShowConfirmDelete(true);
-                setOpen(false);
-              }}
-              className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors"
-            >
-              <Trash2 size={14} /> Delete Package
-            </button>
-          </div>
-        )}
+
+        {/* Delete Button */}
+        <button
+          onClick={() => {
+            console.log('🗑️ Delete button clicked for:', pkg.packageName);
+            setShowConfirmDelete(true);
+          }}
+          className="p-2 hover:bg-rose-50 rounded-lg transition-all text-slate-400 hover:text-rose-600"
+          title="Delete Package"
+          aria-label="Delete package"
+        >
+          <Trash2 size={18} />
+        </button>
+
+        {/* More Options Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-slate-600"
+            title="More Options"
+            aria-label="More package actions"
+            aria-expanded={showMoreMenu}
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          
+          {showMoreMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowMoreMenu(false)}
+              />
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
+                <button
+                  onClick={() => {
+                    onViewDetails(pkg);
+                    setShowMoreMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                >
+                  <Package size={14} /> View Details
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -270,6 +301,9 @@ export default function TestPackagePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TestPackage | null>(null);
   const [isFetchingPackage, setIsFetchingPackage] = useState(false);
+  const [viewingPackage, setViewingPackage] = useState<TestPackageDetail | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageNo: 0,
     pageSize: 10,
@@ -395,6 +429,33 @@ export default function TestPackagePage() {
       setEditingPackage(pkg);
       setIsFetchingPackage(false);
     }
+  };
+
+  const handleViewDetails = async (pkg: TestPackage) => {
+    setIsFetchingDetails(true);
+    setViewingPackage(null);
+    setIsDetailsOpen(true);
+
+    if (pkg.id) {
+      try {
+        const response = await fetchTestPackageById(pkg.id);
+        setViewingPackage(response.data);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load package details';
+        setLoading({
+          isLoading: false,
+          error: errorMessage,
+          success: null,
+        });
+      } finally {
+        setIsFetchingDetails(false);
+      }
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setViewingPackage(null);
   };
 
   // ✅ FIX: Better error handling and cleanup with proper delete flow
@@ -710,6 +771,7 @@ export default function TestPackagePage() {
                             pkg={pkg}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            onViewDetails={handleViewDetails}
                           />
                         </td>
                       </tr>
@@ -787,6 +849,35 @@ export default function TestPackagePage() {
               onSubmit={handleNewTestSubmit}
               editData={editingPackage as TestPackageDetail | null}
               isEditMode={!!editingPackage}
+            />
+          )}
+        </>
+      )}
+
+      {/* ═══ PACKAGE DETAILS VIEW ═════════════════════════════════ */}
+      {isDetailsOpen && (
+        <>
+          {isFetchingDetails ? (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4">
+                <Loader className="text-slate-400 animate-spin" size={32} />
+                <p className="text-slate-600 font-medium">Loading package details...</p>
+              </div>
+            </div>
+          ) : (
+            <PackageDetailsView
+              isOpen={isDetailsOpen}
+              onClose={handleCloseDetails}
+              packageData={viewingPackage}
+              onEdit={(pkg) => {
+                handleEdit(pkg as any);
+              }}
+              onDelete={(packageId) => {
+                const pkg = packages.find(p => p.id === packageId);
+                if (pkg) {
+                  handleDelete(pkg);
+                }
+              }}
             />
           )}
         </>

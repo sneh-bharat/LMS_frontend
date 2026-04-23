@@ -11,7 +11,7 @@
  * - DELETE /test-categories/{id}      - Delete category
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.29.228:8080/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.5:8080/api/v1';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

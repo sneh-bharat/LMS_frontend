@@ -17,6 +17,7 @@ export default function Topbar({ onToggleSidebar }) {
             <button
                 onClick={onToggleSidebar}
                 aria-label="Toggle sidebar"
+                suppressHydrationWarning
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all active:scale-95"
             >
                 <Menu size={20} />

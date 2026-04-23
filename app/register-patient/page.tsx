@@ -23,117 +23,36 @@ import {
   AlertCircle,
   CheckCircle2,
   LayoutGrid,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import RegistrationModal from './AddPatient';
+import EditPatientModal from './EditPatient';
+import PatientDetailsView from './PatientDetailsView';
+import AddFamilyLink from './AddFamilyLink';
+import { fetchPatients, searchPatientsByType, deletePatient, Patient, ApiResponse, PaginatedResponse } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-interface Patient {
-  id: number;
-  uhid: number;
-  patientCode?: string;
-  title: string;
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  dateOfBirth?: string;
-  age?: string;
-  branch?: string;
-  gender: string;
-  contact: string;
-  email?: string;
-  country?: string;
-  mobile: string;
-  mobileAlternate?: string;
-  nationality?: string;
-  abhaId?: string;
-  docType?: string;
-  docNumber?: string;
-  bloodGroup?: string;
-  patientCategory?: string;
-  isActive: boolean;
-  referringDoctorId?: number;
-  photoUrl?: string;
-}
-
-const SAMPLE_PATIENTS: Patient[] = [
-  { 
-    id: 1, 
-    uhid: 69, 
-    patientCode: 'P001',
-    title: 'Dr.', 
-    firstName: 'Mohib',
-    middleName: 'Ahmed',
-    lastName: 'Khan', 
-    dateOfBirth: '1974-01-01',
-    age: '50 Y',
-    branch: 'Customer Support', 
-    gender: 'MALE', 
-    contact: '+(91)9934362019', 
-    email: 'mohib@example.com',
-    country: 'IND +91', 
-    mobile: '9934362019', 
-    mobileAlternate: '9934362020',
-    nationality: 'IND-India', 
-    abhaId: 'ABHA123456789',
-    bloodGroup: 'O_POS',
-    patientCategory: 'GENERAL',
-    isActive: true,
-  },
-  { 
-    id: 2, 
-    uhid: 65, 
-    patientCode: 'P002',
-    title: 'Ms.', 
-    firstName: 'Srabanti',
-    lastName: 'Dash', 
-    dateOfBirth: '1980-02-05',
-    age: '44 Y',
-    branch: 'Quality Assurance', 
-    gender: 'FEMALE', 
-    contact: '+(91)8617269047', 
-    email: 'srabanti@example.com',
-    country: 'IND +91', 
-    mobile: '8617269047', 
-    nationality: 'IND-India', 
-    bloodGroup: 'A_POS',
-    patientCategory: 'TPA',
-    isActive: true,
-  },
-  { 
-    id: 3, 
-    uhid: 63, 
-    patientCode: 'P003',
-    title: 'Mr.', 
-    firstName: 'Saber',
-    lastName: 'Khan', 
-    dateOfBirth: '1979-03-10',
-    age: '45 Y',
-    branch: 'Internal Medicine', 
-    gender: 'MALE', 
-    contact: '+(91)9848834451', 
-    country: 'IND +91', 
-    mobile: '9848834451', 
-    nationality: 'IND-India', 
-    bloodGroup: 'B_POS',
-    patientCategory: 'CASH',
-    isActive: true,
-  },
-];
-
-interface PaginationState {
-  pageNo: number;
-  pageSize: number;
-  totalPages: number;
-  totalElements: number;
-}
-
-interface LoadingState {
-  isLoading: boolean;
-  error: string | null;
-  success: string | null;
+interface PatientListState {
+  patients: Patient[];
+  pagination: {
+    pageNo: number;
+    pageSize: number;
+    totalPages: number;
+    totalElements: number;
+  };
+  loading: {
+    isLoading: boolean;
+    error: string | null;
+    success: string | null;
+  };
+  filters: {
+    search: string;
+    searchType: 'NAME' | 'PHONE' | 'EMAIL';
+    category: string;
+  };
 }
 
 // ─── Alert Components ───────────────────────────────────────────────────────
@@ -180,30 +99,281 @@ function SuccessAlert({ message, onDismiss }: { message: string; onDismiss: () =
   );
 }
 
+// ─── Empty State Component ──────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+        <User className="text-slate-400" size={32} />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-slate-900 font-semibold text-lg">No Patients Found</p>
+        <p className="text-slate-500 text-sm max-w-sm">
+          Try adjusting your search criteria or filters to find patient records.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function FindRegisterPatientPage() {
-  const [patients, setPatients] = useState<Patient[]>(SAMPLE_PATIENTS);
-  const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('All');
-  const [regOpen, setRegOpen] = useState(false);
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageNo: 0,
-    pageSize: 10,
-    totalPages: 0,
-    totalElements: SAMPLE_PATIENTS.length,
-  });
-  const [loading, setLoading] = useState<LoadingState>({
-    isLoading: false,
-    error: null,
-    success: null,
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [viewingPatientId, setViewingPatientId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingPatientId, setDeletingPatientId] = useState<number | null>(null);
+  const [isFamilyLinkModalOpen, setIsFamilyLinkModalOpen] = useState(false);
+  const [selectedPatientForLink, setSelectedPatientForLink] = useState<{id: number, name: string} | null>(null);
+  const [state, setState] = useState<PatientListState>({
+    patients: [],
+    pagination: {
+      pageNo: 0,
+      pageSize: 10,
+      totalPages: 0,
+      totalElements: 0,
+    },
+    loading: {
+      isLoading: true,
+      error: null,
+      success: null,
+    },
+    filters: {
+      search: '',
+      searchType: 'NAME',
+      category: 'All',
+    },
   });
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ─── Initial Load ────────────────────────────────────────────────────────
   useEffect(() => {
-    loadPatients();
-  }, [pagination.pageNo, pagination.pageSize, search, catFilter]);
+    loadPatients(0, 10, '', 'All');
+  }, []);
 
+  // ─── Load Patients from API ──────────────────────────────────────────────
+  const loadPatients = useCallback(
+    async (pageNo: number, pageSize: number, search: string, category: string) => {
+      setState(prev => ({
+        ...prev,
+        loading: { isLoading: true, error: null, success: null },
+      }));
+
+      try {
+        let response;
+        
+        // Use search API if search term exists, otherwise use fetch all
+        if (search && search.trim()) {
+          // Get current searchType from state
+          const currentSearchType = state.filters.searchType;
+          console.log(`🔍 Searching patients by ${currentSearchType}:`, search);
+          const searchResponse = await searchPatientsByType(currentSearchType, search, pageNo, pageSize);
+          
+          // Response is an array, not paginated
+          response = searchResponse;
+        } else {
+          // Use regular fetch all endpoint (paginated)
+          response = await fetchPatients(
+            pageNo,
+            pageSize,
+            undefined,
+            category !== 'All' ? category : undefined
+          );
+        }
+
+        if (!response.data) {
+          throw new Error('Invalid response from API');
+        }
+
+        // Check if response.data is an array (search API) or paginated object (fetch API)
+        if (Array.isArray(response.data)) {
+          // Search API returns direct array
+          setState(prev => ({
+            ...prev,
+            patients: response.data as Patient[],
+            pagination: {
+              pageNo: 0,
+              pageSize: response.data.length,
+              totalPages: 1,
+              totalElements: response.data.length,
+            },
+            loading: {
+              isLoading: false,
+              error: null,
+              success: null,
+            },
+          }));
+        } else {
+          // Fetch API returns paginated response
+          const paginatedData = response.data as PaginatedResponse<Patient>;
+
+          setState(prev => ({
+            ...prev,
+            patients: paginatedData.content || [],
+            pagination: {
+              pageNo: paginatedData.pageNo,
+              pageSize: paginatedData.pageSize,
+              totalPages: paginatedData.totalPages,
+              totalElements: paginatedData.totalElements,
+            },
+            loading: {
+              isLoading: false,
+              error: null,
+              success: null,
+            },
+          }));
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
+        setState(prev => ({
+          ...prev,
+          loading: {
+            isLoading: false,
+            error: errorMessage,
+            success: null,
+          },
+          patients: [],
+        }));
+      }
+    },
+    [state.filters.searchType]
+  );
+
+  // ─── Handle Search Type Change ─────────────────────────────────────────
+  const handleSearchTypeChange = useCallback(
+    (searchType: 'NAME' | 'PHONE' | 'EMAIL') => {
+      setState(prev => {
+        if (prev.filters.search && prev.filters.search.trim()) {
+          const searchValue = prev.filters.search.trim();
+          console.log(`🔄 Search type changed to ${searchType}, re-searching with:`, searchValue);
+          
+          searchPatientsByType(searchType, searchValue, 0, prev.pagination.pageSize)
+            .then(response => {
+              if (response.data && Array.isArray(response.data)) {
+                setState(state => ({
+                  ...state,
+                  patients: response.data as Patient[],
+                  pagination: {
+                    ...state.pagination,
+                    pageNo: 0,
+                    totalPages: 1,
+                    totalElements: response.data.length,
+                    pageSize: response.data.length,
+                  },
+                  loading: {
+                    ...state.loading,
+                    isLoading: false,
+                    error: null,
+                    success: `Found ${response.data.length} patients by ${searchType}`,
+                  },
+                  filters: {
+                    ...state.filters,
+                    searchType,
+                  },
+                }));
+              }
+            })
+            .catch(error => {
+              console.error('Error searching with new type:', error);
+              setState(state => ({
+                ...state,
+                loading: {
+                  ...state.loading,
+                  isLoading: false,
+                  error: error.message || 'Failed to search patients',
+                },
+                filters: {
+                  ...state.filters,
+                  searchType,
+                },
+              }));
+            });
+        }
+        
+        return {
+          ...prev,
+          filters: { ...prev.filters, searchType },
+        };
+      });
+    },
+    []
+  );
+
+  // ─── Handle Search ──────────────────────────────────────────────────────
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      setState(prev => ({
+        ...prev,
+        filters: { ...prev.filters, search: searchTerm },
+      }));
+
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        setState(prev => {
+          loadPatients(0, prev.pagination.pageSize, searchTerm, prev.filters.category);
+          return prev;
+        });
+      }, 300);
+    },
+    [loadPatients]
+  );
+
+  // ─── Handle Category Filter ──────────────────────────────────────────────
+  const handleCategoryFilter = useCallback(
+    (category: string) => {
+      setState(prev => ({
+        ...prev,
+        filters: { ...prev.filters, category },
+      }));
+
+      setState(prev => {
+        loadPatients(0, prev.pagination.pageSize, prev.filters.search, category);
+        return prev;
+      });
+    },
+    [loadPatients]
+  );
+
+  // ─── Pagination Handlers ────────────────────────────────────────────────
+  const handlePrevPage = useCallback(() => {
+    if (state.pagination.pageNo > 0) {
+      const newPageNo = state.pagination.pageNo - 1;
+      loadPatients(newPageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+    }
+  }, [state, loadPatients]);
+
+  const handleNextPage = useCallback(() => {
+    if (state.pagination.pageNo < state.pagination.totalPages - 1) {
+      const newPageNo = state.pagination.pageNo + 1;
+      loadPatients(newPageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+    }
+  }, [state, loadPatients]);
+
+  // ─── Retry Load ─────────────────────────────────────────────────────────
+  const handleRetry = useCallback(() => {
+    loadPatients(state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+  }, [state, loadPatients]);
+
+  // ─── Get Unique Categories ──────────────────────────────────────────────
+  const categories = useCallback(() => {
+    const categorySet = new Set<string>();
+    categorySet.add('All');
+    state.patients.forEach(patient => {
+      if (patient.patientCategory) {
+        categorySet.add(patient.patientCategory);
+      }
+    });
+    return Array.from(categorySet);
+  }, [state.patients]);
+
+  const categoryList = categories();
+
+  // ─── Cleanup ────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
@@ -212,84 +382,185 @@ export default function FindRegisterPatientPage() {
     };
   }, []);
 
-  const loadPatients = async () => {
-    setLoading({ isLoading: true, error: null, success: null });
+  // ─── Handle Delete Patient ─────────────────────────────────────────────
+  const handleDeletePatient = async (patientId: number, patientName: string) => {
+    setIsDeleting(true);
+    setDeletingPatientId(patientId);
+
     try {
-      // Simulating API call - replace with actual fetchPatients API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`🗑️ Deleting patient ID: ${patientId}`);
+      await deletePatient(patientId);
       
-      setPatients(SAMPLE_PATIENTS);
-      setPagination({
-        pageNo: 0,
-        pageSize: 10,
-        totalPages: 1,
-        totalElements: SAMPLE_PATIENTS.length,
-      });
-      setLoading({ isLoading: false, error: null, success: null });
+      console.log('✅ Patient deleted successfully');
+      
+      // Remove the deleted patient from the list
+      setState(prev => ({
+        ...prev,
+        patients: prev.patients.filter(p => p.id !== patientId),
+      }));
+      
+      // Show success message
+      setState(prev => ({
+        ...prev,
+        loading: { ...prev.loading, success: 'Patient deleted successfully!', error: null },
+      }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
-      setLoading({
-        isLoading: false,
-        error: errorMessage,
-        success: null,
-      });
+      console.error('❌ Error deleting patient:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete patient';
+      setState(prev => ({
+        ...prev,
+        loading: { ...prev.loading, error: errorMessage, success: null },
+      }));
+    } finally {
+      setIsDeleting(false);
+      setDeletingPatientId(null);
     }
   };
 
-  const handleSearch = useCallback((searchTerm: string) => {
-    setSearch(searchTerm);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    setPagination(prev => ({ ...prev, pageNo: 0 }));
+  // ─── Handle View Patient Details ─────────────────────────────────────────
+  const handleViewPatient = useCallback((patientId: number) => {
+    setViewingPatientId(patientId);
   }, []);
 
-  const handlePrevPage = () => {
-    if (pagination.pageNo > 0) {
-      setPagination(prev => ({ ...prev, pageNo: prev.pageNo - 1 }));
-    }
-  };
+  // ─── Handle Close Patient Details ────────────────────────────────────────
+  const handleClosePatientDetails = useCallback(() => {
+    setViewingPatientId(null);
+  }, []);
 
-  const handleNextPage = () => {
-    if (pagination.pageNo < pagination.totalPages - 1) {
-      setPagination(prev => ({ ...prev, pageNo: prev.pageNo + 1 }));
-    }
-  };
-
-  const getCategories = (): string[] => {
-    const categories = new Set<string>();
-    categories.add('All');
-    patients.forEach(patient => {
-      if (patient.patientCategory) {
-        categories.add(patient.patientCategory);
-      }
+  // ─── Handle Add Family Link ─────────────────────────────────────────────
+  const handleAddFamilyLink = useCallback((patient: Patient) => {
+    setSelectedPatientForLink({
+      id: patient.id!,
+      name: `${patient.firstName} ${patient.lastName}`
     });
-    return Array.from(categories);
-  };
+    setIsFamilyLinkModalOpen(true);
+  }, []);
 
-  const categories = getCategories();
+  // ─── Handle Close Family Link Modal ──────────────────────────────────────
+  const handleCloseFamilyLinkModal = useCallback(() => {
+    setIsFamilyLinkModalOpen(false);
+    setSelectedPatientForLink(null);
+  }, []);
+
+  // ─── Handle Family Link Success ─────────────────────────────────────────
+  const handleFamilyLinkSuccess = useCallback((message: string) => {
+    setState(prev => ({
+      ...prev,
+      loading: { ...prev.loading, success: message, error: null },
+    }));
+  }, []);
+
+  // ─── Handle Edit Patient ─────────────────────────────────────────────────
+  const handleEditPatient = useCallback((patient: Patient) => {
+    console.log('=== EDIT BUTTON CLICKED ===', patient);
+    setEditingPatient(patient);
+    setIsRegistrationModalOpen(true);
+    setViewingPatientId(null); // Close details view if open
+  }, []);
+
+  // ─── Handle Close Modal ──────────────────────────────────────────────────
+  const handleCloseModal = useCallback(() => {
+    console.log('=== MODAL CLOSING ===');
+    setIsRegistrationModalOpen(false);
+    setEditingPatient(null);
+    // Reload patient list to show new/updated data
+    loadPatients(
+      state.pagination.pageNo,
+      state.pagination.pageSize,
+      state.filters.search,
+      state.filters.category
+    );
+  }, [loadPatients, state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <RegistrationModal isOpen={regOpen} onClose={() => setRegOpen(false)} />
+      {/* ═══ REGISTRATION MODAL ═════════════════════════════════════════════ */}
+      <RegistrationModal 
+        isOpen={isRegistrationModalOpen && !editingPatient} 
+        onClose={handleCloseModal}
+        onSuccess={(message) => {
+          setState(prev => ({
+            ...prev,
+            loading: { ...prev.loading, success: message, error: null },
+          }));
+        }}
+      />
 
-      {/* ═══ ALERTS ═════════════════════════════════════════════ */}
+      {/* ═══ EDIT PATIENT MODAL ═════════════════════════════════════════════ */}
+      {editingPatient && (
+        <EditPatientModal
+          isOpen={isRegistrationModalOpen && !!editingPatient}
+          onClose={handleCloseModal}
+          patient={editingPatient}
+          onSuccess={(message) => {
+            setState(prev => ({
+              ...prev,
+              loading: { ...prev.loading, success: message, error: null },
+            }));
+          }}
+        />
+      )}
+
+      {/* ═══ FAMILY LINK MODAL ═════════════════════════════════════════════ */}
+      <AddFamilyLink
+        isOpen={isFamilyLinkModalOpen}
+        patientId={selectedPatientForLink?.id}
+        patientName={selectedPatientForLink?.name}
+        onClose={handleCloseFamilyLinkModal}
+        onSuccess={handleFamilyLinkSuccess}
+      />
+
+      {/* ═══ PATIENT DETAILS VIEW ══════════════════════════════════════════ */}
+      {viewingPatientId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between rounded-t-3xl z-10">
+              <h2 className="text-xl font-black text-slate-900">Patient Details</h2>
+              <button
+                onClick={handleClosePatientDetails}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-8">
+              <PatientDetailsView
+                patientId={viewingPatientId}
+                onEdit={handleEditPatient}
+                onClose={handleClosePatientDetails}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ALERTS ═════════════════════════════════════════════════════════ */}
       <div className="space-y-3">
-        {loading.error && (
+        {state.loading.error && (
           <ErrorAlert
-            message={loading.error}
-            onDismiss={() => setLoading(prev => ({ ...prev, error: null }))}
+            message={state.loading.error}
+            onDismiss={() =>
+              setState(prev => ({
+                ...prev,
+                loading: { ...prev.loading, error: null },
+              }))
+            }
           />
         )}
-        {loading.success && (
+        {state.loading.success && (
           <SuccessAlert
-            message={loading.success}
-            onDismiss={() => setLoading(prev => ({ ...prev, success: null }))}
+            message={state.loading.success}
+            onDismiss={() =>
+              setState(prev => ({
+                ...prev,
+                loading: { ...prev.loading, success: null },
+              }))
+            }
           />
         )}
       </div>
 
-      {/* ═══ HEADER ═════════════════════════════════════════════ */}
+      {/* ═══ HEADER ═════════════════════════════════════════════════════════ */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
@@ -300,21 +571,26 @@ export default function FindRegisterPatientPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-2 px-6">
-            <LayoutGrid size={16} /> Patient View
-          </Button>
           <Button 
             variant="gradient" 
             size="sm" 
-            onClick={() => setRegOpen(true)}
             className="gap-2 shadow-sm px-8"
+            onClick={() => setIsRegistrationModalOpen(true)}
           >
             <UserPlus size={16} /> New Registration
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 px-6"
+            onClick={() => setIsFamilyLinkModalOpen(true)}
+          >
+            <UserPlus size={16} /> Add Family Link
           </Button>
         </div>
       </div>
 
-      {/* ═══ CONTROL BAR ════════════════════════════════════════ */}
+      {/* ═══ CONTROL BAR ════════════════════════════════════════════════════ */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-4">
         <div className="relative flex-1 group w-full">
           <Search
@@ -322,43 +598,79 @@ export default function FindRegisterPatientPage() {
             size={18}
           />
           <input
-            value={search}
+            value={state.filters.search}
             onChange={e => handleSearch(e.target.value)}
-            placeholder="Search by UHID, patient name, or code..."
+            placeholder={
+              state.filters.searchType === 'NAME' ? "Search by patient name..." :
+              state.filters.searchType === 'MOBILE' ? "Search by mobile number..." :
+              state.filters.searchType === 'EMAIL' ? "Search by email address..." :
+              "Search by email address..."
+            }
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
-            aria-label="Search patients by name, UHID, or code"
+            aria-label="Search patients"
+            disabled={state.loading.isLoading}
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
+          {/* Search Type Dropdown */}
+          <div className="relative flex-1 lg:w-40 group">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <select
+              value={state.filters.searchType}
+              onChange={e => handleSearchTypeChange(e.target.value as 'NAME' | 'MOBILE' | 'EMAIL')}
+              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              aria-label="Search type filter"
+              disabled={state.loading.isLoading}
+            >
+              <option value="NAME">NAME</option>
+              <option value="MOBILE">MOBILE</option>
+              <option value="EMAIL">EMAIL</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+          </div>
+
+          {/* Category Dropdown */}
           <div className="relative flex-1 lg:w-48 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
-              value={catFilter}
-              onChange={e => setCatFilter(e.target.value)}
+              value={state.filters.category}
+              onChange={e => handleCategoryFilter(e.target.value)}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
               aria-label="Filter patients by category"
+              disabled={state.loading.isLoading}
             >
-              {categories.map(c => (
-                <option key={c}>{c}</option>
+              {categoryList.map(c => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200">
-            <Settings size={18} />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-lg p-2.5 border-slate-200"
+            onClick={handleRetry}
+            disabled={state.loading.isLoading}
+            title="Refresh patient list"
+          >
+            <RefreshCw size={18} className={state.loading.isLoading ? 'animate-spin' : ''} />
           </Button>
         </div>
       </div>
 
-      {/* ═══ LOADING STATE ═══════════════════════════════════════ */}
-      {loading.isLoading ? (
+      {/* ═══ LOADING STATE ═══════════════════════════════════════════════════ */}
+      {state.loading.isLoading ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
           <Loader className="text-slate-400 animate-spin" size={32} />
           <p className="text-slate-600 font-medium">Loading patient records...</p>
         </div>
+      ) : state.patients.length === 0 ? (
+        <EmptyState />
       ) : (
         <>
-          {/* ═══ PATIENTS TABLE ══════════════════════════════════════ */}
+          {/* ═══ PATIENTS TABLE ══════════════════════════════════════════════ */}
           <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -368,7 +680,7 @@ export default function FindRegisterPatientPage() {
                       Patient Details
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      UHID / Code
+                      Code / ID
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                       Gender
@@ -388,26 +700,44 @@ export default function FindRegisterPatientPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {patients.map((p, idx) => (
-                    <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
+                  {state.patients.map((patient) => (
+                    <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                            <User size={20} />
-                          </div>
+                          {/* Patient Photo */}
+                          {patient.photoUrl ? (
+                            <img
+                              src={
+                                patient.photoUrl.startsWith('http')
+                                  ? patient.photoUrl
+                                  : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'}${patient.photoUrl.startsWith('/') ? '' : '/'}${patient.photoUrl}`
+                              }
+                              alt={`${patient.firstName} ${patient.lastName}`}
+                              className="w-10 h-10 rounded-lg object-cover border-2 border-emerald-100 shadow-sm flex-shrink-0"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all flex-shrink-0">
+                              <User size={20} />
+                            </div>
+                          )}
                           <div>
                             <div className="font-bold text-slate-900 tracking-tight group-hover:text-emerald-700 transition-colors text-sm">
-                              {p.title} {p.firstName} {p.middleName || ''} {p.lastName}
-                            </div>
+                              {patient.firstName} {patient.middleName || ''} {patient.lastName}
+                            </div>                                     
                             <div className="flex items-center gap-2 mt-0.5">
-                              {p.isActive && (
+                              {patient.isActive && (
                                 <Badge variant="success" className="px-1 text-[8px] tracking-tight">
                                   Active
                                 </Badge>
                               )}
-                              {p.bloodGroup && (
+                              {patient.bloodGroup && (
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                  Blood: {p.bloodGroup.replace('_', '+')}
+                                  Blood: {patient.bloodGroup.replace('_', '+')}
                                 </span>
                               )}
                             </div>
@@ -417,48 +747,51 @@ export default function FindRegisterPatientPage() {
                       <td className="px-6 py-5">
                         <div className="space-y-0.5">
                           <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[9px] font-bold uppercase">
-                            UHID: {p.uhid}
+                            ID: {patient.id}
                           </Badge>
-                          {p.patientCode && (
+                          {patient.patientCode && (
                             <div className="text-[10px] font-mono text-slate-500 font-bold">
-                              {p.patientCode}
+                              {patient.patientCode}
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">
                         <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs ${
-                          p.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 
-                          p.gender === 'FEMALE' ? 'bg-rose-50 text-rose-600' : 
+                          patient.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 
+                          patient.gender === 'FEMALE' ? 'bg-rose-50 text-rose-600' : 
                           'bg-purple-50 text-purple-600'
                         }`}>
-                          {p.gender.charAt(0)}
+                          {patient.gender?.charAt(0) || '-'}
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-1.5 text-slate-600 text-xs font-bold font-mono">
                           <CalendarIcon size={12} className="text-slate-300" />
-                          {p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-IN') : p.age || 'N/A'}
+                          {patient.dateOfBirth 
+                            ? new Date(patient.dateOfBirth).toLocaleDateString('en-IN')
+                            : 'N/A'
+                          }
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-slate-900 font-bold text-[11px]">
                             <Phone size={10} className="text-emerald-500" />
-                            {p.contact || p.mobile}
+                            {patient.mobilePrimary}
                           </div>
-                          {p.email && (
+                          {patient.email && (
                             <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[10px] italic">
                               <Mail size={10} />
-                              {p.email}
+                              {patient.email}
                             </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        {p.patientCategory ? (
+                        {patient.patientCategory ? (
                           <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[10px] font-bold uppercase">
-                            {p.patientCategory}
+                            {patient.patientCategory}
                           </Badge>
                         ) : (
                           <span className="text-xs text-slate-400">-</span>
@@ -467,17 +800,47 @@ export default function FindRegisterPatientPage() {
                       <td className="px-6 py-5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            className="p-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 hover:shadow-sm transition-all"
+                            title="View Patient Details"
+                            onClick={() => handleViewPatient(patient.id!)}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="p-1.5 bg-blue-50 border border-blue-100 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-100 hover:shadow-sm transition-all"
                             title="Edit Patient"
+                            onClick={() => handleEditPatient(patient)}
                           >
                             <Edit2 size={14} />
                           </button>
-                          <button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="More actions"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
+                            {isDeleting && deletingPatientId === patient.id ? (
+                              <button
+                                className="p-1.5 bg-red-50 border border-red-200 rounded-lg text-red-500 animate-pulse"
+                                disabled
+                                title="Deleting..."
+                              >
+                                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleDeletePatient(patient.id!, `${patient.firstName} ${patient.lastName}`)}
+                                className="p-1.5 bg-red-50 border border-red-100 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-100 hover:shadow-sm transition-all"
+                                title="Delete patient"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                              </button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -492,7 +855,7 @@ export default function FindRegisterPatientPage() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm"></div>
                   <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">
-                    {pagination.totalElements} Patient Records
+                    {state.pagination.totalElements} Patient Records
                   </span>
                 </div>
                 <div className="hidden xl:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -503,17 +866,17 @@ export default function FindRegisterPatientPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={handlePrevPage}
-                  disabled={pagination.pageNo === 0}
+                  disabled={state.pagination.pageNo === 0 || state.loading.isLoading}
                   className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
                 </button>
                 <span className="text-xs font-bold text-slate-600">
-                  Page {pagination.pageNo + 1} of {pagination.totalPages || 1}
+                  Page {state.pagination.pageNo + 1} of {state.pagination.totalPages || 1}
                 </span>
                 <button
                   onClick={handleNextPage}
-                  disabled={pagination.pageNo >= pagination.totalPages - 1}
+                  disabled={state.pagination.pageNo >= state.pagination.totalPages - 1 || state.loading.isLoading}
                   className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
@@ -524,6 +887,7 @@ export default function FindRegisterPatientPage() {
         </>
       )}
 
+      {/* ═══ STATUS BANNER ═════════════════════════════════════════════════ */}
       <div className="bg-emerald-50 rounded-[2.5rem] p-8 flex items-center justify-between border border-emerald-100 shadow-xl shadow-green-500/5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-emerald-600">

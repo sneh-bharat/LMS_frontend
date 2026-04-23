@@ -279,6 +279,7 @@ export default function SampleReceiptPage() {
             onClick={handleOpenModal}
             variant="gradient"
             className="gap-2 shadow-sm"
+            suppressHydrationWarning
           >
             <Plus size={16} />
             Add Sample
@@ -296,6 +297,7 @@ export default function SampleReceiptPage() {
             onChange={e => setSearch(e.target.value)}
             placeholder="Search Sample ID or Patient..."
             className="input-refined w-full py-2.5 pl-10 pr-4 font-bold"
+            suppressHydrationWarning
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -305,6 +307,7 @@ export default function SampleReceiptPage() {
               value={deptFilter}
               onChange={e => setDeptFilter(e.target.value)}
               className="input-refined py-2 pl-8 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none w-full"
+              suppressHydrationWarning
             >
               {SAMPLE_TYPES.map(type => <option key={type}>{type}</option>)}
             </select>
@@ -315,6 +318,7 @@ export default function SampleReceiptPage() {
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               className="input-refined py-2 pl-8 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none w-full"
+              suppressHydrationWarning
             >
               {STATUS_OPTIONS.map(status => <option key={status}>{status}</option>)}
             </select>
@@ -403,6 +407,7 @@ export default function SampleReceiptPage() {
                           onClick={() => handleAccept(receipt.sampleId)}
                           className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
                           title="Accept Sample"
+                          suppressHydrationWarning
                         >
                           <CheckCircle size={16} />
                         </button>
@@ -410,6 +415,7 @@ export default function SampleReceiptPage() {
                           onClick={() => handleReject(receipt.sampleId, 'haemolysed')}
                           className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all"
                           title="Reject Sample"
+                          suppressHydrationWarning
                         >
                           <XCircle size={16} />
                         </button>
@@ -419,6 +425,7 @@ export default function SampleReceiptPage() {
                       onClick={() => handleEdit(receipt)}
                       className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                       title="Edit Sample"
+                      suppressHydrationWarning
                     >
                       <Edit3 size={14} />
                     </button>
@@ -426,10 +433,14 @@ export default function SampleReceiptPage() {
                       onClick={() => handleDelete(receipt.sampleId)}
                       className="p-1.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                       title="Delete Sample"
+                      suppressHydrationWarning
                     >
                       <Trash2 size={14} />
                     </button>
-                    <button className="p-1.5 text-slate-300 hover:text-slate-600">
+                    <button 
+                      className="p-1.5 text-slate-300 hover:text-slate-600"
+                      suppressHydrationWarning
+                    >
                       <MoreHorizontal size={18} />
                     </button>
                   </div>

@@ -1,41 +1,47 @@
 import { useState } from 'react';
 import {
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Calendar,
-  Shield,
-  FileText,
-  Activity,
-  Building,
   UserPlus,
   Plus,
   Trash2,
   AlertCircle,
-  Loader
+  Loader,
+  MapPin,
+  Activity,
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import { Input, Label } from '@/components/ui';
+import { 
+  createPatient, 
+  CreatePatientInput,
+  PatientAllergy,
+  normalizeBloodGroup,
+  normalizeSeverity,
+  normalizeAddressType,
+  validatePatientData,
+} from '../Apis/Patients/Patient_Service_API';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.'];
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'TRANSGENDER'];
-const BLOOD_GROUPS = ['A_POS', 'A_NEG', 'B_POS', 'B_NEG', 'AB_POS', 'AB_NEG', 'O_POS', 'O_NEG'];
-const ADDRESS_TYPES = ['Home', 'Office', 'Permanent', 'Communication'];
-const ALLERGY_SEVERITY = ['Mild', 'Moderate', 'Severe'];
+const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
+const ADDRESS_TYPES = ['PERMANENT', 'COMMUNICATION', 'HOME', 'OFFICE'];
+const ALLERGY_SEVERITY = ['LOW', 'MEDIUM', 'HIGH'];
 const WHATSAPP_CONSENT = ['YES', 'NO'];
 const REPORT_LANGUAGES = ['ENGLISH', 'HINDI', 'MARATHI', 'TAMIL', 'TELUGU'];
-const PATIENT_CATEGORIES = ['GENERAL', 'TPA', 'CASH', 'CORPORATE'];
+const PATIENT_CATEGORIES = ['GENERAL', 'REGULAR', 'VIP', 'CORPORATE', 'TPA', 'CGHS', 'ECHS', 'ESI', 'BPL', 'STAFF'];
 
 // ─── Registration Modal ──────────────────────────────────────────────────────
 
-function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+interface RegistrationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: (message: string) => void;
+}
+
+function RegistrationModal({ isOpen, onClose, onSuccess }: RegistrationModalProps) {
   const [formData, setFormData] = useState({
-    patientCode: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -46,17 +52,19 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     email: '',
     clinicId: 1,
     abhaId: '',
-    uhId: '',
     referringDoctor: '',
+    referringDoctorId: undefined as number | undefined,
     insuranceCompany: '',
     insurancePolicyNo: '',
-    whatsappConsent: 'YES',
+    whatsappConsent: 'YES' as 'YES' | 'NO',
     reportLanguage: 'ENGLISH',
     photoUrl: '',
+    photoFile: undefined as File | undefined,
     bloodGroup: '',
     patientCategory: 'GENERAL',
     isActive: true,
     addresses: [] as Array<{
+      id?: number;
       addressLine1: string;
       addressLine2: string;
       city: string;
@@ -67,9 +75,10 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
       isPrimary: boolean;
     }>,
     allergies: [] as Array<{
+      id?: number;
       allergyName: string;
       severity: string;
-      notedBy: number;
+      notedBy: string;
       remarks: string;
     }>
   });
@@ -77,59 +86,136 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validateMobile = (mobile: string) => /^[6-9]\d{9}$/.test(mobile);
-  const validatePastDate = (date: string) => {
-    if (!date) return false;
-    const birthDate = new Date(date);
-    const today = new Date();
-    return birthDate < today;
-  };
-
-  const handleSubmit = async () => {
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Required field validation
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'Date of birth is required';
-    } else if (!validatePastDate(formData.dateOfBirth)) {
-      newErrors.dateOfBirth = 'Date of birth must be in the past';
+    } else {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      if (birthDate >= today) {
+        newErrors.dateOfBirth = 'Date of birth must be in the past';
+      }
     }
-    if (!formData.gender) newErrors.gender = 'Gender is required';
-    if (!formData.mobilePrimary) {
-      newErrors.mobilePrimary = 'Primary mobile is required';
-    } else if (!validateMobile(formData.mobilePrimary)) {
-      newErrors.mobilePrimary = 'Invalid Indian mobile number (must start with 6-9 and be 10 digits)';
+
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required';
     }
-    if (!formData.clinicId) newErrors.clinicId = 'Clinic is required';
+
+    if (!formData.bloodGroup) {
+      newErrors.bloodGroup = 'Blood group is required';
+    }
+
+    if (!formData.mobilePrimary.trim()) {
+      newErrors.mobilePrimary = 'Primary mobile number is required';
+    } else if (!/^[6-9]\d{9}$/.test(formData.mobilePrimary.replace(/\D/g, ''))) {
+      newErrors.mobilePrimary = 'Primary mobile must be a valid 10-digit Indian number';
+    }
+
+    if (formData.mobileAlternate && !/^[6-9]\d{9}$/.test(formData.mobileAlternate.replace(/\D/g, ''))) {
+      newErrors.mobileAlternate = 'Alternate mobile must be a valid 10-digit Indian number';
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Invalid email format';
+    }
 
     setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    if (Object.keys(newErrors).length > 0) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      console.log('=== SUBMITTING PATIENT REGISTRATION ===');
-      console.log('Payload:', JSON.stringify(formData, null, 2));
-      
-      const response = await fetch('http://localhost:8080/api/v1/patients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      // ✅ Build patient DTO with normalized values
+      const patientDTO: CreatePatientInput = {
+        firstName: formData.firstName.trim(),
+        middleName: formData.middleName.trim() || undefined,
+        lastName: formData.lastName.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender as 'MALE' | 'FEMALE' | 'TRANSGENDER' | 'OTHER',
+        // ✅ NORMALIZE blood group from UI format (A_POSITIVE) to API format (A_POS)
+        bloodGroup: normalizeBloodGroup(formData.bloodGroup) as CreatePatientInput['bloodGroup'],
+        mobilePrimary: formData.mobilePrimary.replace(/\D/g, ''),
+        mobileAlternate: (formData.mobileAlternate && formData.mobileAlternate !== formData.mobilePrimary) 
+          ? formData.mobileAlternate.replace(/\D/g, '') 
+          : undefined,
+        email: formData.email.toLowerCase().trim() || undefined,
+        patientCategory: formData.patientCategory as CreatePatientInput['patientCategory'],
+        insuranceCompany: formData.insuranceCompany.trim() || undefined,
+        insurancePolicyNo: formData.insurancePolicyNo.trim() || undefined,
+        whatsappConsent: formData.whatsappConsent,
+        reportLanguage: formData.reportLanguage,
+        clinicId: formData.clinicId,
+        isActive: formData.isActive,
+        referringDoctorId: formData.referringDoctorId,
+        abhaId: formData.abhaId.trim() || undefined,
+        // ✅ Normalize addresses
+        addresses: formData.addresses.length > 0 ? formData.addresses.map(address => ({
+          ...address,
+          addressLine1: address.addressLine1.trim(),
+          addressLine2: address.addressLine2.trim(),
+          city: address.city.trim(),
+          district: address.district.trim() || address.city.trim(),
+          state: address.state.trim(),
+          pinCode: address.pinCode.trim(),
+          addressType: normalizeAddressType(address.addressType),
+        })) : undefined,
+        // ✅ Normalize allergies with proper severity
+        allergies: formData.allergies.length > 0
+          ? formData.allergies.reduce<NonNullable<CreatePatientInput['allergies']>>((acc, allergy) => {
+              const notedByValue = allergy.notedBy?.toString().trim();
+              const notedByNumber = notedByValue ? Number(notedByValue) : NaN;
 
-      if (response.ok) {
-        console.log('✅ Patient registered successfully');
+              if (!Number.isFinite(notedByNumber)) {
+                return acc;
+              }
+
+              acc.push({
+                id: allergy.id,
+                allergyName: allergy.allergyName.trim(),
+                // ✅ NORMALIZE severity from UI format (LOW) to API format (Mild)
+                severity: normalizeSeverity(allergy.severity) as PatientAllergy['severity'],
+                notedBy: notedByNumber,
+                remarks: allergy.remarks.trim(),
+              });
+              return acc;
+            }, [])
+          : undefined,
+      };
+
+      console.log('📦 Patient DTO prepared for submission:', patientDTO);
+
+      // ✅ Send to API with optional photo file
+      const response = await createPatient({
+        ...patientDTO,
+        photoFile: formData.photoFile,
+      } as any);
+
+      console.log('✅ Patient created successfully!', response);
+
+      if (response && (response.code === 200 || response.code === 201 || response.response === true)) {
+        onSuccess?.(response.message || 'Patient registered successfully!');
         onClose();
       } else {
-        console.error('❌ Registration failed');
+        throw new Error(response?.message || 'Operation failed');
       }
-    } catch (error) {
-      console.error('❌ Network error:', error);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setErrors({ submit: errorMessage });
+      console.error('Submission error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +231,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
         district: '',
         state: '',
         pinCode: '',
-        addressType: 'Home',
+        addressType: 'PERMANENT',
         isPrimary: prev.addresses.length === 0,
       }]
     }));
@@ -158,13 +244,21 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     }));
   };
 
+  const updateAddress = (index: number, field: string, value: any) => {
+    setFormData(prev => {
+      const newAddresses = [...prev.addresses];
+      newAddresses[index] = { ...newAddresses[index], [field]: value };
+      return { ...prev, addresses: newAddresses };
+    });
+  };
+
   const addAllergy = () => {
     setFormData(prev => ({
       ...prev,
       allergies: [...prev.allergies, {
         allergyName: '',
-        severity: 'Moderate',
-        notedBy: 1,
+        severity: 'MEDIUM',
+        notedBy: '1', // Default to clinic admin/doctor ID
         remarks: '',
       }]
     }));
@@ -177,6 +271,14 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     }));
   };
 
+  const updateAllergy = (index: number, field: string, value: any) => {
+    setFormData(prev => {
+      const newAllergies = [...prev.allergies];
+      newAllergies[index] = { ...newAllergies[index], [field]: value };
+      return { ...prev, allergies: newAllergies };
+    });
+  };
+
   const footer = (
     <div className="flex gap-3 justify-end w-full">
       <Button
@@ -185,7 +287,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
         disabled={isSubmitting}
         className="px-6 py-2 rounded-lg font-bold transition-all text-sm border-slate-300 text-slate-700 disabled:opacity-50"
       >
-        Discard
+        Cancel
       </Button>
       <Button
         onClick={handleSubmit}
@@ -212,40 +314,13 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
       footer={footer}
       maxWidth="xl"
     >
-      <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section 1: Basic Identity */}
         <section className="space-y-6">
           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
             <span className="w-4 h-[1px] bg-slate-200"></span>
             01. Basic Identity
           </h4>
-          
-          {/* Patient Code and Salutation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Patient Code
-              </Label>
-              <Input
-                type="text"
-                value={formData.patientCode}
-                onChange={(e) => setFormData(prev => ({ ...prev, patientCode: e.target.value }))}
-                placeholder="Auto-generated or manual code"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-              />
-            </div>
-            <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Salutation
-              </Label>
-              <select
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-              >
-                <option value="">Select...</option>
-                {SALUTATIONS.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
 
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -352,45 +427,47 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             </div>
             <div>
               <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Blood Group
+                Blood Group <span className="text-red-500">*</span>
               </Label>
               <select
                 value={formData.bloodGroup}
                 onChange={(e) => setFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium focus:ring-4 ${
+                  errors.bloodGroup
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               >
-                <option value="">Unknown</option>
-                {BLOOD_GROUPS.map(bg => <option key={bg}>{bg.replace('_', '+')}</option>)}
+                <option value="">Select...</option>
+                {BLOOD_GROUPS.map(bg => {
+                  const displayValue = bg.replace('_POSITIVE', '+').replace('_NEGATIVE', '-');
+                  return (
+                    <option key={bg} value={bg}>
+                      {displayValue}
+                    </option>
+                  );
+                })}
               </select>
+              {errors.bloodGroup && (
+                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.bloodGroup}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* ABHA ID and UHID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                ABHA ID
-              </Label>
-              <Input
-                type="text"
-                value={formData.abhaId}
-                onChange={(e) => setFormData(prev => ({ ...prev, abhaId: e.target.value }))}
-                placeholder="ABHA123456789"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-              />
-            </div>
-            <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                UHID
-              </Label>
-              <Input
-                type="text"
-                value={formData.uhId}
-                onChange={(e) => setFormData(prev => ({ ...prev, uhId: e.target.value }))}
-                placeholder="Auto-generated"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-              />
-            </div>
+          {/* ABHA ID */}
+          <div>
+            <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
+              ABHA ID
+            </Label>
+            <Input
+              type="text"
+              value={formData.abhaId}
+              onChange={(e) => setFormData(prev => ({ ...prev, abhaId: e.target.value }))}
+              placeholder="ABHA123456789"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+            />
           </div>
         </section>
 
@@ -400,7 +477,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             <span className="w-4 h-[1px] bg-slate-200"></span>
             02. Contact Information
           </h4>
-          
+
           {/* Primary Mobile */}
           <div>
             <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
@@ -410,8 +487,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
               type="tel"
               value={formData.mobilePrimary}
               onChange={(e) => setFormData(prev => ({ ...prev, mobilePrimary: e.target.value }))}
-              placeholder="+91 9876543210"
-              maxLength={10}
+              placeholder="9876543210"
               className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
                 errors.mobilePrimary
                   ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
@@ -435,10 +511,18 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                 type="tel"
                 value={formData.mobileAlternate}
                 onChange={(e) => setFormData(prev => ({ ...prev, mobileAlternate: e.target.value }))}
-                placeholder="+91 9876543211"
-                maxLength={10}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+                placeholder="9876543211"
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
+                  errors.mobileAlternate
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               />
+              {errors.mobileAlternate && (
+                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.mobileAlternate}
+                </p>
+              )}
             </div>
             <div>
               <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
@@ -449,8 +533,17 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="patient@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium italic focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 italic focus:ring-4 ${
+                  errors.email
+                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+                }`}
               />
+              {errors.email && (
+                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.email}
+                </p>
+              )}
             </div>
           </div>
 
@@ -467,7 +560,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                     name="whatsappConsent"
                     value={option}
                     checked={formData.whatsappConsent === option}
-                    onChange={(e) => setFormData(prev => ({ ...prev, whatsappConsent: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, whatsappConsent: e.target.value as 'YES' | 'NO' }))}
                     className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
                   />
                   <span className="text-sm font-bold text-slate-700">{option}</span>
@@ -483,18 +576,25 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             <span className="w-4 h-[1px] bg-slate-200"></span>
             03. Medical & Referral
           </h4>
-          
+
           {/* Referring Doctor and Patient Category */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Reference
+                Referring Doctor ID
               </Label>
               <Input
                 type="text"
-                value={formData.referringDoctor || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, referringDoctor: e.target.value }))}
-                placeholder="Enter reference name "
+                value={formData.referringDoctor}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    referringDoctor: val,
+                    referringDoctorId: val ? Number(val) : undefined,
+                  }));
+                }}
+                placeholder="Doctor ID or Name"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
               />
             </div>
@@ -540,7 +640,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             </div>
           </div>
 
-          {/* Report Language and Photo URL */}
+          {/* Report Language and Photo Upload */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
@@ -555,21 +655,83 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
               </select>
             </div>
             <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                    Upload Photo
-                </Label>
-                <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                    setFormData((prev) => ({
-                        ...prev,
-                        photoFile: e.target.files[0],
-                    }))
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none text-sm font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
+              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
+                Upload Photo
+              </Label>
+              
+              {/* Photo Preview */}
+              {(formData.photoUrl || formData.photoFile) && (
+                <div className="mb-3 flex justify-center">
+                  <div className="relative">
+                    <img
+                      src={
+                        formData.photoFile
+                          ? URL.createObjectURL(formData.photoFile)
+                          : formData.photoUrl
+                      }
+                      alt="Patient Photo"
+                      className="w-32 h-32 rounded-xl object-cover border-2 border-emerald-200 shadow-md"
+                      onError={(e) => {
+                        console.warn('⚠️ Failed to load photo');
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                      </svg>
+                    </div>
+                  </div>
                 </div>
+              )}
+              
+              {/* No Photo Placeholder */}
+              {!formData.photoUrl && !formData.photoFile && (
+                <div className="mb-3 flex justify-center">
+                  <div className="w-32 h-32 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center">
+                    <div className="text-center">
+                      <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <p className="text-xs text-slate-500 mt-2 font-medium">No Photo</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    photoFile: e.target.files?.[0],
+                  }))
+                }
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none text-sm font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+              />
+              {formData.photoFile && (
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                  Selected: {formData.photoFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Active Status */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
+              />
+              <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Mark as Active Patient</span>
+            </label>
           </div>
         </section>
 
@@ -581,34 +743,32 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
               04. Addresses
             </h4>
             <button
+              type="button"
               onClick={addAddress}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
             >
               <Plus size={14} /> Add Address
             </button>
           </div>
-          
+
           {formData.addresses.map((address, index) => (
             <div key={index} className="bg-slate-50 rounded-xl p-6 space-y-4 relative border border-slate-200">
               <button
+                type="button"
                 onClick={() => removeAddress(index)}
                 className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
               >
                 <Trash2 size={16} />
               </button>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
                     Address Line 1
                   </Label>
                   <Input
                     value={address.addressLine1}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].addressLine1 = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'addressLine1', e.target.value)}
                     placeholder="123 Main Street"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
@@ -619,11 +779,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={address.addressLine2}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].addressLine2 = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'addressLine2', e.target.value)}
                     placeholder="Apartment 4B"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
@@ -637,11 +793,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={address.city}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].city = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'city', e.target.value)}
                     placeholder="Mumbai"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
@@ -652,11 +804,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={address.district}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].district = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'district', e.target.value)}
                     placeholder="Mumbai Suburban"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
@@ -670,11 +818,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={address.state}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].state = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'state', e.target.value)}
                     placeholder="Maharashtra"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   />
@@ -685,11 +829,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={address.pinCode}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].pinCode = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'pinCode', e.target.value)}
                     placeholder="400001"
                     maxLength={6}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
@@ -701,11 +841,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <select
                     value={address.addressType}
-                    onChange={(e) => {
-                      const newAddresses = [...formData.addresses];
-                      newAddresses[index].addressType = e.target.value;
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
+                    onChange={(e) => updateAddress(index, 'addressType', e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                   >
                     {ADDRESS_TYPES.map(type => <option key={type}>{type}</option>)}
@@ -751,22 +887,24 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
               05. Allergies
             </h4>
             <button
+              type="button"
               onClick={addAllergy}
               className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition-colors"
             >
               <Plus size={14} /> Add Allergy
             </button>
           </div>
-          
+
           {formData.allergies.map((allergy, index) => (
             <div key={index} className="bg-rose-50 border border-rose-200 rounded-xl p-6 space-y-4 relative">
               <button
+                type="button"
                 onClick={() => removeAllergy(index)}
                 className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
               >
                 <Trash2 size={16} />
               </button>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
@@ -774,11 +912,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <Input
                     value={allergy.allergyName}
-                    onChange={(e) => {
-                      const newAllergies = [...formData.allergies];
-                      newAllergies[index].allergyName = e.target.value;
-                      setFormData(prev => ({ ...prev, allergies: newAllergies }));
-                    }}
+                    onChange={(e) => updateAllergy(index, 'allergyName', e.target.value)}
                     placeholder="Penicillin"
                     className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                   />
@@ -789,15 +923,22 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                   </Label>
                   <select
                     value={allergy.severity}
-                    onChange={(e) => {
-                      const newAllergies = [...formData.allergies];
-                      newAllergies[index].severity = e.target.value;
-                      setFormData(prev => ({ ...prev, allergies: newAllergies }));
-                    }}
+                    onChange={(e) => updateAllergy(index, 'severity', e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                   >
                     {ALLERGY_SEVERITY.map(sev => <option key={sev}>{sev}</option>)}
                   </select>
+                </div>
+                <div>
+                  <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
+                    Noted By
+                  </Label>
+                  <Input
+                    value={allergy.notedBy}
+                    onChange={(e) => updateAllergy(index, 'notedBy', e.target.value)}
+                    placeholder="Dr. Smith or Doctor ID"
+                    className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                  />
                 </div>
               </div>
 
@@ -807,11 +948,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                 </Label>
                 <textarea
                   value={allergy.remarks}
-                  onChange={(e) => {
-                    const newAllergies = [...formData.allergies];
-                    newAllergies[index].remarks = e.target.value;
-                    setFormData(prev => ({ ...prev, allergies: newAllergies }));
-                  }}
+                  onChange={(e) => updateAllergy(index, 'remarks', e.target.value)}
                   placeholder="Avoid all penicillin-based medications"
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 resize-none"
@@ -828,7 +965,18 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             </div>
           )}
         </section>
-      </div>
+
+        {/* General Error Message */}
+        {errors.submit && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-rose-900 uppercase tracking-widest">Error</p>
+              <p className="text-sm text-rose-700 mt-1">{errors.submit}</p>
+            </div>
+          </div>
+        )}
+      </form>
     </RightDrawer>
   );
 }
