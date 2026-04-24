@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   User,
   Phone,
@@ -16,302 +16,578 @@ import {
   UserPlus,
   MoreVertical,
   Database,
-  ArrowRightCircle
+  ArrowRightCircle,
+  Loader,
+  Filter,
+  Settings,
+  AlertCircle,
+  CheckCircle2,
+  LayoutGrid,
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import { RightDrawer } from '@/components/ui/right-drawer';
+import RegistrationModal from './AddPatient';
+import { fetchPatients, Patient, ApiResponse, PaginatedResponse } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-interface Patient {
-  id: number;
-  uhid: number;
-  title: string;
-  name: string;
-  branch: string;
-  gender: string;
-  age: string;
-  dob: { month: string; day: string };
-  contact: string;
-  email: string;
-  country: string;
-  mobile: string;
-  nationality: string;
-  docType: string;
-  docNumber: string;
-  address: string;
-  diseases: string[];
-  drugAllergy: string;
-  regCharges: boolean;
-  payMode: string;
+interface PatientListState {
+  patients: Patient[];
+  pagination: {
+    pageNo: number;
+    pageSize: number;
+    totalPages: number;
+    totalElements: number;
+  };
+  loading: {
+    isLoading: boolean;
+    error: string | null;
+    success: string | null;
+  };
+  filters: {
+    search: string;
+    category: string;
+  };
 }
 
-const SAMPLE_PATIENTS: Patient[] = [
-  { id: 1, uhid: 69, title: 'Dr.', name: 'Mohib Ahmed', branch: 'Customer Support', gender: 'Male', age: '50 Y', dob: { month: '1', day: '1' }, contact: '+(91)9934362019', email: '', country: 'IND +91', mobile: '9934362019', nationality: 'IND-India', docType: '', docNumber: '', address: '', diseases: [], drugAllergy: '', regCharges: true, payMode: 'Cash' },
-  { id: 2, uhid: 65, title: 'Ms.', name: 'Srabanti Dash', branch: 'Quality Assurance', gender: 'Female', age: '44 Y', dob: { month: '2', day: '5' }, contact: '+(91)8617269047', email: '', country: 'IND +91', mobile: '8617269047', nationality: 'IND-India', docType: '', docNumber: '', address: '', diseases: [], drugAllergy: '', regCharges: true, payMode: 'Cash' },
-  { id: 3, uhid: 63, title: 'Mr.', name: 'Saber Khan', branch: 'Internal Medicine', gender: 'Male', age: '45 Y', dob: { month: '3', day: '10' }, contact: '+(91)9848834451', email: '', country: 'IND +91', mobile: '9848834451', nationality: 'IND-India', docType: '', docNumber: '', address: '', diseases: [], drugAllergy: '', regCharges: true, payMode: 'Cash' },
-];
+// ─── Alert Components ───────────────────────────────────────────────────────
 
-const TITLES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby'];
-const GENDERS = ['Male', 'Female', 'Other'];
-
-// ─── Redesigned Registration Modal ───────────────────────────────────────────
-function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  if (!isOpen) return null;
-
-  const footer = (
-    <div className="flex gap-3 w-full">
-      <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Discard</Button>
-      <Button variant="gradient" className="flex-[2] rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Initialize Profile</Button>
+function ErrorAlert({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+      <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-red-900">Error</p>
+        <p className="text-sm text-red-700 mt-1">{message}</p>
+      </div>
+      <button
+        onClick={onDismiss}
+        className="text-red-400 hover:text-red-600 flex-shrink-0 transition-colors"
+        aria-label="Dismiss error alert"
+      >
+        ✕
+      </button>
     </div>
   );
+}
+
+function SuccessAlert({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 3000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
 
   return (
-    <RightDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={
-        <>
-          New <span className="text-emerald-200">Registration</span>
-        </>
-      }
-      description="Institutional Patient Intake"
-      footer={footer}
-      maxWidth="md"
-    >
-      <div className="space-y-8">
-        <section className="space-y-4">
-          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <span className="w-4 h-[1px] bg-slate-200"></span>
-            01. Personal Identity
-          </h4>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="label-refined">Salutation</label>
-              <select className="input-refined w-full px-2">
-                {TITLES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="label-refined">Legal Full Name</label>
-              <input placeholder="e.g. Jonathan Quincy Doe" className="input-refined w-full font-bold" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="label-refined">Age (Years)</label>
-              <input type="number" placeholder="28" className="input-refined w-full text-center font-mono font-bold" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="label-refined">Biological Sex</label>
-              <select className="input-refined w-full px-4 font-bold">
-                {GENDERS.map(g => <option key={g}>{g}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-refined">Identity Sync</label>
-            <input placeholder="Aadhar / PAN" className="input-refined w-full" />
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <span className="w-4 h-[1px] bg-slate-200"></span>
-            02. Global Connectivity
-          </h4>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="label-refined">Primary Mobile</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input placeholder="+91 XXX XXX XXXX" className="input-refined w-full pl-10 font-mono font-bold" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="label-refined">Email Digital ID</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input type="email" placeholder="patient@wellnesshive.com" className="input-refined w-full pl-10 italic" />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-refined">Residential Coordinates</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input placeholder="Full street address, city..." className="input-refined w-full pl-10" />
-            </div>
-          </div>
-        </section>
+    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+      <CheckCircle2 className="text-emerald-500 flex-shrink-0 mt-0.5" size={18} />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-emerald-900">{message}</p>
       </div>
-    </RightDrawer>
+      <button
+        onClick={onDismiss}
+        className="text-emerald-400 hover:text-emerald-600 flex-shrink-0 transition-colors"
+        aria-label="Dismiss success alert"
+      >
+        ✕
+      </button>
+    </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Empty State Component ──────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+        <User className="text-slate-400" size={32} />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-slate-900 font-semibold text-lg">No Patients Found</p>
+        <p className="text-slate-500 text-sm max-w-sm">
+          Try adjusting your search criteria or filters to find patient records.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ──────────────────────────────────────────────────────────────
 export default function FindRegisterPatientPage() {
-  const [patients] = useState<Patient[]>(SAMPLE_PATIENTS);
-  const [search, setSearch] = useState('');
-  const [regOpen, setRegOpen] = useState(false);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [state, setState] = useState<PatientListState>({
+    patients: [],
+    pagination: {
+      pageNo: 0,
+      pageSize: 10,
+      totalPages: 0,
+      totalElements: 0,
+    },
+    loading: {
+      isLoading: true,
+      error: null,
+      success: null,
+    },
+    filters: {
+      search: '',
+      category: 'All',
+    },
+  });
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // ─── Initial Load ────────────────────────────────────────────────────────
+  useEffect(() => {
+    loadPatients(0, 10, '', 'All');
+  }, []);
+
+  // ─── Load Patients from API ──────────────────────────────────────────────
+  const loadPatients = useCallback(
+    async (pageNo: number, pageSize: number, search: string, category: string) => {
+      setState(prev => ({
+        ...prev,
+        loading: { isLoading: true, error: null, success: null },
+      }));
+
+      try {
+        const response = await fetchPatients(
+          pageNo,
+          pageSize,
+          search || undefined,
+          category !== 'All' ? category : undefined
+        );
+
+        if (!response.data) {
+          throw new Error('Invalid response from API');
+        }
+
+        const paginatedData = response.data as PaginatedResponse<Patient>;
+
+        setState(prev => ({
+          ...prev,
+          patients: paginatedData.content || [],
+          pagination: {
+            pageNo: paginatedData.pageNo,
+            pageSize: paginatedData.pageSize,
+            totalPages: paginatedData.totalPages,
+            totalElements: paginatedData.totalElements,
+          },
+          loading: {
+            isLoading: false,
+            error: null,
+            success: null,
+          },
+        }));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
+        setState(prev => ({
+          ...prev,
+          loading: {
+            isLoading: false,
+            error: errorMessage,
+            success: null,
+          },
+          patients: [],
+        }));
+      }
+    },
+    []
+  );
+
+  // ─── Handle Search ──────────────────────────────────────────────────────
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      setState(prev => ({
+        ...prev,
+        filters: { ...prev.filters, search: searchTerm },
+      }));
+
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        setState(prev => {
+          loadPatients(0, prev.pagination.pageSize, searchTerm, prev.filters.category);
+          return prev;
+        });
+      }, 300);
+    },
+    [loadPatients]
+  );
+
+  // ─── Handle Category Filter ──────────────────────────────────────────────
+  const handleCategoryFilter = useCallback(
+    (category: string) => {
+      setState(prev => ({
+        ...prev,
+        filters: { ...prev.filters, category },
+      }));
+
+      setState(prev => {
+        loadPatients(0, prev.pagination.pageSize, prev.filters.search, category);
+        return prev;
+      });
+    },
+    [loadPatients]
+  );
+
+  // ─── Pagination Handlers ────────────────────────────────────────────────
+  const handlePrevPage = useCallback(() => {
+    if (state.pagination.pageNo > 0) {
+      const newPageNo = state.pagination.pageNo - 1;
+      loadPatients(newPageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+    }
+  }, [state, loadPatients]);
+
+  const handleNextPage = useCallback(() => {
+    if (state.pagination.pageNo < state.pagination.totalPages - 1) {
+      const newPageNo = state.pagination.pageNo + 1;
+      loadPatients(newPageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+    }
+  }, [state, loadPatients]);
+
+  // ─── Retry Load ─────────────────────────────────────────────────────────
+  const handleRetry = useCallback(() => {
+    loadPatients(state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+  }, [state, loadPatients]);
+
+  // ─── Get Unique Categories ──────────────────────────────────────────────
+  const categories = useCallback(() => {
+    const categorySet = new Set<string>();
+    categorySet.add('All');
+    state.patients.forEach(patient => {
+      if (patient.patientCategory) {
+        categorySet.add(patient.patientCategory);
+      }
+    });
+    return Array.from(categorySet);
+  }, [state.patients]);
+
+  const categoryList = categories();
+
+  // ─── Cleanup ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ─── Handle Edit Patient ─────────────────────────────────────────────────
+  const handleEditPatient = useCallback((patient: Patient) => {
+    console.log('=== EDIT BUTTON CLICKED ===', patient);
+    setEditingPatient(patient);
+    setIsRegistrationModalOpen(true);
+  }, []);
+
+  // ─── Handle Close Modal ──────────────────────────────────────────────────
+  const handleCloseModal = useCallback(() => {
+    console.log('=== MODAL CLOSING ===');
+    setIsRegistrationModalOpen(false);
+    setEditingPatient(null);
+    loadPatients(0, 10, '', 'All');
+  }, [loadPatients]);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <RegistrationModal isOpen={regOpen} onClose={() => setRegOpen(false)} />
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* ═══ REGISTRATION MODAL ═════════════════════════════════════════════ */}
+      <RegistrationModal 
+        isOpen={isRegistrationModalOpen} 
+        onClose={handleCloseModal}
+        editingPatient={editingPatient}
+      />
 
-      {/* ═══ HEADER ═════════════════════════════════════════════ */}
+      {/* ═══ ALERTS ═════════════════════════════════════════════════════════ */}
+      <div className="space-y-3">
+        {state.loading.error && (
+          <ErrorAlert
+            message={state.loading.error}
+            onDismiss={() =>
+              setState(prev => ({
+                ...prev,
+                loading: { ...prev.loading, error: null },
+              }))
+            }
+          />
+        )}
+        {state.loading.success && (
+          <SuccessAlert
+            message={state.loading.success}
+            onDismiss={() =>
+              setState(prev => ({
+                ...prev,
+                loading: { ...prev.loading, success: null },
+              }))
+            }
+          />
+        )}
+      </div>
+
+      {/* ═══ HEADER ═════════════════════════════════════════════════════════ */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="flex items-center gap-3 text-3xl font-bold text-slate-900 tracking-tight mb-1">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-              <User size={20} />
-            </div>
-              <span>
-                Patient <span className="text-emerald-600">Information</span>
-              </span>
-            </h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+            Patient <span className="text-emerald-600">Registry</span>
+          </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
             Universal master index for patient health records and histories.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" className="gap-2 px-6">
-            <UserPlus size={16} /> Master Sync
+            <LayoutGrid size={16} /> Patient View
           </Button>
-          <Button variant="gradient" size="sm" onClick={() => setRegOpen(true)} className="gap-2 px-8 shadow-sm">
+          <Button 
+            variant="gradient" 
+            size="sm" 
+            className="gap-2 shadow-sm px-8"
+            onClick={() => setIsRegistrationModalOpen(true)}
+          >
             <UserPlus size={16} /> New Registration
           </Button>
         </div>
       </div>
 
-      {/* ═══ CONTROL BAR ════════════════════════════════════════ */}
+      {/* ═══ CONTROL BAR ════════════════════════════════════════════════════ */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-4">
         <div className="relative flex-1 group w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
+            size={18}
+          />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by UHID or patient name..."
-            className="input-refined w-full py-2.5 pl-12 pr-4 shadow-none"
+            value={state.filters.search}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="Search by patient name, UHID, or code..."
+            className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            aria-label="Search patients by name, UHID, or code"
+            disabled={state.loading.isLoading}
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="relative flex-1 lg:w-56 group">
-            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <select className="input-refined w-full py-2.5 pl-10 pr-10 text-[11px] appearance-none font-bold uppercase tracking-wider">
-              <option>All Dynamic Clusters</option>
-              <option>Active Records Only</option>
-              <option>Archived Data</option>
+          <div className="relative flex-1 lg:w-48 group">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <select
+              value={state.filters.category}
+              onChange={e => handleCategoryFilter(e.target.value)}
+              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              aria-label="Filter patients by category"
+              disabled={state.loading.isLoading}
+            >
+              {categoryList.map(c => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-lg p-2.5 border-slate-200"
+            onClick={handleRetry}
+            disabled={state.loading.isLoading}
+            title="Refresh patient list"
+          >
+            <RefreshCw size={18} className={state.loading.isLoading ? 'animate-spin' : ''} />
+          </Button>
         </div>
       </div>
 
-      {/* ═══ PATIENT GRID ═══════════════════════════════════════ */}
-      <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Patient Cluster</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Gen</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Age</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Contact</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {patients.map((p, idx) => (
-                <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                        <User size={20} />
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-900 tracking-tight group-hover:text-emerald-700 transition-colors uppercase text-sm">{p.title} {p.name}</div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="px-1 text-[8px] tracking-tight">UHID: {p.uhid}</Badge>
-                          <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest italic">Biometric Confirmed</span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[#475569] font-bold text-[10px] uppercase">
-                      {p.branch}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs ${p.gender === 'Male' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>
-                      {p.gender.charAt(0)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-1.5 text-slate-600 text-xs font-bold font-mono">
-                      <CalendarIcon size={12} className="text-slate-300" />
-                      {p.age}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5 text-slate-900 font-bold text-[11px]">
-                        <Phone size={10} className="text-emerald-500" />
-                        {p.contact}
-                      </div>
-                      {p.email && (
-                        <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[10px] italic">
-                          <Mail size={10} />
-                          {p.email}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all">
-                        <Edit2 size={14} />
-                      </button>
-                      <button className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all">
-                        <MoreVertical size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ═══ LOADING STATE ═══════════════════════════════════════════════════ */}
+      {state.loading.isLoading ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+          <Loader className="text-slate-400 animate-spin" size={32} />
+          <p className="text-slate-600 font-medium">Loading patient records...</p>
         </div>
-
-        {/* ═══ FOOTER ═════════════════════════════════════════════ */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm"></div>
-              <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{patients.length} Institutional Records</span>
+      ) : state.patients.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* ═══ PATIENTS TABLE ══════════════════════════════════════════════ */}
+          <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Patient Details
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Code / ID
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                      Gender
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Date of Birth
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Contact
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Category
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {state.patients.map((patient) => (
+                    <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                            <User size={20} />
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 tracking-tight group-hover:text-emerald-700 transition-colors text-sm">
+                              {patient.firstName} {patient.middleName || ''} {patient.lastName}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {patient.isActive && (
+                                <Badge variant="success" className="px-1 text-[8px] tracking-tight">
+                                  Active
+                                </Badge>
+                              )}
+                              {patient.bloodGroup && (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                  Blood: {patient.bloodGroup.replace('_', '+')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="space-y-0.5">
+                          <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[9px] font-bold uppercase">
+                            ID: {patient.id}
+                          </Badge>
+                          {patient.patientCode && (
+                            <div className="text-[10px] font-mono text-slate-500 font-bold">
+                              {patient.patientCode}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs ${
+                          patient.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 
+                          patient.gender === 'FEMALE' ? 'bg-rose-50 text-rose-600' : 
+                          'bg-purple-50 text-purple-600'
+                        }`}>
+                          {patient.gender?.charAt(0) || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-1.5 text-slate-600 text-xs font-bold font-mono">
+                          <CalendarIcon size={12} className="text-slate-300" />
+                          {patient.dateOfBirth 
+                            ? new Date(patient.dateOfBirth).toLocaleDateString('en-IN')
+                            : 'N/A'
+                          }
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-slate-900 font-bold text-[11px]">
+                            <Phone size={10} className="text-emerald-500" />
+                            {patient.mobilePrimary}
+                          </div>
+                          {patient.email && (
+                            <div className="flex items-center gap-1.5 text-slate-400 font-medium text-[10px] italic">
+                              <Mail size={10} />
+                              {patient.email}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        {patient.patientCategory ? (
+                          <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[10px] font-bold uppercase">
+                            {patient.patientCategory}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Edit Patient"
+                            onClick={() => handleEditPatient(patient)}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="More actions"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="hidden xl:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <Database size={12} /> System Resilience High
+
+            {/* ═══ FOOTER / PAGINATION ═════════════════════════════════════ */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm"></div>
+                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">
+                    {state.pagination.totalElements} Patient Records
+                  </span>
+                </div>
+                <div className="hidden xl:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <Database size={12} /> System Resilience High
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={state.pagination.pageNo === 0 || state.loading.isLoading}
+                  className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-bold text-slate-600">
+                  Page {state.pagination.pageNo + 1} of {state.pagination.totalPages || 1}
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={state.pagination.pageNo >= state.pagination.totalPages - 1 || state.loading.isLoading}
+                  className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="px-6 text-[10px]">Sync External</Button>
-            <Button variant="secondary" size="sm" className="px-8 text-[10px]">
-              Next Cluster <ArrowRightCircle size={14} className="ml-2" />
-            </Button>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
+      {/* ═══ STATUS BANNER ═════════════════════════════════════════════════ */}
       <div className="bg-emerald-50 rounded-[2.5rem] p-8 flex items-center justify-between border border-emerald-100 shadow-xl shadow-green-500/5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-emerald-600">
-            <Zap size={24} />
+            <Activity size={24} />
           </div>
-          <p className="text-xs font-black text-emerald-900 uppercase tracking-tight italic">Global biometric indexing active. Duplicate detection running in real-time.</p>
+          <p className="text-xs font-black text-emerald-900 uppercase tracking-tight italic">
+            Patient master indexing active. Real-time synchronization enabled.
+          </p>
         </div>
         <Badge variant="success" className="px-5 py-2">System Optimal</Badge>
       </div>
