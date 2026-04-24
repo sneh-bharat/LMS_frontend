@@ -307,7 +307,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Date of Birth *</Label>
               <Input
@@ -338,6 +338,24 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                 {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg.replace('_POS', '+').replace('_NEG', '-')}</option>)}
               </select>
             </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Category</Label>
+              <select
+                value={formData.patientCategory}
+                onChange={e => setFormData(p => ({ ...p, patientCategory: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200"
+              >
+                {PATIENT_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">ABHA ID (Digital Health ID)</Label>
+            <Input
+              value={formData.abhaId}
+              onChange={e => setFormData(p => ({ ...p, abhaId: e.target.value }))}
+              placeholder="14-digit Health ID"
+            />
           </div>
         </section>
 
@@ -347,13 +365,22 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
             <span className="w-4 h-[1px] bg-slate-200"></span>
             02. Contact Information
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Primary Mobile *</Label>
               <Input
                 value={formData.mobilePrimary}
                 onChange={e => setFormData(p => ({ ...p, mobilePrimary: e.target.value }))}
                 placeholder="9876543210"
+                maxLength={10}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Alternate Mobile</Label>
+              <Input
+                value={formData.mobileAlternate}
+                onChange={e => setFormData(p => ({ ...p, mobileAlternate: e.target.value }))}
+                placeholder="9876543211"
                 maxLength={10}
               />
             </div>
@@ -403,12 +430,77 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
           </div>
         </section>
 
+        {/* Insurance & Referral Section */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            04. Insurance & Referral
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Insurance Company</Label>
+              <Input
+                value={formData.insuranceCompany}
+                onChange={e => setFormData(p => ({ ...p, insuranceCompany: e.target.value }))}
+                placeholder="e.g. Star Insurance"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Policy Number</Label>
+              <Input
+                value={formData.insurancePolicyNo}
+                onChange={e => setFormData(p => ({ ...p, insurancePolicyNo: e.target.value }))}
+                placeholder="POL-123456"
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Referring Doctor ID (Optional)</Label>
+            <Input
+              type="number"
+              value={formData.referringDoctorId || ''}
+              onChange={e => setFormData(p => ({ ...p, referringDoctorId: e.target.value ? parseInt(e.target.value) : undefined }))}
+              placeholder="e.g. 101"
+            />
+          </div>
+        </section>
+
+        {/* Preferences Section */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            05. Preferences
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">WhatsApp Consent</Label>
+              <select
+                value={formData.whatsappConsent}
+                onChange={e => setFormData(p => ({ ...p, whatsappConsent: e.target.value as any }))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold"
+              >
+                {WHATSAPP_CONSENT.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Report Language</Label>
+              <select
+                value={formData.reportLanguage}
+                onChange={e => setFormData(p => ({ ...p, reportLanguage: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold"
+              >
+                {REPORT_LANGUAGES.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </div>
+          </div>
+        </section>
+
         {/* Addresses Section */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <span className="w-4 h-[1px] bg-slate-200"></span>
-              04. Address Details
+              06. Address Details
             </h4>
             <Button
               type="button"
@@ -524,7 +616,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
           <div className="flex items-center justify-between">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <span className="w-4 h-[1px] bg-slate-200"></span>
-              05. Clinical Allergies
+              07. Clinical Allergies
             </h4>
             <Button
               type="button"
@@ -566,6 +658,15 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                       {ALLERGY_SEVERITY.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold text-rose-600 uppercase mb-1 block">Noted By (Doctor ID)</Label>
+                  <Input
+                    type="number"
+                    value={allergy.notedBy || ''}
+                    onChange={e => updateAllergy(idx, 'notedBy', e.target.value ? parseInt(e.target.value) : 1)}
+                    placeholder="e.g. 1"
+                  />
                 </div>
                 <div>
                   <Label className="text-[10px] font-bold text-rose-600 uppercase mb-1 block">Remarks</Label>
