@@ -10,7 +10,7 @@
  * - Fetching patient photos with proper blob conversion
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.3:9040/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // ─── Serialization Helper ──────────────────────────────────────────────────
 

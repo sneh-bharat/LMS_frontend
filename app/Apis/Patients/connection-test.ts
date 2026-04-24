@@ -5,7 +5,7 @@
  * Run these tests to diagnose connection issues.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface ConnectionTestResult {
   test: string;
@@ -41,6 +41,15 @@ export function testEnvironmentVariable(): ConnectionTestResult {
  * Test 2: Validate URL format
  */
 export function testUrlFormat(): ConnectionTestResult {
+  if (!API_BASE_URL) {
+    return {
+      test: 'URL Format Validation',
+      status: 'fail',
+      message: 'API_BASE_URL is not defined',
+      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
+    };
+  }
+
   try {
     const url = new URL(API_BASE_URL);
     
@@ -73,6 +82,15 @@ export function testUrlFormat(): ConnectionTestResult {
  * Test 3: Test backend connectivity
  */
 export async function testBackendConnectivity(): Promise<ConnectionTestResult> {
+  if (!API_BASE_URL) {
+    return {
+      test: 'Backend Connectivity',
+      status: 'fail',
+      message: 'API_BASE_URL is not defined',
+      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
+    };
+  }
+
   try {
     console.log('📡 Testing connection to:', API_BASE_URL);
     
@@ -134,6 +152,15 @@ export async function testBackendConnectivity(): Promise<ConnectionTestResult> {
  * Test 4: Test patient photo endpoint
  */
 export async function testPhotoEndpoint(): Promise<ConnectionTestResult> {
+  if (!API_BASE_URL) {
+    return {
+      test: 'Patient Photo Endpoint',
+      status: 'fail',
+      message: 'API_BASE_URL is not defined',
+      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
+    };
+  }
+
   try {
     const testPatientId = 1;
     const url = `${API_BASE_URL}/patients/image/${testPatientId}`;

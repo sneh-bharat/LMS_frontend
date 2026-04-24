@@ -11,7 +11,7 @@
  * - DELETE /test-categories/{id}      - Delete category
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.5:8080/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,98 @@ export interface UpdateCategoryInput {
   departmentId?: number;
   displayOrder?: number;
   isActive?: boolean;
+}
+
+/**
+ * GET TEST CATEGORY BY CODE - Fetch category by its code
+ * Endpoint: GET /test-categories/code/{categoryCode}
+ */
+export async function fetchTestCategoryByCode(
+  categoryCode: string
+): Promise<ApiResponse<TestCategory>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/test-categories/code/${categoryCode}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch test category by code');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching test category by code:', error);
+    throw error;
+  }
+}
+
+/**
+ * SEARCH CATEGORIES BY NAME - Search categories with filters
+ * Endpoint: GET /test-categories/search?categoryName=Hematology&page=0&size=10&sort=categoryId,asc
+ */
+export async function searchTestCategoriesByName(
+  categoryName: string,
+  page: number = 0,
+  size: number = 10,
+  sort: string = 'categoryId,asc'
+): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+      sort: sort,
+    });
+
+    if (categoryName && categoryName.trim()) {
+      params.append('categoryName', categoryName.trim());
+    }
+
+    const response = await fetch(`${API_BASE_URL}/test-categories/search?${params}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to search test categories');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error searching test categories:', error);
+    throw error;
+  }
+}
+
+/**
+ * GET ACTIVE TEST CATEGORIES - Fetch active categories with filters
+ * Endpoint: GET /test-categories/active?page=0&size=10
+ */
+export async function fetchActiveTestCategories(
+  page: number = 0,
+  size: number = 10,
+  search?: string,
+  statusFilter?: string
+): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+    });
+
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+
+    if (statusFilter && statusFilter !== 'All') {
+      params.append('status', statusFilter);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/test-categories/active?${params}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch active test categories');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching active test categories:', error);
+    throw error;
+  }
 }
 
 // Line 56-81 in TestCategories.ts
@@ -301,41 +393,3 @@ export function validateCategoryData(data: Partial<CreateCategoryInput>): string
 
   return errors;
 }
-
-// ─── Mock Data for Development ──────────────────────────────────────────────
-
-export const MOCK_CATEGORIES: TestCategory[] = [
-  {
-    id: 1,
-    categoryCode: 'HEM001',
-    categoryName: 'Hematology',
-    description: 'Blood-related tests',
-    departmentId: 1,
-    displayOrder: 1,
-    isActive: true,
-    createdAt: '2026-04-08T08:18:07.483Z',
-    updatedAt: '2026-04-08T08:18:07.483Z',
-  },
-  {
-    id: 2,
-    categoryCode: 'BIO001',
-    categoryName: 'Biochemistry',
-    description: 'Chemical analysis of body fluids',
-    departmentId: 1,
-    displayOrder: 2,
-    isActive: true,
-    createdAt: '2026-04-07T10:00:00.000Z',
-    updatedAt: '2026-04-07T10:00:00.000Z',
-  },
-  {
-    id: 3,
-    categoryCode: 'MIC001',
-    categoryName: 'Microbiology',
-    description: 'Study of microorganisms',
-    departmentId: 1,
-    displayOrder: 3,
-    isActive: false,
-    createdAt: '2026-04-06T14:30:00.000Z',
-    updatedAt: '2026-04-06T14:30:00.000Z',
-  },
-];
