@@ -1,56 +1,17 @@
 /**
- * Patient Service API - FIXED VERSION
+ * Patient Service API - UPDATED WITH FULL EDIT SUPPORT
  * 
  * Handles all patient-related API operations including:
  * - Fetching patient lists with pagination and filtering
- * - Creating new patients with photo upload
- * - Updating patient information with photo support
+ * - Creating new patients
+ * - Updating patient information
  * - Deleting patients
  * - Fetching individual patient details
- * - Fetching patient photos with proper blob conversion
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL1;
 
-// ─── Serialization Helper ──────────────────────────────────────────────────
-
-function safeSerialize(value: unknown): string {
-  try {
-    return JSON.stringify(
-      value,
-      (_key, currentValue) => {
-        if (currentValue instanceof Error) {
-          return {
-            name: currentValue.name,
-            message: currentValue.message,
-            stack: currentValue.stack,
-          };
-        }
-        if (typeof File !== 'undefined' && currentValue instanceof File) {
-          return {
-            type: 'File',
-            name: currentValue.name,
-            size: currentValue.size,
-            mimeType: currentValue.type,
-          };
-        }
-        if (typeof Blob !== 'undefined' && currentValue instanceof Blob) {
-          return {
-            type: 'Blob',
-            size: currentValue.size,
-            mimeType: currentValue.type,
-          };
-        }
-        return currentValue;
-      },
-      2
-    );
-  } catch {
-    return String(value);
-  }
-}
-
-// ─── Logger Utility ────────────────────────────────────────────────────────
+// ─── Logger Utility ──────────────────────────────────────────────────────────
 
 const logger = {
   debug: (message: string, data?: unknown) => {
@@ -59,15 +20,7 @@ const logger = {
     }
   },
   error: (message: string, error?: unknown) => {
-    const normalizedError =
-      error instanceof Error
-        ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          }
-        : error;
-    console.error(`[ERROR] ${message}\n${safeSerialize(normalizedError)}`);
+    console.error(`[ERROR] ${message}`, error);
   },
   warn: (message: string, data?: unknown) => {
     if (process.env.NODE_ENV === 'development') {
@@ -76,7 +29,7 @@ const logger = {
   },
 };
 
-// ─── Error Handler Utility ─────────────────────────────────────────────────
+// ─── Error Handler Utility ──────────────────────────────────────────────────
 
 class ApiErrorHandler {
   static handle(response: Response, responseText: string): { code: string; message: string; details?: unknown } {
@@ -115,7 +68,7 @@ class ApiErrorHandler {
   }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface PatientAddress {
   id?: number;
@@ -133,7 +86,7 @@ export interface PatientAllergy {
   id?: number;
   allergyName: string;
   severity: 'Mild' | 'Moderate' | 'Severe';
-  notedBy: number | string;
+  notedBy: number;
   remarks?: string;
 }
 
@@ -145,20 +98,12 @@ export interface Patient {
   lastName: string;
   dateOfBirth: string;
   gender: 'MALE' | 'FEMALE' | 'OTHER' | 'TRANSGENDER';
-  bloodGroup:
-    | 'A_POS'
-    | 'A_NEG'
-    | 'B_POS'
-    | 'B_NEG'
-    | 'AB_POS'
-    | 'AB_NEG'
-    | 'O_POS'
-    | 'O_NEG';
+  bloodGroup: 'A_POS' | 'A_NEG' | 'B_POS' | 'B_NEG' | 'AB_POS' | 'AB_NEG' | 'O_POS' | 'O_NEG';
   mobilePrimary: string;
   mobileAlternate?: string;
   email?: string;
   abhaId?: string;
-  patientCategory: 'GENERAL' | 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
+  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
   clinicId: number;
   isActive: boolean;
   referringDoctorId?: number;
@@ -204,7 +149,7 @@ export interface CreatePatientInput {
   mobileAlternate?: string;
   email?: string;
   abhaId?: string;
-  patientCategory: 'GENERAL' | 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
+  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
   clinicId: number;
   isActive?: boolean;
   referringDoctorId?: number;
@@ -217,126 +162,20 @@ export interface CreatePatientInput {
   allergies?: PatientAllergy[];
 }
 
-// ─── Blood Group Normalization ─────────────────────────────────────────────
-
-/**
- * Normalize blood group from UI format to API format
- * UI: A_POSITIVE, A_NEGATIVE, etc.
- * API: A_POS, A_NEG, etc.
- */
-export function normalizeBloodGroup(value?: string): string {
-  if (!value) return '';
-  
-  const map: Record<string, string> = {
-    // Long format → short format
-    'A_POSITIVE': 'A_POS',
-    'A_NEGATIVE': 'A_NEG',
-    'B_POSITIVE': 'B_POS',
-    'B_NEGATIVE': 'B_NEG',
-    'AB_POSITIVE': 'AB_POS',
-    'AB_NEGATIVE': 'AB_NEG',
-    'O_POSITIVE': 'O_POS',
-    'O_NEGATIVE': 'O_NEG',
-    // Pass-through for short format
-    'A_POS': 'A_POS',
-    'A_NEG': 'A_NEG',
-    'B_POS': 'B_POS',
-    'B_NEG': 'B_NEG',
-    'AB_POS': 'AB_POS',
-    'AB_NEG': 'AB_NEG',
-    'O_POS': 'O_POS',
-    'O_NEG': 'O_NEG',
-  };
-  
-  return map[value] || value;
+export interface UpdatePatientInput extends CreatePatientInput {
+  id?: number;
 }
 
-/**
- * Denormalize blood group from API format to UI format
- * API: A_POS, A_NEG, etc.
- * UI: A_POSITIVE, A_NEGATIVE, etc.
- */
-export function denormalizeBloodGroup(value?: string): string {
-  if (!value) return '';
-  
-  const map: Record<string, string> = {
-    'A_POS': 'A_POSITIVE',
-    'A_NEG': 'A_NEGATIVE',
-    'B_POS': 'B_POSITIVE',
-    'B_NEG': 'B_NEGATIVE',
-    'AB_POS': 'AB_POSITIVE',
-    'AB_NEG': 'AB_NEGATIVE',
-    'O_POS': 'O_POSITIVE',
-    'O_NEG': 'O_NEGATIVE',
-    // Pass-through for long format
-    'A_POSITIVE': 'A_POSITIVE',
-    'A_NEGATIVE': 'A_NEGATIVE',
-    'B_POSITIVE': 'B_POSITIVE',
-    'B_NEGATIVE': 'B_NEGATIVE',
-    'AB_POSITIVE': 'AB_POSITIVE',
-    'AB_NEGATIVE': 'AB_NEGATIVE',
-    'O_POSITIVE': 'O_POSITIVE',
-    'O_NEGATIVE': 'O_NEGATIVE',
-  };
-  
-  return map[value] || value;
-}
-
-// ─── Severity Normalization ────────────────────────────────────────────────
-
-export function normalizeSeverity(value?: string): 'Mild' | 'Moderate' | 'Severe' {
-  if (!value) return 'Mild';
-  
-  const map: Record<string, 'Mild' | 'Moderate' | 'Severe'> = {
-    'LOW': 'Mild',
-    'MEDIUM': 'Moderate',
-    'HIGH': 'Severe',
-    'Mild': 'Mild',
-    'Moderate': 'Moderate',
-    'Severe': 'Severe',
-  };
-  
-  return map[value] || 'Mild';
-}
-
-export function denormalizeSeverity(value?: string): string {
-  if (!value) return 'MEDIUM';
-  
-  const map: Record<string, string> = {
-    'Mild': 'LOW',
-    'Moderate': 'MEDIUM',
-    'Severe': 'HIGH',
-    'LOW': 'LOW',
-    'MEDIUM': 'MEDIUM',
-    'HIGH': 'HIGH',
-  };
-  
-  return map[value] || 'MEDIUM';
-}
-
-// ─── Address Type Normalization ────────────────────────────────────────────
-
-export function normalizeAddressType(value?: string): string {
-  if (!value) return 'Home';
-  
-  const map: Record<string, string> = {
-    'HOME': 'Home',
-    'PERMANENT': 'Home',
-    'COMMUNICATION': 'Home',
-    'OFFICE': 'Office',
-    'Home': 'Home',
-    'Office': 'Office',
-    'Permanent': 'Home',
-    'Communication': 'Home',
-  };
-  
-  return map[value] || 'Home';
-}
-
-// ─── API Functions ────────────────────────────────────────────────────────
+// ─── API Functions ──────────────────────────────────────────────────────────
 
 /**
  * GET ALL PATIENTS - Fetch patients with pagination, search, and filtering
+ * 
+ * @param pageNo - Page number (0-indexed)
+ * @param pageSize - Number of items per page
+ * @param search - Optional search term for patient name or code
+ * @param category - Optional patient category filter
+ * @returns Paginated list of patients
  */
 export async function fetchPatients(
   pageNo: number = 0,
@@ -380,126 +219,13 @@ export async function fetchPatients(
     logger.debug('Successfully fetched patients', {
       count: responseData.data?.content?.length,
       totalElements: responseData.data?.totalElements,
+      totalPages: responseData.data?.totalPages,
     });
 
     return responseData;
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}`;
-      logger.error(message);
-      throw new Error(message);
-    }
-    throw error;
-  }
-}
-
-/**
- * SEARCH PATIENTS BY NAME - Search patients by name with pagination
- * 
- * @param searchKey - Search term for patient name
- * @param pageNo - Page number (0-indexed)
- * @param pageSize - Number of items per page
- * @returns List of patients matching the search criteria
- */
-export async function searchPatientsByName(
-  searchKey: string,
-  pageNo: number = 0,
-  pageSize: number = 10
-): Promise<ApiResponse<Patient[]>> {
-  try {
-    const params = new URLSearchParams({
-      searchKey: searchKey.trim(),
-      pageNo: pageNo.toString(),
-      pageSize: pageSize.toString(),
-    });
-
-    const url = `${API_BASE_URL}/patients/search/name?${params}`;
-    logger.debug('Searching patients by name', { searchKey, pageNo, pageSize });
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to search patients by name', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully searched patients by name', {
-      count: responseData.data?.length || 0,
-      searchKey,
-    });
-
-    return responseData;
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
-    throw error;
-  }
-}
-
-/**
- * SEARCH PATIENTS BY TYPE - Search patients with different search types (NAME, PHONE, EMAIL)
- * 
- * @param searchType - Type of search (NAME, PHONE, EMAIL)
- * @param value - Search value
- * @param pageNo - Page number (0-indexed)
- * @param pageSize - Number of items per page
- * @returns Paginated list of patients matching the search criteria
- */
-export async function searchPatientsByType(
-  searchType: string,
-  value: string,
-  pageNo: number = 0,
-  pageSize: number = 10
-): Promise<ApiResponse<PaginatedResponse<Patient>>> {
-  try {
-    const params = new URLSearchParams({
-      searchType: searchType,
-      value: value.trim(),
-      pageNo: pageNo.toString(),
-      pageSize: pageSize.toString(),
-    });
-
-    const url = `${API_BASE_URL}/patients/search/by-type?${params}`;
-    logger.debug('Searching patients by type', { searchType, value, pageNo, pageSize });
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to search patients by type', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully searched patients by type', {
-      searchType,
-      value,
-      count: responseData.data?.content?.length || 0,
-    });
-
-    return responseData;
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection and ensure the backend server is running.`;
       logger.error(message);
       throw new Error(message);
     }
@@ -509,8 +235,13 @@ export async function searchPatientsByType(
 
 /**
  * GET PATIENT BY ID - Fetch single patient with full details
+ * 
+ * @param patientId - Patient ID to fetch
+ * @returns Patient with detailed information including addresses and allergies
  */
-export async function fetchPatientById(patientId: number): Promise<ApiResponse<Patient>> {
+export async function fetchPatientById(
+  patientId: number
+): Promise<ApiResponse<Patient>> {
   try {
     const url = `${API_BASE_URL}/patients/${patientId}`;
     logger.debug('Fetching patient details', { patientId });
@@ -531,101 +262,27 @@ export async function fetchPatientById(patientId: number): Promise<ApiResponse<P
     }
 
     const responseData = JSON.parse(responseText);
-    logger.debug('Successfully fetched patient details', { patientId });
+    logger.debug('Successfully fetched patient details', {
+      patientId,
+      patientName: `${responseData.data?.firstName} ${responseData.data?.lastName}`,
+    });
 
     return responseData;
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
-      throw new Error(`Network Error: Unable to connect to API`);
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      logger.error(message);
+      throw new Error(message);
     }
     throw error;
   }
 }
 
 /**
- * FETCH PATIENT PHOTO - Get patient photo as binary image blob
- * Returns blob or null if no photo available
- */
-export async function fetchPatientPhoto(
-  patientId: number
-): Promise<{ imageBlob: Blob; contentType: string } | null> {
-  try {
-    const url = `${API_BASE_URL}/patients/image/${patientId}`;
-    logger.debug('Fetching patient photo', { patientId });
-
-    const response = await fetch(url, {
-      method: 'GET',
-    });
-
-    // Handle "no photo" responses gracefully
-    if (!response.ok) {
-      if (response.status === 404 || response.status === 204 || response.status === 400) {
-        logger.debug('Patient photo not available', { patientId, status: response.status });
-        return null;
-      }
-
-      const errorText = await response.text();
-      logger.warn('Failed to fetch patient photo', { patientId, status: response.status });
-      return null;
-    }
-
-    // Response should be JSON with base64 image data
-    const responseData = await response.json();
-
-    // Extract base64 data from response
-    let base64Data = '';
-    let contentType = 'image/jpeg';
-
-    if (responseData.data && typeof responseData.data === 'string') {
-      base64Data = responseData.data;
-      contentType = responseData.contentType || 'image/jpeg';
-    } else if (typeof responseData === 'string') {
-      base64Data = responseData;
-    } else {
-      logger.warn('No image data in photo response', { patientId });
-      return null;
-    }
-
-    // Convert base64 to blob
-    try {
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-
-      const byteArray = new Uint8Array(byteNumbers);
-      const imageBlob = new Blob([byteArray], { type: contentType });
-
-      if (imageBlob.size === 0) {
-        logger.warn('Received empty image blob', { patientId });
-        return null;
-      }
-
-      logger.debug('Successfully fetched patient photo', {
-        patientId,
-        contentType,
-        size: imageBlob.size,
-      });
-
-      return { imageBlob, contentType };
-    } catch (conversionError) {
-      logger.error('Failed to convert base64 to blob', conversionError);
-      return null;
-    }
-  } catch (error) {
-    logger.error('Error fetching patient photo', error);
-    return null;
-  }
-}
-
-/**
- * CREATE PATIENT - Create new patient with optional photo
+ * CREATE PATIENT - Create a new patient record with FormData support
  * 
- * The API expects:
- * - patientRequestDTO: JSON object (sent as form field, not file)
- * - photoUrl: file (optional)
+ * @param input - Patient creation data with optional photo file
+ * @returns Created patient with ID
  */
 export async function createPatient(
   input: CreatePatientInput & { photoFile?: File }
@@ -633,29 +290,26 @@ export async function createPatient(
   try {
     const validationErrors = validatePatientData(input as CreatePatientInput);
     if (validationErrors.length > 0) {
-      logger.warn('Validation errors', validationErrors);
+      logger.warn('Validation errors in patient data', validationErrors);
       throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
     }
 
     const url = `${API_BASE_URL}/patients`;
-    logger.debug('Creating patient', {
-      firstName: input.firstName,
-      lastName: input.lastName,
+    logger.debug('Creating patient', { 
+      patientCode: input.patientCode,
+      patientName: `${input.firstName} ${input.lastName}`,
     });
 
-    // Separate photo file from patient data
+    // Create patientRequestDTO object (exclude photoFile from the DTO)
     const { photoFile, ...patientDTO } = input;
-
-    // Create FormData for multipart request
+    
+    // Create FormData
     const formData = new FormData();
-
-    // Add patient DTO as JSON blob
-    const jsonBlob = new Blob([JSON.stringify(patientDTO)], {
-      type: 'application/json',
-    });
-    formData.append('patientRequestDTO', jsonBlob);
-
-    // Add photo file if provided
+    
+    // Add patientRequestDTO as JSON string with proper type
+    formData.append('patientRequestDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
+    
+    // Add photo file if provided with explicit field name
     if (photoFile) {
       formData.append('photoUrl', photoFile, photoFile.name);
     }
@@ -663,7 +317,6 @@ export async function createPatient(
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
-      // DO NOT set Content-Type header - browser will set it with boundary
     });
 
     const responseText = await response.text();
@@ -675,23 +328,28 @@ export async function createPatient(
     }
 
     const responseData = JSON.parse(responseText);
-    logger.debug('Successfully created patient', { id: responseData.data?.id });
+    logger.debug('Successfully created patient', { 
+      id: responseData.data?.id,
+      patientCode: input.patientCode,
+    });
 
     return responseData;
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
-      throw new Error(`Network Error: Unable to connect to API`);
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      logger.error(message);
+      throw new Error(message);
     }
     throw error;
   }
 }
 
 /**
- * UPDATE PATIENT - Update existing patient
+ * UPDATE PATIENT - Update an existing patient record
  * 
- * The API expects:
- * - patientUpdateDTO: JSON object (sent as form field, not file)
- * - photoUrl: file (optional)
+ * @param patientId - ID of patient to update
+ * @param input - Patient data to update
+ * @returns Updated patient data
  */
 export async function updatePatient(
   patientId: number,
@@ -699,55 +357,80 @@ export async function updatePatient(
 ): Promise<ApiResponse<Patient>> {
   try {
     const url = `${API_BASE_URL}/patients/${patientId}`;
-    logger.debug('Updating patient', { patientId });
-
-    // Separate photo file from patient data
+    
+    // Separate photoFile from the DTO
     const { photoFile, ...patientDTO } = input;
-
+    
     // Create FormData for multipart request
     const formData = new FormData();
-
-    // Add patient DTO as JSON blob
-    const jsonBlob = new Blob([JSON.stringify(patientDTO)], {
-      type: 'application/json',
-    });
-    formData.append('patientUpdateDTO', jsonBlob);
-
+    
+    console.log('📤 SENDING UPDATE REQUEST');
+    console.log('Patient ID:', patientId);
+    console.log('Payload being sent:', JSON.stringify(patientDTO, null, 2));
+    
+    // IMPORTANT: Use 'patientUpdateDTO' as the field name (not 'patientRequestDTO')
+    // This matches the backend expectation shown in the curl example
+    formData.append('patientUpdateDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
+    
     // Add photo file if provided
     if (photoFile) {
       formData.append('photoUrl', photoFile, photoFile.name);
     }
 
+    console.log('📦 FormData entries:');
+    for (const [key, value] of formData.entries()) {
+      const val = value as any;
+      console.log(`  ${key}:`, val instanceof File ? `File: ${val.name}` : val instanceof Blob ? 'Blob (JSON)' : val);
+    }
+
     const response = await fetch(url, {
       method: 'PUT',
       body: formData,
-      // DO NOT set Content-Type header - browser will set it with boundary
+      // DO NOT set Content-Type header - browser will auto-set multipart/form-data with boundary
     });
 
     const responseText = await response.text();
+    
+    console.log('📥 RESPONSE RECEIVED');
+    console.log('Status:', response.status);
+    console.log('Response Text:', responseText);
 
     if (!response.ok) {
       const error = ApiErrorHandler.handle(response, responseText);
       logger.error('Failed to update patient', error);
+      console.error('❌ UPDATE FAILED:', error);
       throw new Error(error.message);
     }
 
     const responseData = JSON.parse(responseText);
-    logger.debug('Successfully updated patient', { patientId });
+    logger.debug('Successfully updated patient', { 
+      patientId,
+      code: responseData.code,
+    });
+    console.log('✅ UPDATE SUCCESSFUL:', responseData);
 
     return responseData;
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
-      throw new Error(`Network Error: Unable to connect to API`);
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      logger.error(message);
+      console.error('🌐 NETWORK ERROR:', message);
+      throw new Error(message);
     }
+    console.error('💥 UNEXPECTED ERROR:', error);
     throw error;
   }
 }
 
 /**
  * DELETE PATIENT - Delete a patient record
+ * 
+ * @param patientId - ID of patient to delete
+ * @returns Void response on success
  */
-export async function deletePatient(patientId: number): Promise<ApiResponse<void>> {
+export async function deletePatient(
+  patientId: number
+): Promise<ApiResponse<void>> {
   try {
     const url = `${API_BASE_URL}/patients/${patientId}`;
     logger.debug('Deleting patient', { patientId });
@@ -773,63 +456,76 @@ export async function deletePatient(patientId: number): Promise<ApiResponse<void
     return responseData;
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
-      throw new Error(`Network Error: Unable to connect to API`);
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      logger.error(message);
+      throw new Error(message);
     }
     throw error;
   }
 }
 
-// ─── Validation Helper ────────────────────────────────────────────────────
+// ─── Validation Helper ──────────────────────────────────────────────────────
 
 export function validatePatientData(data: Partial<CreatePatientInput>): string[] {
   const errors: string[] = [];
 
+  // First Name
   if (!data.firstName?.trim()) {
     errors.push('First name is required');
   } else if (data.firstName.length > 100) {
     errors.push('First name must be 100 characters or less');
   }
 
+  // Last Name
   if (!data.lastName?.trim()) {
     errors.push('Last name is required');
   } else if (data.lastName.length > 100) {
     errors.push('Last name must be 100 characters or less');
   }
 
+  // Date of Birth
   if (!data.dateOfBirth) {
     errors.push('Date of birth is required');
   }
 
+  // Gender
   if (!data.gender) {
     errors.push('Gender is required');
   }
 
+  // Blood Group
   if (!data.bloodGroup) {
     errors.push('Blood group is required');
   }
 
+  // Mobile Primary
   if (!data.mobilePrimary?.trim()) {
     errors.push('Primary mobile number is required');
   } else if (!/^\d{10}$/.test(data.mobilePrimary.replace(/\D/g, ''))) {
     errors.push('Primary mobile number must be 10 digits');
   }
 
+  // Email (optional but validate format if provided)
   if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
     errors.push('Invalid email format');
   }
 
+  // Clinic ID
   if (!data.clinicId) {
     errors.push('Clinic ID is required');
   }
 
+  // Active Status
   if (typeof data.isActive !== 'boolean') {
     errors.push('Active status is required');
   }
 
+  // Patient Category
   if (!data.patientCategory?.trim()) {
     errors.push('Patient category is required');
   }
 
+  // WhatsApp Consent (optional but validate if provided)
   if (data.whatsappConsent && !['YES', 'NO'].includes(data.whatsappConsent)) {
     errors.push('WhatsApp consent must be YES or NO');
   }

@@ -24,7 +24,7 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui';
-import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestVersion, createTestParameter, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
+import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestVersion, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
 import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/app/Apis/lab/TestApis';
 
 // Define TestItem locally as it's the form data structure
@@ -88,6 +88,15 @@ const SAMPLE_TYPES = [
   'FNAC',
   'Fluid'
 ];
+
+const normalizeSampleType = (value?: string | null): string => {
+  if (!value) return '';
+  const normalizedIncoming = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const matched = SAMPLE_TYPES.find(
+    (type) => type.toLowerCase() === normalizedIncoming
+  );
+  return matched || value;
+};
 
 // ─── Tab Configuration ───────────────────────────────────────────────────────
 const TAB_CONFIG = {
@@ -184,7 +193,10 @@ export default function NewTest({
           effectiveTo: editData.version?.effectiveTo || null,
         },
         parameters: editData.parameters || [],
-        sampleRequirements: editData.sampleRequirements || [],
+        sampleRequirements: (editData.sampleRequirements || []).map((req) => ({
+          ...req,
+          sampleType: normalizeSampleType(req.sampleType),
+        })),
       });
     } else if (!isOpen) {
       // Reset form when drawer closes
@@ -372,6 +384,36 @@ export default function NewTest({
         setErrors({});
         onClose();
       }
+      // HANDLE PARAMETERS UPDATE (dedicated API)
+      else if (isEditMode && editData?.id && activeTab === 'parameters') {
+        console.log('=== UPDATING PARAMETERS VIA DEDICATED API ===');
+        console.log('Test ID:', editData.id);
+
+        for (const param of formData.parameters) {
+          const parameterData = {
+            parameterName: param.parameterName,
+            unit: param.unit,
+            criticalLow: param.criticalLow || 0,
+            criticalHigh: param.criticalHigh || 0,
+            resultType: param.resultType,
+            isCalculated: param.isCalculated,
+          };
+
+          if (param.id && param.id > 0) {
+            console.log('📡 Updating existing parameter (ID:', param.id, ')');
+            await updateTestParameter(editData.id, param.id, parameterData);
+          } else {
+            console.log('📡 Creating new parameter');
+            await createTestParameter(editData.id, parameterData);
+          }
+        }
+
+        console.log('✅ Parameters saved successfully');
+        onSubmit(formData as any);
+        setFormData(initialFormData);
+        setErrors({});
+        onClose();
+      }
       // HANDLE FULL TEST UPDATE
       else if (isEditMode && editData?.id) {
         // UPDATE EXISTING TEST
@@ -476,8 +518,25 @@ export default function NewTest({
         console.log('Test response type:', typeof testResponse);
         console.log('Test response keys:', Object.keys(testResponse || {}));
         
-        // Handle different response structures
-        const testId = testResponse?.data?.id || (testResponse as any)?.id;
+        // Handle different response structures from backend variants
+        let testId =
+          (testResponse as any)?.data?.id ||
+          (testResponse as any)?.data?.testId ||
+          (testResponse as any)?.id ||
+          (testResponse as any)?.testId;
+
+        // Fallback: resolve newly created test by unique code from list API
+        if (!testId) {
+          try {
+            const lookupResponse = await fetchTests(0, 10, formData.testCode);
+            const matched = lookupResponse?.data?.content?.find(
+              (item: any) => item?.testCode?.toLowerCase?.() === formData.testCode.toLowerCase()
+            );
+            testId = matched?.id;
+          } catch (lookupError) {
+            console.warn('⚠️ Test lookup fallback failed:', lookupError);
+          }
+        }
         
         if (!testId) {
           console.error('❌ No test ID in response:', testResponse);

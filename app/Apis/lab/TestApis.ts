@@ -355,6 +355,76 @@ export async function fetchTests(
 }
 
 /**
+ * GET ACTIVE TESTS - Fetch active tests only
+ * Endpoint: GET /tests/active?page=0&size=10
+ */
+export async function fetchActiveTests(
+  page: number = 0,
+  size: number = 10
+): Promise<ApiResponse<PaginatedResponse<Test>>> {
+  try {
+    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!normalizedBaseUrl) {
+      throw new Error('NEXT_PUBLIC_API_URL is not configured');
+    }
+
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+    });
+
+    const url = `${normalizedBaseUrl}/tests/active?${params.toString()}`;
+    console.log('=== FETCH ACTIVE TESTS DEBUG ===');
+    console.log('API_BASE_URL:', normalizedBaseUrl);
+    console.log('Full URL:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      let errorData: Record<string, unknown> = { raw: responseText };
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        // keep raw response for error context
+      }
+      console.error('❌ ERROR FETCHING ACTIVE TESTS');
+      console.error('HTTP Status:', response.status);
+      console.error('Error data:', errorData);
+      throw new Error(`[${response.status}] Failed to fetch active tests`);
+    }
+
+    if (!responseText || responseText.trim() === '') {
+      return {
+        data: {
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          pageNo: page,
+          pageSize: size,
+          first: page === 0,
+          last: true,
+        },
+        message: 'No active tests found',
+        response: true,
+        status: 'success',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return JSON.parse(responseText) as ApiResponse<PaginatedResponse<Test>>;
+  } catch (error) {
+    console.error('Error fetching active tests:', error);
+    throw error;
+  }
+}
+
+/**
  * GET TEST BY ID
  */
 export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> {
@@ -392,6 +462,131 @@ export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> 
 }
 
 /**
+ * GET TEST BY CODE
+ * Endpoint: GET /tests/code/{testCode}
+ */
+export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Test | null>> {
+  try {
+    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!normalizedBaseUrl) {
+      throw new Error('NEXT_PUBLIC_API_URL is not configured');
+    }
+
+    const encodedCode = encodeURIComponent(testCode.trim());
+    const url = `${normalizedBaseUrl}/tests/code/${encodedCode}`;
+    console.log('📡 Fetching test by code:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const responseText = await response.text();
+
+    if (response.status === 404) {
+      return {
+        data: null,
+        message: 'Test not found',
+        response: true,
+        status: '404',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!response.ok) {
+      console.error('❌ Error fetching test by code:', response.status);
+      throw new Error(`[${response.status}] Failed to fetch test by code`);
+    }
+
+    if (!responseText || responseText.trim() === '') {
+      return {
+        data: null,
+        message: 'Test not found',
+        response: true,
+        status: 'success',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return JSON.parse(responseText) as ApiResponse<Test>;
+  } catch (error) {
+    console.error('Error fetching test by code:', error);
+    throw error;
+  }
+}
+
+/**
+ * SEARCH TESTS BY NAME
+ * Endpoint: GET /tests/search?name={name}&page=0&size=10&sort=testId,asc
+ */
+export async function searchTestsByName(
+  name: string,
+  page: number = 0,
+  size: number = 10
+): Promise<ApiResponse<PaginatedResponse<Test>>> {
+  try {
+    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
+    if (!normalizedBaseUrl) {
+      throw new Error('NEXT_PUBLIC_API_URL is not configured');
+    }
+
+    const params = new URLSearchParams({
+      name: name.trim(),
+      page: page.toString(),
+      size: size.toString(),
+      sort: 'testId,asc',
+    });
+
+    const url = `${normalizedBaseUrl}/tests/search?${params.toString()}`;
+    console.log('📡 Searching tests by name:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      let errorData: Record<string, unknown> = { raw: responseText };
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        // keep raw
+      }
+      console.error('❌ Error searching tests by name:', response.status, errorData);
+      throw new Error(`[${response.status}] Failed to search tests by name`);
+    }
+
+    if (!responseText || responseText.trim() === '') {
+      return {
+        data: {
+          content: [],
+          totalElements: 0,
+          totalPages: 0,
+          pageNo: page,
+          pageSize: size,
+          first: page === 0,
+          last: true,
+        },
+        message: 'No tests found',
+        response: true,
+        status: 'success',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return JSON.parse(responseText) as ApiResponse<PaginatedResponse<Test>>;
+  } catch (error) {
+    console.error('Error searching tests by name:', error);
+    throw error;
+  }
+}
+
+/**
  * CREATE TEST
  */
 export async function createTest(
@@ -423,7 +618,51 @@ export async function createTest(
       throw new Error(`[${response.status}] Failed to create test`);
     }
 
-    const responseData = JSON.parse(responseText);
+    const responseData = responseText?.trim()
+      ? JSON.parse(responseText)
+      : {
+          data: null,
+          message: 'Test created successfully',
+          response: true,
+          status: String(response.status),
+          timestamp: new Date().toISOString(),
+        };
+
+    // Some backend variants return success with data: null.
+    // Resolve and normalize created test so callers reliably receive an ID.
+    const existingId =
+      responseData?.data?.id ||
+      responseData?.data?.testId;
+
+    if (!existingId) {
+      const locationHeader = response.headers.get('location');
+      const locationIdMatch = locationHeader?.match(/\/tests\/(\d+)(?:\/|$)/);
+      const locationId = locationIdMatch ? Number(locationIdMatch[1]) : undefined;
+
+      if (locationId) {
+        try {
+          const byIdResponse = await fetchTestById(locationId);
+          responseData.data = byIdResponse?.data || responseData.data;
+        } catch (lookupByIdError) {
+          console.warn('⚠️ Could not resolve created test from Location header:', lookupByIdError);
+        }
+      }
+    }
+
+    if (!responseData?.data?.id && input.testCode) {
+      try {
+        const lookupResponse = await fetchTests(0, 20, input.testCode);
+        const matched = lookupResponse?.data?.content?.find(
+          (item) => item?.testCode?.toLowerCase?.() === input.testCode.toLowerCase()
+        );
+        if (matched?.id) {
+          responseData.data = matched;
+        }
+      } catch (lookupError) {
+        console.warn('⚠️ Could not resolve created test by search:', lookupError);
+      }
+    }
+
     console.log('✅ Test created');
     return responseData;
   } catch (error) {
@@ -747,7 +986,11 @@ export async function deleteSampleRequirement(
  */
 export async function fetchTestVersions(testId: number): Promise<ApiResponse<TestVersion[]>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/versions`;
+    const params = new URLSearchParams({
+      pageNo: '0',
+      pageSize: '10',
+    });
+    const url = `${API_BASE_URL}/tests/${testId}/versions?${params.toString()}`;
     console.log('📡 Fetching test versions...');
 
     const response = await fetch(url, {
@@ -921,13 +1164,53 @@ export async function createTestParameter(
     const url = `${API_BASE_URL}/tests/${testId}/parameters`;
     console.log('📡 Creating test parameter...');
 
+    // Send only fields commonly accepted by backend DTOs.
+    // Avoid empty arrays / undefined values that can trigger 500 on strict validators.
+    const payload: Record<string, unknown> = {
+      parameterName: input.parameterName?.trim(),
+      unit: input.unit?.trim(),
+      resultType: input.resultType,
+      isCalculated: Boolean(input.isCalculated),
+    };
+
+    if (typeof input.criticalLow === 'number' && Number.isFinite(input.criticalLow)) {
+      payload.criticalLow = input.criticalLow;
+    }
+    if (typeof input.criticalHigh === 'number' && Number.isFinite(input.criticalHigh)) {
+      payload.criticalHigh = input.criticalHigh;
+    }
+    if (input.isCalculated && input.calculationFormula?.trim()) {
+      payload.calculationFormula = input.calculationFormula.trim();
+    }
+    if (typeof input.sortOrder === 'number' && Number.isFinite(input.sortOrder)) {
+      payload.sortOrder = input.sortOrder;
+    }
+    if (Array.isArray(input.referenceRanges) && input.referenceRanges.length > 0) {
+      payload.referenceRanges = input.referenceRanges
+        .map((range) => ({
+          gender: range.gender,
+          ageMin: range.ageMin,
+          ageMax: range.ageMax,
+          minValue: range.minValue,
+          maxValue: range.maxValue,
+          unit: range.unit,
+        }))
+        .filter(
+          (range) =>
+            typeof range.ageMin === 'number' &&
+            typeof range.ageMax === 'number' &&
+            typeof range.minValue === 'number' &&
+            typeof range.maxValue === 'number'
+        );
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(input),
+      body: JSON.stringify(payload),
     });
 
     const responseText = await response.text();
@@ -940,6 +1223,8 @@ export async function createTestParameter(
         errorData = { raw: responseText };
       }
       console.error('❌ Error creating parameter:', response.status);
+      console.error('Parameter payload:', payload);
+      console.error('Error response body:', errorData);
       throw new Error(`[${response.status}] Failed to create parameter`);
     }
 
@@ -948,6 +1233,89 @@ export async function createTestParameter(
     return responseData;
   } catch (error) {
     console.error('Error creating parameter:', error);
+    throw error;
+  }
+}
+
+/**
+ * UPDATE TEST PARAMETER
+ */
+export async function updateTestParameter(
+  testId: number,
+  parameterId: number,
+  input: CreateParameterInput
+): Promise<ApiResponse<ParameterResponse>> {
+  try {
+    const url = `${API_BASE_URL}/tests/${testId}/parameters/${parameterId}`;
+    console.log('📡 Updating test parameter...');
+
+    const payload: Record<string, unknown> = {
+      parameterName: input.parameterName?.trim(),
+      unit: input.unit?.trim(),
+      resultType: input.resultType,
+      isCalculated: Boolean(input.isCalculated),
+    };
+
+    if (typeof input.criticalLow === 'number' && Number.isFinite(input.criticalLow)) {
+      payload.criticalLow = input.criticalLow;
+    }
+    if (typeof input.criticalHigh === 'number' && Number.isFinite(input.criticalHigh)) {
+      payload.criticalHigh = input.criticalHigh;
+    }
+    if (input.isCalculated && input.calculationFormula?.trim()) {
+      payload.calculationFormula = input.calculationFormula.trim();
+    }
+    if (typeof input.sortOrder === 'number' && Number.isFinite(input.sortOrder)) {
+      payload.sortOrder = input.sortOrder;
+    }
+    if (Array.isArray(input.referenceRanges) && input.referenceRanges.length > 0) {
+      payload.referenceRanges = input.referenceRanges
+        .map((range) => ({
+          gender: range.gender,
+          ageMin: range.ageMin,
+          ageMax: range.ageMax,
+          minValue: range.minValue,
+          maxValue: range.maxValue,
+          unit: range.unit,
+        }))
+        .filter(
+          (range) =>
+            typeof range.ageMin === 'number' &&
+            typeof range.ageMax === 'number' &&
+            typeof range.minValue === 'number' &&
+            typeof range.maxValue === 'number'
+        );
+    }
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error('❌ Error updating parameter:', response.status);
+      console.error('Parameter payload:', payload);
+      console.error('Error response body:', errorData);
+      throw new Error(`[${response.status}] Failed to update parameter`);
+    }
+
+    const responseData = JSON.parse(responseText);
+    console.log('✅ Parameter updated');
+    return responseData;
+  } catch (error) {
+    console.error('Error updating parameter:', error);
     throw error;
   }
 }

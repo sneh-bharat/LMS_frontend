@@ -1,269 +1,303 @@
 /**
- * API Connection Test Utility
+ * Connection Test Utility for Patient API
  * 
- * Use this to test if your backend is accessible and properly configured.
- * Run these tests to diagnose connection issues.
+ * This file contains diagnostic functions to test backend connectivity
+ * and troubleshoot common API issues.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL1 || 'http://localhost:8080/api/v1';
 
 export interface ConnectionTestResult {
   test: string;
   status: 'pass' | 'fail' | 'warning';
   message: string;
-  details?: any;
+  details?: Record<string, any>;
 }
 
 /**
- * Test 1: Check if environment variable is set
+ * Test 1: Basic Network Connectivity
+ * Checks if the backend server is reachable
  */
-export function testEnvironmentVariable(): ConnectionTestResult {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  
-  if (!envUrl) {
-    return {
-      test: 'Environment Variable Check',
-      status: 'warning',
-      message: 'NEXT_PUBLIC_API_URL not set in .env.local',
-      details: { using: API_BASE_URL }
-    };
-  }
-
-  return {
-    test: 'Environment Variable Check',
-    status: 'pass',
-    message: 'NEXT_PUBLIC_API_URL is set',
-    details: { value: envUrl }
-  };
-}
-
-/**
- * Test 2: Validate URL format
- */
-export function testUrlFormat(): ConnectionTestResult {
-  if (!API_BASE_URL) {
-    return {
-      test: 'URL Format Validation',
-      status: 'fail',
-      message: 'API_BASE_URL is not defined',
-      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
-    };
-  }
-
+async function testNetworkConnectivity(): Promise<ConnectionTestResult> {
   try {
-    const url = new URL(API_BASE_URL);
+    console.log('🔍 Test 1: Testing network connectivity...');
     
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return {
-        test: 'URL Format Validation',
-        status: 'fail',
-        message: 'Invalid protocol. Must be http:// or https://',
-        details: { protocol: url.protocol }
-      };
-    }
+    const response = await fetch(API_BASE_URL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      mode: 'cors',
+    });
+
+    console.log('✅ Network response received:', response.status);
 
     return {
-      test: 'URL Format Validation',
+      test: 'Network Connectivity',
       status: 'pass',
-      message: 'URL format is valid',
-      details: { protocol: url.protocol, hostname: url.hostname, port: url.port || '8080' }
+      message: `Successfully connected to ${API_BASE_URL}`,
+      details: {
+        status: response.status,
+        url: API_BASE_URL,
+        timestamp: new Date().toISOString(),
+      },
     };
   } catch (error) {
+    console.error('❌ Network connectivity failed:', error);
+    
     return {
-      test: 'URL Format Validation',
+      test: 'Network Connectivity',
       status: 'fail',
-      message: 'Invalid URL format',
-      details: { error: error instanceof Error ? error.message : 'Unknown error' }
+      message: `Unable to reach backend server at ${API_BASE_URL}`,
+      details: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        url: API_BASE_URL,
+        suggestion: 'Make sure your Spring Boot backend is running on the correct port',
+      },
     };
   }
 }
 
 /**
- * Test 3: Test backend connectivity
+ * Test 2: CORS Configuration
+ * Checks if CORS is properly configured
  */
-export async function testBackendConnectivity(): Promise<ConnectionTestResult> {
-  if (!API_BASE_URL) {
+async function testCorsConfiguration(): Promise<ConnectionTestResult> {
+  try {
+    console.log('🔍 Test 2: Testing CORS configuration...');
+    
+    const response = await fetch(`${API_BASE_URL}/patients`, {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'http://localhost:3000',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'Content-Type',
+      },
+    });
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+      'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+    };
+
+    console.log('✅ CORS response:', corsHeaders);
+
+    const allowOrigin = corsHeaders['Access-Control-Allow-Origin'];
+    const isCorsEnabled = allowOrigin === '*' || allowOrigin === 'http://localhost:3000';
+
     return {
-      test: 'Backend Connectivity',
-      status: 'fail',
-      message: 'API_BASE_URL is not defined',
-      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
+      test: 'CORS Configuration',
+      status: isCorsEnabled ? 'pass' : 'warning',
+      message: isCorsEnabled 
+        ? 'CORS is properly configured' 
+        : 'CORS headers detected but may need configuration review',
+      details: {
+        ...corsHeaders,
+        responseStatus: response.status,
+      },
+    };
+  } catch (error) {
+    console.error('❌ CORS test failed:', error);
+    
+    // CORS errors often manifest as network errors, so this might just be a network issue
+    return {
+      test: 'CORS Configuration',
+      status: 'warning',
+      message: 'Unable to test CORS - this might be a network issue or CORS misconfiguration',
+      details: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        suggestion: 'Check if your backend has CORS configured for http://localhost:3000',
+      },
     };
   }
+}
 
+/**
+ * Test 3: Patients API Endpoint
+ * Tests the actual patients endpoint
+ */
+async function testPatientsEndpoint(): Promise<ConnectionTestResult> {
   try {
-    console.log('📡 Testing connection to:', API_BASE_URL);
+    console.log('🔍 Test 3: Testing patients API endpoint...');
     
     const response = await fetch(`${API_BASE_URL}/patients?pageNo=0&pageSize=1`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
     });
 
-    if (response.ok) {
-      const data = await response.json();
+    console.log('✅ Patients API response:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Patients API error:', errorText);
+      
       return {
-        test: 'Backend Connectivity',
-        status: 'pass',
-        message: 'Successfully connected to backend',
-        details: {
-          status: response.status,
-          hasData: !!data,
-          url: API_BASE_URL
-        }
-      };
-    } else {
-      return {
-        test: 'Backend Connectivity',
+        test: 'Patients API Endpoint',
         status: 'fail',
-        message: `Backend returned error: ${response.status}`,
+        message: `API returned error: ${response.status}`,
         details: {
           status: response.status,
-          statusText: response.statusText,
-          url: API_BASE_URL
-        }
+          error: errorText,
+        },
       };
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    let suggestion = 'Check if backend server is running';
-    if (errorMessage.includes('Failed to fetch')) {
-      suggestion = 'Backend server is not running or CORS is not configured. Start your Spring Boot server on port 8080.';
-    } else if (errorMessage.includes('CORS')) {
-      suggestion = 'Add CORS configuration to your backend to allow http://localhost:3000';
     }
 
+    const data = await response.json();
+    
     return {
-      test: 'Backend Connectivity',
-      status: 'fail',
-      message: 'Failed to connect to backend',
+      test: 'Patients API Endpoint',
+      status: 'pass',
+      message: 'Patients API is working correctly',
       details: {
-        error: errorMessage,
-        url: API_BASE_URL,
-        suggestion
-      }
-    };
-  }
-}
-
-/**
- * Test 4: Test patient photo endpoint
- */
-export async function testPhotoEndpoint(): Promise<ConnectionTestResult> {
-  if (!API_BASE_URL) {
-    return {
-      test: 'Patient Photo Endpoint',
-      status: 'fail',
-      message: 'API_BASE_URL is not defined',
-      details: { error: 'Environment variable NEXT_PUBLIC_API_URL is not set' }
-    };
-  }
-
-  try {
-    const testPatientId = 1;
-    const url = `${API_BASE_URL}/patients/image/${testPatientId}`;
-    
-    console.log('📷 Testing photo endpoint:', url);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'image/*, application/json',
+        totalPatients: data.data?.totalElements || 0,
+        totalPages: data.data?.totalPages || 0,
+        sampleData: data.data?.content?.[0] || null,
       },
-    });
-
-    if (response.ok) {
-      const contentType = response.headers.get('content-type') || 'unknown';
-      return {
-        test: 'Patient Photo Endpoint',
-        status: 'pass',
-        message: 'Photo endpoint is accessible',
-        details: {
-          status: response.status,
-          contentType,
-          url
-        }
-      };
-    } else if (response.status === 404) {
-      return {
-        test: 'Patient Photo Endpoint',
-        status: 'warning',
-        message: 'Photo endpoint exists but patient not found (this is OK)',
-        details: {
-          status: response.status,
-          url,
-          note: 'Patient ID 1 might not have a photo'
-        }
-      };
-    } else {
-      return {
-        test: 'Patient Photo Endpoint',
-        status: 'fail',
-        message: `Photo endpoint returned: ${response.status}`,
-        details: {
-          status: response.status,
-          url
-        }
-      };
-    }
+    };
   } catch (error) {
+    console.error('❌ Patients API test failed:', error);
+    
     return {
-      test: 'Patient Photo Endpoint',
+      test: 'Patients API Endpoint',
       status: 'fail',
-      message: 'Failed to access photo endpoint',
+      message: 'Failed to access patients API',
       details: {
         error: error instanceof Error ? error.message : 'Unknown error',
-        url: API_BASE_URL
-      }
+      },
     };
   }
 }
 
 /**
- * Run all tests
+ * Test 4: Environment Configuration
+ * Verifies environment variables are set correctly
  */
-export async function runAllTests(): Promise<ConnectionTestResult[]> {
-  console.log('🧪 Running API Connection Tests...\n');
-  console.log('=====================================');
+function testEnvironmentConfig(): ConnectionTestResult {
+  console.log('🔍 Test 4: Checking environment configuration...');
   
-  const results: ConnectionTestResult[] = [];
-
-  // Sync tests
-  results.push(testEnvironmentVariable());
-  results.push(testUrlFormat());
-
-  // Async tests
-  results.push(await testBackendConnectivity());
-  results.push(await testPhotoEndpoint());
-
-  console.log('\n=====================================');
-  console.log('📊 Test Results Summary:');
-  console.log('=====================================');
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL1;
   
-  results.forEach((result, index) => {
-    const icon = result.status === 'pass' ? '✅' : 
-                 result.status === 'fail' ? '❌' : '⚠️';
-    console.log(`${index + 1}. ${icon} ${result.test}: ${result.message}`);
-  });
+  const isValid = apiUrl && apiUrl.length > 0;
+  const isLocalhost = apiUrl?.includes('localhost');
+  
+  const details = {
+    NEXT_PUBLIC_API_URL1: apiUrl || 'NOT SET',
+    isLocalhost,
+    nodeEnv: process.env.NODE_ENV,
+  };
 
-  const passCount = results.filter(r => r.status === 'pass').length;
-  const failCount = results.filter(r => r.status === 'fail').length;
-  const warnCount = results.filter(r => r.status === 'warning').length;
+  console.log('✅ Environment config:', details);
 
-  console.log('\n=====================================');
-  console.log(`Total: ${passCount} passed, ${failCount} failed, ${warnCount} warnings`);
-  console.log('=====================================\n');
+  if (!isValid) {
+    return {
+      test: 'Environment Configuration',
+      status: 'fail',
+      message: 'NEXT_PUBLIC_API_URL1 environment variable is not set',
+      details: {
+        ...details,
+        suggestion: 'Add NEXT_PUBLIC_API_URL1 to your .env.local file',
+      },
+    };
+  }
 
-  return results;
+  return {
+    test: 'Environment Configuration',
+    status: isLocalhost ? 'warning' : 'pass',
+    message: isLocalhost 
+      ? 'Using localhost - make sure backend is running' 
+      : 'Environment variable is configured',
+    details,
+  };
 }
 
-// Auto-run tests when imported in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  // Run tests in browser console
-  setTimeout(() => {
-    console.log('%c🔍 Patient API Connection Tests', 'color: #10b981; font-size: 16px; font-weight: bold;');
-    runAllTests();
-  }, 1000);
+/**
+ * Test 5: API Response Format
+ * Checks if API returns data in expected format
+ */
+async function testApiResponseFormat(): Promise<ConnectionTestResult> {
+  try {
+    console.log('🔍 Test 5: Testing API response format...');
+    
+    const response = await fetch(`${API_BASE_URL}/patients?pageNo=0&pageSize=1`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return {
+        test: 'API Response Format',
+        status: 'warning',
+        message: 'Unable to test format - API returned error',
+        details: { status: response.status },
+      };
+    }
+
+    const data = await response.json();
+    
+    const hasExpectedStructure = 
+      'data' in data &&
+      'message' in data &&
+      'status' in data;
+
+    console.log('✅ API response structure:', hasExpectedStructure);
+
+    return {
+      test: 'API Response Format',
+      status: hasExpectedStructure ? 'pass' : 'warning',
+      message: hasExpectedStructure 
+        ? 'API response format matches expected structure' 
+        : 'API response format differs from expected',
+      details: {
+        hasDataField: 'data' in data,
+        hasMessageField: 'message' in data,
+        hasStatusField: 'status' in data,
+        actualKeys: Object.keys(data),
+      },
+    };
+  } catch (error) {
+    console.error('❌ API format test failed:', error);
+    
+    return {
+      test: 'API Response Format',
+      status: 'fail',
+      message: 'Failed to test API response format',
+      details: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    };
+  }
+}
+
+/**
+ * Run all connection tests
+ */
+export async function runAllTests(): Promise<ConnectionTestResult[]> {
+  console.log('🚀 Running Patient API Connection Tests...\n');
+  
+  const results: ConnectionTestResult[] = [];
+  
+  // Test 1: Environment Configuration (no network needed)
+  results.push(testEnvironmentConfig());
+  
+  // Test 2: Network Connectivity
+  results.push(await testNetworkConnectivity());
+  
+  // Test 3: CORS Configuration
+  results.push(await testCorsConfiguration());
+  
+  // Test 4: Patients API Endpoint
+  results.push(await testPatientsEndpoint());
+  
+  // Test 5: API Response Format
+  results.push(await testApiResponseFormat());
+  
+  console.log('\n✅ All tests completed!');
+  console.log('Results:', results);
+  
+  return results;
 }

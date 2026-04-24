@@ -319,8 +319,8 @@ export default function NewTest({
 
     setIsSubmitting(true);
     try {
-      // Transform form data to API format
-      const apiData: CreateTestPackageInput | UpdateTestPackageInput = {
+      // Common payload fields
+      const basePayload = {
         packageCode: formData.packageCode,
         packageName: formData.packageName,
         description: formData.description || undefined,
@@ -332,6 +332,18 @@ export default function NewTest({
           discount: t.discount,
         })),
       };
+
+      // Update payload must not include packageCode
+      const apiData: CreateTestPackageInput | UpdateTestPackageInput = isEditMode
+        ? {
+            packageName: basePayload.packageName,
+            description: basePayload.description,
+            packagePrice: basePayload.packagePrice,
+            specialInstructions: basePayload.specialInstructions,
+            isActive: basePayload.isActive,
+            tests: basePayload.tests,
+          }
+        : basePayload;
 
       await onSubmit(apiData);
       handleClose();

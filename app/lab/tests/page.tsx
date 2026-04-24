@@ -33,17 +33,20 @@ import NewTest from './NewTest';
 import TestDetailsView from './TestDetailsView';
 import {
   fetchTests,
+  fetchActiveTests,
+  searchTestsByName,
+  fetchTestVersions,
+  fetchTestParameters,
   createTest,
   updateTest,
   deleteTest,
-  toggleTestStatus,
   fetchSampleRequirements,
   type Test,
   type CreateTestInput,
 } from '@/app/Apis/lab/TestApis';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-import { TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
+import { TestVersion, TestParameter, SampleRequirement, ReferenceRange, TestItem } from './types';
 
 const DEPARTMENTS = [
   { id: 1, name: 'Biochemistry' },
@@ -65,17 +68,15 @@ const CATEGORIES = ['All', 'Biochemistry', 'Hematology', 'Microbiology', 'Pathol
 function PackageActions({
   pkg,
   onView,
-  onEdit,
   onEditSample,
   onEditParameters,
-  onEditPricing,
+  onDelete,
 }: {
   pkg: Test;
   onView: (pkg: Test) => void;
-  onEdit: (pkg: Test) => void;
   onEditSample: (pkg: Test) => void;
   onEditParameters: (pkg: Test) => void;
-  onEditPricing: (pkg: Test) => void;
+  onDelete: (testId: number) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -118,28 +119,15 @@ function PackageActions({
           >
             <FlaskConical size={14} /> Edit Parameters
           </button>
-          <button
-            onClick={() => {
-              onEditPricing(pkg);
-              setOpen(false);
-            }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-orange-600 hover:bg-orange-50 flex items-center gap-2"
-          >
-            <CreditCard size={14} /> Edit Pricing
-          </button>
           <div className="h-[1px] bg-slate-100 my-2"></div>
           <button
             onClick={() => {
-              onEdit(pkg);
+              onDelete(pkg.id);
               setOpen(false);
             }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2"
           >
-            <Edit2 size={14} /> Edit Full Test
-          </button>
-          <div className="h-[1px] bg-slate-100 my-2"></div>
-          <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-            <Trash2 size={14} /> Deactivate
+            <Trash2 size={14} /> Delete Test
           </button>
         </div>
       )}
@@ -176,6 +164,15 @@ export default function TestPackagePage() {
     loadTests();
   }, [currentPage, statusFilter]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(0);
+      loadTests();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadTests = async () => {
     setLoading(true);
     try {
@@ -186,28 +183,97 @@ export default function TestPackagePage() {
       
       const status = statusFilter === 'All' ? undefined : statusFilter === 'Active' ? 'true' : 'false';
       console.log('Converted status for API:', status);
+      const trimmedSearch = search.trim();
+
+      let testsArray: Test[] = [];
+      let responseTotalPages = 0;
+      let responseTotalElements = 0;
+
+      if (trimmedSearch) {
+        console.log('Calling searchTestsByName with:', { name: trimmedSearch, currentPage, pageSize });
+        const searchResponse = await searchTestsByName(trimmedSearch, currentPage, pageSize);
+        const searchResults = searchResponse?.data?.content || [];
+
+        testsArray = searchResults.filter((test) => {
+          if (statusFilter === 'All') return true;
+          if (statusFilter === 'Active') return Boolean(test.isActive);
+          return !test.isActive;
+        });
+        responseTotalElements = searchResponse?.data?.totalElements || testsArray.length;
+        responseTotalPages = searchResponse?.data?.totalPages || 0;
+      } else {
+        const response =
+          statusFilter === 'Active'
+            ? await fetchActiveTests(currentPage, pageSize)
+            : await fetchTests(currentPage, pageSize, undefined, status);
+        console.log(
+          statusFilter === 'Active'
+            ? 'Calling fetchActiveTests with:'
+            : 'Calling fetchTests with:',
+          { currentPage, pageSize, status }
+        );
+        
+        console.log('=== FETCH RESPONSE ===');
+        console.log('Full response:', response);
+        console.log('Response data:', response.data);
+        console.log('Content array:', response.data?.content);
+        console.log('Content length:', response.data?.content?.length);
+        console.log('Total elements:', response.data?.totalElements);
+        console.log('Total pages:', response.data?.totalPages);
+        
+        testsArray = response.data?.content || [];
+        responseTotalPages = response.data?.totalPages || 0;
+        responseTotalElements = response.data?.totalElements || 0;
+      }
       
-      console.log('Calling fetchTests with:', { currentPage, pageSize, search: search || undefined, status });
-      const response = await fetchTests(currentPage, pageSize, search || undefined, status);
-      
-      console.log('=== FETCH RESPONSE ===');
-      console.log('Full response:', response);
-      console.log('Response data:', response.data);
-      console.log('Content array:', response.data?.content);
-      console.log('Content length:', response.data?.content?.length);
-      console.log('Total elements:', response.data?.totalElements);
-      console.log('Total pages:', response.data?.totalPages);
-      
-      const testsArray = response.data?.content || [];
       console.log('Tests array to display:', testsArray);
+
+      // Load latest version price from versions API:
+      // /api/v1/tests/{testId}/versions?pageNo=0&pageSize=10
+      const testsWithVersionPrice = await Promise.all(
+        testsArray.map(async (test) => {
+          try {
+            const versionsRes = await fetchTestVersions(test.id);
+            const versionsPayload = (versionsRes as any)?.data;
+            const versions = Array.isArray(versionsPayload)
+              ? versionsPayload
+              : Array.isArray(versionsPayload?.content)
+                ? versionsPayload.content
+                : [];
+
+            if (!Array.isArray(versions) || versions.length === 0) {
+              return test;
+            }
+
+            const latestVersion = [...versions].sort(
+              (a: any, b: any) => (b?.versionNo || 0) - (a?.versionNo || 0)
+            )[0];
+
+            if (!latestVersion) {
+              return test;
+            }
+
+            return {
+              ...test,
+              version: {
+                ...(test.version || {}),
+                ...latestVersion,
+              },
+            };
+          } catch (versionError) {
+            console.warn(`Failed to fetch versions for test ${test.id}:`, versionError);
+            return test;
+          }
+        })
+      );
       
-      setPackages(testsArray);
-      setTotalPages(response.data?.totalPages || 0);
-      setTotalElements(response.data?.totalElements || 0);
+      setPackages(testsWithVersionPrice);
+      setTotalPages(responseTotalPages);
+      setTotalElements(responseTotalElements);
       
-      console.log('✅ Successfully loaded', testsArray.length, 'tests out of', response.data?.totalElements, 'total');
+      console.log('✅ Successfully loaded', testsArray.length, 'tests out of', responseTotalElements, 'total');
     } catch (error) {
-      console.error('❌ FAILED TO LOAD TESTS');
+    
       console.error('Error:', error);
       console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
       console.error('Error type:', error);
@@ -227,22 +293,11 @@ export default function TestPackagePage() {
     loadTests();
   };
 
-  const handleNewTestSubmit = async (newPackageData: Test) => {
+  const handleNewTestSubmit = async (newPackageData: TestItem) => {
     console.log('=== PARENT COMPONENT NOTIFICATION ===');
     console.log('Test saved successfully, reloading list...');
     // Just reload the tests - the API call is already done in NewTest component
     loadTests();
-  };
-
-  const handleEdit = (pkg: Test) => {
-    console.log('=== EDIT BUTTON CLICKED ===');
-    console.log('Editing package:', pkg);
-    console.log('Package ID:', pkg.id);
-    setEditingPackage(pkg);
-    setActiveTab('test');
-    console.log('editingPackage state set');
-    setIsModalOpen(true);
-    console.log('isModalOpen set to true');
   };
 
   const handleEditSample = async (pkg: Test) => {
@@ -255,19 +310,25 @@ export default function TestPackagePage() {
       const response = await fetchSampleRequirements(pkg.id);
       console.log('✅ Sample requirements response:', response);
       
-      const sampleData = response.data;
-      console.log('📦 Sample data received:', sampleData);
-      
+      const samplePayload = response.data;
+      console.log('📦 Sample data received:', samplePayload);
+
+      const normalizedSamples = Array.isArray(samplePayload)
+        ? samplePayload
+        : samplePayload
+          ? [samplePayload]
+          : [];
+
       // Create a modified edit data with sample requirements
       const sampleEditData = {
         ...pkg,
-        sampleRequirements: [{
-          id: sampleData.id || 0,
-          sampleType: sampleData.sampleType,
-          volumeMl: sampleData.volumeMl,
-          containerColor: sampleData.containerColor,
-          storageCondition: sampleData.storageCondition,
-        }]
+        sampleRequirements: normalizedSamples.map((sample: any) => ({
+          id: sample.id || 0,
+          sampleType: sample.sampleType || '',
+          volumeMl: sample.volumeMl ?? '',
+          containerColor: sample.containerColor || '',
+          storageCondition: sample.storageCondition || '',
+        })),
       };
       
       console.log('📝 Edit data with sample:', sampleEditData);
@@ -286,33 +347,39 @@ export default function TestPackagePage() {
     }
   };
 
-  const handleEditParameters = (pkg: Test) => {
+  const handleEditParameters = async (pkg: Test) => {
     console.log('=== EDIT PARAMETERS CLICKED ===');
-    setEditingPackage(pkg);
-    setActiveTab('parameters');
-    setIsModalOpen(true);
-  };
+    console.log('Test ID:', pkg.id);
 
-  const handleEditPricing = (pkg: Test) => {
-    console.log('=== EDIT PRICING CLICKED ===');
-    setEditingPackage(pkg);
-    setActiveTab('pricing');
-    setIsModalOpen(true);
+    try {
+      console.log('📡 Fetching parameters from API...');
+      const response = await fetchTestParameters(pkg.id);
+      const parameterPayload = response.data;
+      const normalizedParameters = Array.isArray(parameterPayload)
+        ? parameterPayload
+        : parameterPayload
+          ? [parameterPayload]
+          : [];
+
+      const parameterEditData = {
+        ...pkg,
+        parameters: normalizedParameters,
+      };
+
+      setEditingPackage(parameterEditData);
+      setActiveTab('parameters');
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('❌ Failed to fetch parameters:', error);
+      setEditingPackage(pkg);
+      setActiveTab('parameters');
+      setIsModalOpen(true);
+    }
   };
 
   const handleViewDetails = (pkg: Test) => {
     setSelectedPackage(pkg);
     setDetailsOpen(true);
-  };
-
-  const handleDetailsEdit = (pkg: Test) => {
-    setDetailsOpen(false);
-    setSelectedPackage(null);
-    setTimeout(() => {
-      setEditingPackage(pkg);
-      setActiveTab('test');
-      setIsModalOpen(true);
-    }, 300);
   };
 
   const handleDetailsDelete = async (testId: number) => {
@@ -328,12 +395,16 @@ export default function TestPackagePage() {
     }
   };
 
-  const handleToggleStatus = async (id: number, isActive: boolean) => {
+  const handleDeleteFromList = async (testId: number) => {
+    if (!window.confirm('Are you sure you want to delete this test?')) {
+      return;
+    }
+
     try {
-      await toggleTestStatus(id, isActive);
+      await deleteTest(testId);
       loadTests();
     } catch (error) {
-      console.error('Failed to toggle status:', error);
+      console.error('Failed to delete test:', error);
     }
   };
 
@@ -346,6 +417,24 @@ export default function TestPackagePage() {
   const handleCloseDetails = () => {
     setDetailsOpen(false);
     setSelectedPackage(null);
+  };
+
+  const getLatestVersionPrice = (pkg: Test): number | null => {
+    if (typeof pkg.version?.price === 'number') {
+      return pkg.version.price;
+    }
+
+    const versions = ((pkg as any)?.versions || (pkg as any)?.testVersions) as Array<{
+      versionNo?: number;
+      price?: number;
+    }> | undefined;
+
+    if (!Array.isArray(versions) || versions.length === 0) {
+      return null;
+    }
+
+    const latest = [...versions].sort((a, b) => (b.versionNo || 0) - (a.versionNo || 0))[0];
+    return typeof latest?.price === 'number' ? latest.price : null;
   };
 
   return (
@@ -390,7 +479,6 @@ export default function TestPackagePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search tests..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             suppressHydrationWarning
@@ -512,9 +600,14 @@ export default function TestPackagePage() {
                       className="px-6 py-4"
                       onClick={() => handleViewDetails(pkg)}
                     >
+                      {(() => {
+                        const price = getLatestVersionPrice(pkg);
+                        return (
                       <div className="text-sm font-bold text-slate-900 tracking-tight font-mono">
-                        ₹{new Intl.NumberFormat('en-IN').format(Number(pkg.version?.price || 0))}
+                            {price === null ? 'N/A' : `₹${new Intl.NumberFormat('en-IN').format(price)}`}
                       </div>
+                        );
+                      })()}
                     </td>
                     <td
                       className="px-6 py-4"
@@ -531,10 +624,9 @@ export default function TestPackagePage() {
                       <PackageActions
                         pkg={pkg}
                         onView={handleViewDetails}
-                        onEdit={handleEdit}
                         onEditSample={handleEditSample}
                         onEditParameters={handleEditParameters}
-                        onEditPricing={handleEditPricing}
+                        onDelete={handleDeleteFromList}
                       />
                     </td>
                   </tr>
@@ -583,7 +675,7 @@ export default function TestPackagePage() {
       <NewTest
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={(data) => handleNewTestSubmit(data as CreateTestInput)}
+        onSubmit={(data) => handleNewTestSubmit(data)}
         editData={editingPackage}
         isEditMode={!!editingPackage}
         activeTab={activeTab}
@@ -594,11 +686,9 @@ export default function TestPackagePage() {
         isOpen={detailsOpen}
         onClose={handleCloseDetails}
         testData={selectedPackage}
-        onEdit={handleDetailsEdit}
         onDelete={(id) => handleDetailsDelete(Number(id))}
         onEditSample={handleEditSample}
         onEditParameters={handleEditParameters}
-        onEditPricing={handleEditPricing}
       />
     </div>
   );

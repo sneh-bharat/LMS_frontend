@@ -11,14 +11,12 @@ import {
   FileText,
   Beaker,
   Droplet,
-  DollarSign,
   CheckCircle2,
   XCircle,
   Copy,
   Download,
   Share2,
   ListChecks,
-  IndianRupee,
   Loader2,
   AlertCircle,
 } from 'lucide-react'; 
@@ -36,7 +34,6 @@ interface TestDetailsViewProps {
   onDelete?: (testId: number) => void;
   onEditSample?: (test: Test) => void;
   onEditParameters?: (test: Test) => void;
-  onEditPricing?: (test: Test) => void;
 }
 
 export default function TestDetailsView({
@@ -47,7 +44,6 @@ export default function TestDetailsView({
   onDelete,
   onEditSample,
   onEditParameters,
-  onEditPricing,
 }: TestDetailsViewProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -95,10 +91,15 @@ export default function TestDetailsView({
       console.log('✅ Parameters response:', parametersRes);
       console.log('✅ Samples response:', samplesRes);
 
-      // Handle responses - data might be in different formats
-      const versionsData = (versionsRes as any)?.data || versionsRes?.data || [];
-      const parametersData = (parametersRes as any)?.data || parametersRes?.data || [];
-      const samplesData = (samplesRes as any)?.data || samplesRes?.data || [];
+      // Handle responses - versions can be paginated ({ content: [] }) or a plain array
+      const versionsPayload = (versionsRes as any)?.data;
+      const versionsData = Array.isArray(versionsPayload)
+        ? versionsPayload
+        : Array.isArray(versionsPayload?.content)
+          ? versionsPayload.content
+          : [];
+      const parametersData = (parametersRes as any)?.data || [];
+      const samplesData = (samplesRes as any)?.data || [];
 
       setVersions(Array.isArray(versionsData) ? versionsData : []);
       setParameters(Array.isArray(parametersData) ? parametersData : []);
@@ -183,15 +184,6 @@ export default function TestDetailsView({
           suppressHydrationWarning
         >
           <ListChecks size={16} /> Edit Parameters
-        </Button>
-      )}
-      {onEditPricing && (
-        <Button
-          onClick={() => onEditPricing(testData)}
-          className="px-6 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
-          suppressHydrationWarning
-        >
-          <IndianRupee size={16} /> Edit Pricing
         </Button>
       )}
     </div>
@@ -308,7 +300,6 @@ export default function TestDetailsView({
           {/* Price */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-emerald-300 transition-all">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign size={16} className="text-emerald-600" />
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                 Price
               </span>

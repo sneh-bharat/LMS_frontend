@@ -29,10 +29,7 @@ import {
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import RegistrationModal from './AddPatient';
-import EditPatientModal from './EditPatient';
-import PatientDetailsView from './PatientDetailsView';
-import AddFamilyLink from './AddFamilyLink';
-import { fetchPatients, searchPatientsByType, deletePatient, Patient, ApiResponse, PaginatedResponse } from '../Apis/Patients/Patient_Service_API';
+import { fetchPatients, Patient, ApiResponse, PaginatedResponse } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 interface PatientListState {
@@ -50,7 +47,6 @@ interface PatientListState {
   };
   filters: {
     search: string;
-    searchType: 'NAME' | 'PHONE' | 'EMAIL';
     category: string;
   };
 }
@@ -121,11 +117,6 @@ function EmptyState() {
 export default function FindRegisterPatientPage() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [viewingPatientId, setViewingPatientId] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deletingPatientId, setDeletingPatientId] = useState<number | null>(null);
-  const [isFamilyLinkModalOpen, setIsFamilyLinkModalOpen] = useState(false);
-  const [selectedPatientForLink, setSelectedPatientForLink] = useState<{id: number, name: string} | null>(null);
   const [state, setState] = useState<PatientListState>({
     patients: [],
     pagination: {
@@ -141,12 +132,11 @@ export default function FindRegisterPatientPage() {
     },
     filters: {
       search: '',
-      searchType: 'NAME',
       category: 'All',
     },
   });
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // ─── Initial Load ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -162,69 +152,34 @@ export default function FindRegisterPatientPage() {
       }));
 
       try {
-        let response;
-        
-        // Use search API if search term exists, otherwise use fetch all
-        if (search && search.trim()) {
-          // Get current searchType from state
-          const currentSearchType = state.filters.searchType;
-          console.log(`🔍 Searching patients by ${currentSearchType}:`, search);
-          const searchResponse = await searchPatientsByType(currentSearchType, search, pageNo, pageSize);
-          
-          // Response is an array, not paginated
-          response = searchResponse;
-        } else {
-          // Use regular fetch all endpoint (paginated)
-          response = await fetchPatients(
-            pageNo,
-            pageSize,
-            undefined,
-            category !== 'All' ? category : undefined
-          );
-        }
+        const response = await fetchPatients(
+          pageNo,
+          pageSize,
+          search || undefined,
+          category !== 'All' ? category : undefined
+        );
 
         if (!response.data) {
           throw new Error('Invalid response from API');
         }
 
-        // Check if response.data is an array (search API) or paginated object (fetch API)
-        if (Array.isArray(response.data)) {
-          // Search API returns direct array
-          setState(prev => ({
-            ...prev,
-            patients: response.data as Patient[],
-            pagination: {
-              pageNo: 0,
-              pageSize: response.data.length,
-              totalPages: 1,
-              totalElements: response.data.length,
-            },
-            loading: {
-              isLoading: false,
-              error: null,
-              success: null,
-            },
-          }));
-        } else {
-          // Fetch API returns paginated response
-          const paginatedData = response.data as PaginatedResponse<Patient>;
+        const paginatedData = response.data as PaginatedResponse<Patient>;
 
-          setState(prev => ({
-            ...prev,
-            patients: paginatedData.content || [],
-            pagination: {
-              pageNo: paginatedData.pageNo,
-              pageSize: paginatedData.pageSize,
-              totalPages: paginatedData.totalPages,
-              totalElements: paginatedData.totalElements,
-            },
-            loading: {
-              isLoading: false,
-              error: null,
-              success: null,
-            },
-          }));
-        }
+        setState(prev => ({
+          ...prev,
+          patients: paginatedData.content || [],
+          pagination: {
+            pageNo: paginatedData.pageNo,
+            pageSize: paginatedData.pageSize,
+            totalPages: paginatedData.totalPages,
+            totalElements: paginatedData.totalElements,
+          },
+          loading: {
+            isLoading: false,
+            error: null,
+            success: null,
+          },
+        }));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
         setState(prev => ({
@@ -237,66 +192,6 @@ export default function FindRegisterPatientPage() {
           patients: [],
         }));
       }
-    },
-    [state.filters.searchType]
-  );
-
-  // ─── Handle Search Type Change ─────────────────────────────────────────
-  const handleSearchTypeChange = useCallback(
-    (searchType: 'NAME' | 'PHONE' | 'EMAIL') => {
-      setState(prev => {
-        if (prev.filters.search && prev.filters.search.trim()) {
-          const searchValue = prev.filters.search.trim();
-          console.log(`🔄 Search type changed to ${searchType}, re-searching with:`, searchValue);
-          
-          searchPatientsByType(searchType, searchValue, 0, prev.pagination.pageSize)
-            .then(response => {
-              if (response.data && Array.isArray(response.data)) {
-                setState(state => ({
-                  ...state,
-                  patients: response.data as Patient[],
-                  pagination: {
-                    ...state.pagination,
-                    pageNo: 0,
-                    totalPages: 1,
-                    totalElements: response.data.length,
-                    pageSize: response.data.length,
-                  },
-                  loading: {
-                    ...state.loading,
-                    isLoading: false,
-                    error: null,
-                    success: `Found ${response.data.length} patients by ${searchType}`,
-                  },
-                  filters: {
-                    ...state.filters,
-                    searchType,
-                  },
-                }));
-              }
-            })
-            .catch(error => {
-              console.error('Error searching with new type:', error);
-              setState(state => ({
-                ...state,
-                loading: {
-                  ...state.loading,
-                  isLoading: false,
-                  error: error.message || 'Failed to search patients',
-                },
-                filters: {
-                  ...state.filters,
-                  searchType,
-                },
-              }));
-            });
-        }
-        
-        return {
-          ...prev,
-          filters: { ...prev.filters, searchType },
-        };
-      });
     },
     []
   );
@@ -382,80 +277,11 @@ export default function FindRegisterPatientPage() {
     };
   }, []);
 
-  // ─── Handle Delete Patient ─────────────────────────────────────────────
-  const handleDeletePatient = async (patientId: number, patientName: string) => {
-    setIsDeleting(true);
-    setDeletingPatientId(patientId);
-
-    try {
-      console.log(`🗑️ Deleting patient ID: ${patientId}`);
-      await deletePatient(patientId);
-      
-      console.log('✅ Patient deleted successfully');
-      
-      // Remove the deleted patient from the list
-      setState(prev => ({
-        ...prev,
-        patients: prev.patients.filter(p => p.id !== patientId),
-      }));
-      
-      // Show success message
-      setState(prev => ({
-        ...prev,
-        loading: { ...prev.loading, success: 'Patient deleted successfully!', error: null },
-      }));
-    } catch (error) {
-      console.error('❌ Error deleting patient:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete patient';
-      setState(prev => ({
-        ...prev,
-        loading: { ...prev.loading, error: errorMessage, success: null },
-      }));
-    } finally {
-      setIsDeleting(false);
-      setDeletingPatientId(null);
-    }
-  };
-
-  // ─── Handle View Patient Details ─────────────────────────────────────────
-  const handleViewPatient = useCallback((patientId: number) => {
-    setViewingPatientId(patientId);
-  }, []);
-
-  // ─── Handle Close Patient Details ────────────────────────────────────────
-  const handleClosePatientDetails = useCallback(() => {
-    setViewingPatientId(null);
-  }, []);
-
-  // ─── Handle Add Family Link ─────────────────────────────────────────────
-  const handleAddFamilyLink = useCallback((patient: Patient) => {
-    setSelectedPatientForLink({
-      id: patient.id!,
-      name: `${patient.firstName} ${patient.lastName}`
-    });
-    setIsFamilyLinkModalOpen(true);
-  }, []);
-
-  // ─── Handle Close Family Link Modal ──────────────────────────────────────
-  const handleCloseFamilyLinkModal = useCallback(() => {
-    setIsFamilyLinkModalOpen(false);
-    setSelectedPatientForLink(null);
-  }, []);
-
-  // ─── Handle Family Link Success ─────────────────────────────────────────
-  const handleFamilyLinkSuccess = useCallback((message: string) => {
-    setState(prev => ({
-      ...prev,
-      loading: { ...prev.loading, success: message, error: null },
-    }));
-  }, []);
-
   // ─── Handle Edit Patient ─────────────────────────────────────────────────
   const handleEditPatient = useCallback((patient: Patient) => {
     console.log('=== EDIT BUTTON CLICKED ===', patient);
     setEditingPatient(patient);
     setIsRegistrationModalOpen(true);
-    setViewingPatientId(null); // Close details view if open
   }, []);
 
   // ─── Handle Close Modal ──────────────────────────────────────────────────
@@ -463,76 +289,17 @@ export default function FindRegisterPatientPage() {
     console.log('=== MODAL CLOSING ===');
     setIsRegistrationModalOpen(false);
     setEditingPatient(null);
-    // Reload patient list to show new/updated data
-    loadPatients(
-      state.pagination.pageNo,
-      state.pagination.pageSize,
-      state.filters.search,
-      state.filters.category
-    );
-  }, [loadPatients, state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category]);
+    loadPatients(0, 10, '', 'All');
+  }, [loadPatients]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* ═══ REGISTRATION MODAL ═════════════════════════════════════════════ */}
       <RegistrationModal 
-        isOpen={isRegistrationModalOpen && !editingPatient} 
+        isOpen={isRegistrationModalOpen} 
         onClose={handleCloseModal}
-        onSuccess={(message) => {
-          setState(prev => ({
-            ...prev,
-            loading: { ...prev.loading, success: message, error: null },
-          }));
-        }}
+        editingPatient={editingPatient}
       />
-
-      {/* ═══ EDIT PATIENT MODAL ═════════════════════════════════════════════ */}
-      {editingPatient && (
-        <EditPatientModal
-          isOpen={isRegistrationModalOpen && !!editingPatient}
-          onClose={handleCloseModal}
-          patient={editingPatient}
-          onSuccess={(message) => {
-            setState(prev => ({
-              ...prev,
-              loading: { ...prev.loading, success: message, error: null },
-            }));
-          }}
-        />
-      )}
-
-      {/* ═══ FAMILY LINK MODAL ═════════════════════════════════════════════ */}
-      <AddFamilyLink
-        isOpen={isFamilyLinkModalOpen}
-        patientId={selectedPatientForLink?.id}
-        patientName={selectedPatientForLink?.name}
-        onClose={handleCloseFamilyLinkModal}
-        onSuccess={handleFamilyLinkSuccess}
-      />
-
-      {/* ═══ PATIENT DETAILS VIEW ══════════════════════════════════════════ */}
-      {viewingPatientId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between rounded-t-3xl z-10">
-              <h2 className="text-xl font-black text-slate-900">Patient Details</h2>
-              <button
-                onClick={handleClosePatientDetails}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-8">
-              <PatientDetailsView
-                patientId={viewingPatientId}
-                onEdit={handleEditPatient}
-                onClose={handleClosePatientDetails}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══ ALERTS ═════════════════════════════════════════════════════════ */}
       <div className="space-y-3">
@@ -571,6 +338,9 @@ export default function FindRegisterPatientPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" className="gap-2 px-6">
+            <LayoutGrid size={16} /> Patient View
+          </Button>
           <Button 
             variant="gradient" 
             size="sm" 
@@ -578,14 +348,6 @@ export default function FindRegisterPatientPage() {
             onClick={() => setIsRegistrationModalOpen(true)}
           >
             <UserPlus size={16} /> New Registration
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2 px-6"
-            onClick={() => setIsFamilyLinkModalOpen(true)}
-          >
-            <UserPlus size={16} /> Add Family Link
           </Button>
         </div>
       </div>
@@ -600,36 +362,13 @@ export default function FindRegisterPatientPage() {
           <input
             value={state.filters.search}
             onChange={e => handleSearch(e.target.value)}
-            placeholder={
-              state.filters.searchType === 'NAME' ? "Search by patient name..." :
-              state.filters.searchType === 'MOBILE' ? "Search by mobile number..." :
-              state.filters.searchType === 'EMAIL' ? "Search by email address..." :
-              "Search by email address..."
-            }
+            placeholder="Search by patient name, UHID, or code..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
-            aria-label="Search patients"
+            aria-label="Search patients by name, UHID, or code"
             disabled={state.loading.isLoading}
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          {/* Search Type Dropdown */}
-          <div className="relative flex-1 lg:w-40 group">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <select
-              value={state.filters.searchType}
-              onChange={e => handleSearchTypeChange(e.target.value as 'NAME' | 'MOBILE' | 'EMAIL')}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-              aria-label="Search type filter"
-              disabled={state.loading.isLoading}
-            >
-              <option value="NAME">NAME</option>
-              <option value="MOBILE">MOBILE</option>
-              <option value="EMAIL">EMAIL</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
-          </div>
-
-          {/* Category Dropdown */}
           <div className="relative flex-1 lg:w-48 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
@@ -704,31 +443,13 @@ export default function FindRegisterPatientPage() {
                     <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-4">
-                          {/* Patient Photo */}
-                          {patient.photoUrl ? (
-                            <img
-                              src={
-                                patient.photoUrl.startsWith('http')
-                                  ? patient.photoUrl
-                                  : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'}${patient.photoUrl.startsWith('/') ? '' : '/'}${patient.photoUrl}`
-                              }
-                              alt={`${patient.firstName} ${patient.lastName}`}
-                              className="w-10 h-10 rounded-lg object-cover border-2 border-emerald-100 shadow-sm flex-shrink-0"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
-                              }}
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all flex-shrink-0">
-                              <User size={20} />
-                            </div>
-                          )}
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                            <User size={20} />
+                          </div>
                           <div>
                             <div className="font-bold text-slate-900 tracking-tight group-hover:text-emerald-700 transition-colors text-sm">
                               {patient.firstName} {patient.middleName || ''} {patient.lastName}
-                            </div>                                     
+                            </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               {patient.isActive && (
                                 <Badge variant="success" className="px-1 text-[8px] tracking-tight">
@@ -800,47 +521,18 @@ export default function FindRegisterPatientPage() {
                       <td className="px-6 py-5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            className="p-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 hover:shadow-sm transition-all"
-                            title="View Patient Details"
-                            onClick={() => handleViewPatient(patient.id!)}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                              <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                          </button>
-                          <button
-                            className="p-1.5 bg-blue-50 border border-blue-100 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-100 hover:shadow-sm transition-all"
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
                             title="Edit Patient"
                             onClick={() => handleEditPatient(patient)}
                           >
                             <Edit2 size={14} />
                           </button>
-                            {isDeleting && deletingPatientId === patient.id ? (
-                              <button
-                                className="p-1.5 bg-red-50 border border-red-200 rounded-lg text-red-500 animate-pulse"
-                                disabled
-                                title="Deleting..."
-                              >
-                                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleDeletePatient(patient.id!, `${patient.firstName} ${patient.lastName}`)}
-                                className="p-1.5 bg-red-50 border border-red-100 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-100 hover:shadow-sm transition-all"
-                                title="Delete patient"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="3 6 5 6 21 6"></polyline>
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                  <line x1="10" y1="11" x2="10" y2="17"></line>
-                                  <line x1="14" y1="11" x2="14" y2="17"></line>
-                                </svg>
-                              </button>
-                            )}
+                          <button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="More actions"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
