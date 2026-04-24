@@ -3,15 +3,16 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Metadata } from 'next';
 import RootLayoutClient from './components/layouts/RootLayoutClient';
+import { Toaster } from '@/components/ui/sonner';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'WellnessHive | Integrated Systems Lab Management',
+  title: 'Snehbharat | Integrated Systems Lab Management',
   description: 'Enterprise-grade laboratory and diagnostic management system for seamless clinical workflows and quality control.',
   keywords: ['diagnostic', 'lab management', 'wellnesshive', 'clinical workflow', 'healthcare systems'],
   icons: {
-    icon: '/images/favicon.jpg',
+    icon: '/images/snehbharat-favicon.png',
   },
 };
 
@@ -26,6 +27,7 @@ export default function RootLayout({
         <RootLayoutClient>
           {children}
         </RootLayoutClient>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

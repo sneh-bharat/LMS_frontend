@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
 import {
   User,
   Phone,
@@ -11,45 +13,39 @@ import {
   Building,
   UserPlus,
   Plus,
+  X,
   Trash2,
   AlertCircle,
   Loader,
-  Edit3,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import Button from '@/components/ui/button';
-import Badge from '@/components/ui/badge';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import { Input, Label } from '@/components/ui';
-import { 
-  createPatient, 
-  updatePatient, 
-  CreatePatientInput, 
+import {
+  createPatient,
+  CreatePatientInput,
   Patient,
-  fetchPatientById,
 } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.'];
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'TRANSGENDER'];
 const BLOOD_GROUPS = ['A_POS', 'A_NEG', 'B_POS', 'B_NEG', 'AB_POS', 'AB_NEG', 'O_POS', 'O_NEG'];
-const ADDRESS_TYPES = ['Home', 'Office', 'Permanent', 'Communication'];
+const ADDRESS_TYPES = ['HOME', 'OFFICE', 'PERMANENT', 'COMMUNICATION'];
 const ALLERGY_SEVERITY = ['Mild', 'Moderate', 'Severe'];
 const WHATSAPP_CONSENT = ['YES', 'NO'];
 const REPORT_LANGUAGES = ['ENGLISH', 'HINDI', 'MARATHI', 'TAMIL', 'TELUGU'];
 const PATIENT_CATEGORIES = ['REGULAR', 'VIP', 'CORPORATE', 'TPA', 'CGHS', 'ECHS', 'ESI', 'BPL', 'STAFF'];
 
-// ─── Registration Modal ──────────────────────────────────────────────────────
+// ─── Add Patient Modal ──────────────────────────────────────────────────────
 
-interface RegistrationModalProps {
+interface AddPatientProps {
   isOpen: boolean;
   onClose: () => void;
-  editingPatient?: Patient | null;
 }
 
-function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModalProps) {
-  const isEditMode = !!editingPatient && !!editingPatient.id;
-  
+export function AddPatient({ isOpen, onClose }: AddPatientProps) {
   const [formData, setFormData] = useState({
     firstName: '',
     middleName: '',
@@ -61,7 +57,6 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
     email: '',
     clinicId: 1,
     abhaId: '',
-    referringDoctor: '',
     referringDoctorId: undefined as number | undefined,
     insuranceCompany: '',
     insurancePolicyNo: '',
@@ -73,7 +68,6 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
     patientCategory: 'REGULAR',
     isActive: true,
     addresses: [] as Array<{
-      id?: number;
       addressLine1: string;
       addressLine2: string;
       city: string;
@@ -84,7 +78,6 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
       isPrimary: boolean;
     }>,
     allergies: [] as Array<{
-      id?: number;
       allergyName: string;
       severity: string;
       notedBy: number;
@@ -92,75 +85,27 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
     }>
   });
 
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingPatient, setIsLoadingPatient] = useState(false);
 
-  // ─── Load Patient Data When Editing ──────────────────────────────────────
+  // Reset form when opened
   useEffect(() => {
-    if (isOpen && isEditMode && editingPatient?.id) {
-      loadPatientForEdit(editingPatient.id);
-    } else if (isOpen && !isEditMode) {
+    if (isOpen) {
       resetForm();
     }
-  }, [isOpen, editingPatient?.id]);
+  }, [isOpen]);
 
-  const loadPatientForEdit = async (patientId: number) => {
-    setIsLoadingPatient(true);
-    try {
-      const response = await fetchPatientById(patientId);
-      if (response?.data) {
-        const patient = response.data;
-        setFormData({
-          firstName: patient.firstName || '',
-          middleName: patient.middleName || '',
-          lastName: patient.lastName || '',
-          dateOfBirth: patient.dateOfBirth || '',
-          gender: patient.gender || '',
-          mobilePrimary: patient.mobilePrimary || '',
-          mobileAlternate: patient.mobileAlternate || '',
-          email: patient.email || '',
-          clinicId: patient.clinicId || 1,
-          abhaId: patient.abhaId || '',
-          referringDoctor: patient.referringDoctorId?.toString() || '',
-          referringDoctorId: patient.referringDoctorId,
-          insuranceCompany: patient.insuranceCompany || '',
-          insurancePolicyNo: patient.insurancePolicyNo || '',
-          whatsappConsent: (patient.whatsappConsent as 'YES' | 'NO') || 'YES',
-          reportLanguage: patient.reportLanguage || 'ENGLISH',
-          photoUrl: patient.photoUrl || '',
-          photoFile: undefined,
-          bloodGroup: patient.bloodGroup || '',
-          patientCategory: patient.patientCategory || 'REGULAR',
-          isActive: patient.isActive ?? true,
-          addresses: (patient.addresses || []).map(addr => ({
-            id: addr.id,
-            addressLine1: addr.addressLine1 || '',
-            addressLine2: addr.addressLine2 || '',
-            city: addr.city || '',
-            district: addr.district || '',
-            state: addr.state || '',
-            pinCode: addr.pinCode || '',
-            addressType: addr.addressType || 'Home',
-            isPrimary: addr.isPrimary || false,
-          })),
-          allergies: (patient.allergies || []).map(allergy => ({
-            id: allergy.id,
-            allergyName: allergy.allergyName || '',
-            severity: allergy.severity || 'Moderate',
-            notedBy: allergy.notedBy || 1,
-            remarks: allergy.remarks || '',
-          })),
-        });
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to load patient data';
-      setErrors({ submit: errorMsg });
-      console.error('Error loading patient:', error);
-    } finally {
-      setIsLoadingPatient(false);
+  // Photo preview effect
+  useEffect(() => {
+    if (formData.photoFile) {
+      const objectUrl = URL.createObjectURL(formData.photoFile);
+      setPhotoPreview(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
     }
-  };
+    setPhotoPreview(null);
+  }, [formData.photoFile]);
 
   const resetForm = () => {
     setFormData({
@@ -174,7 +119,6 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
       email: '',
       clinicId: 1,
       abhaId: '',
-      referringDoctor: '',
       referringDoctorId: undefined,
       insuranceCompany: '',
       insurancePolicyNo: '',
@@ -193,47 +137,16 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    } else {
-      const birthDate = new Date(formData.dateOfBirth);
-      const today = new Date();
-      if (birthDate >= today) {
-        newErrors.dateOfBirth = 'Date of birth must be in the past';
-      }
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Gender is required';
-    }
-
-    if (!formData.bloodGroup) {
-      newErrors.bloodGroup = 'Blood group is required';
-    }
-
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (!formData.gender) newErrors.gender = 'Gender is required';
+    if (!formData.bloodGroup) newErrors.bloodGroup = 'Blood group is required';
     if (!formData.mobilePrimary.trim()) {
       newErrors.mobilePrimary = 'Primary mobile number is required';
     } else if (!/^[6-9]\d{9}$/.test(formData.mobilePrimary.replace(/\D/g, ''))) {
       newErrors.mobilePrimary = 'Primary mobile must be a valid 10-digit Indian number';
     }
-
-    if (formData.mobileAlternate && !/^[6-9]\d{9}$/.test(formData.mobileAlternate.replace(/\D/g, ''))) {
-      newErrors.mobileAlternate = 'Alternate mobile must be a valid 10-digit Indian number';
-    }
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -249,12 +162,12 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
         middleName: formData.middleName.trim() || undefined,
         lastName: formData.lastName.trim(),
         dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender as 'MALE' | 'FEMALE' | 'TRANSGENDER' | 'OTHER',
+        gender: formData.gender as any,
         mobilePrimary: formData.mobilePrimary.replace(/\D/g, ''),
         mobileAlternate: formData.mobileAlternate ? formData.mobileAlternate.replace(/\D/g, '') : undefined,
         email: formData.email.toLowerCase().trim() || undefined,
-        bloodGroup: formData.bloodGroup as 'A_POS' | 'A_NEG' | 'B_POS' | 'B_NEG' | 'AB_POS' | 'AB_NEG' | 'O_POS' | 'O_NEG',
-        patientCategory: formData.patientCategory as 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF',
+        bloodGroup: formData.bloodGroup as any,
+        patientCategory: formData.patientCategory as any,
         insuranceCompany: formData.insuranceCompany.trim() || undefined,
         insurancePolicyNo: formData.insurancePolicyNo.trim() || undefined,
         whatsappConsent: formData.whatsappConsent,
@@ -263,74 +176,41 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
         isActive: formData.isActive,
         referringDoctorId: formData.referringDoctorId,
         abhaId: formData.abhaId.trim() || undefined,
-        addresses: formData.addresses.length > 0 ? formData.addresses : undefined,
+        addresses: formData.addresses.length > 0 ? formData.addresses.map(addr => ({
+          addressLine1: addr.addressLine1,
+          addressLine2: addr.addressLine2 || undefined,
+          city: addr.city,
+          district: addr.district,
+          state: addr.state,
+          pinCode: addr.pinCode,
+          addressType: addr.addressType as any,
+          isPrimary: addr.isPrimary,
+        })) : undefined,
         allergies: formData.allergies.length > 0 ? formData.allergies.map(allergy => ({
-          id: allergy.id,
           allergyName: allergy.allergyName,
-          severity: allergy.severity as 'Mild' | 'Moderate' | 'Severe',
+          severity: allergy.severity as any,
           notedBy: allergy.notedBy,
-          remarks: allergy.remarks,
+          remarks: allergy.remarks || undefined,
         })) : undefined,
       };
 
-      let response;
-      if (isEditMode && editingPatient?.id) {
-        response = await updatePatient(editingPatient.id, {
-          ...patientDTO,
-          photoFile: formData.photoFile,
-        } as any);
-        console.log('✅ Patient updated successfully!', response);
-      } else {
-        response = await createPatient({
-          ...patientDTO,
-          photoFile: formData.photoFile,
-        } as any);
-        console.log('✅ Patient registered successfully!', response);
-      }
+      const response = await createPatient({
+        ...patientDTO,
+        photoFile: formData.photoFile,
+      } as any);
 
-      if (response && response.code === 200) {
+      if (response && (response.code === 200 || response.code === 201 || response.response === true)) {
+        toast.success('Patient registered successfully!');
         onClose();
       } else {
-        throw new Error(response?.message || 'Operation failed');
+        toast.error(response?.message || 'Registration failed');
       }
     } catch (err: any) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setErrors({ submit: errorMessage });
+      toast.error(err.message || 'An error occurred');
       console.error('Submission error:', err);
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const addAddress = () => {
-    setFormData(prev => ({
-      ...prev,
-      addresses: [...prev.addresses, {
-        addressLine1: '',
-        addressLine2: '',
-        city: '',
-        district: '',
-        state: '',
-        pinCode: '',
-        addressType: 'Home',
-        isPrimary: prev.addresses.length === 0,
-      }]
-    }));
-  };
-
-  const removeAddress = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      addresses: prev.addresses.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateAddress = (index: number, field: string, value: any) => {
-    setFormData(prev => {
-      const newAddresses = [...prev.addresses];
-      newAddresses[index] = { ...newAddresses[index], [field]: value };
-      return { ...prev, addresses: newAddresses };
-    });
   };
 
   const addAllergy = () => {
@@ -362,31 +242,17 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
 
   const footer = (
     <div className="flex gap-3 justify-end w-full">
-      <Button
-        variant="outline"
-        onClick={onClose}
-        disabled={isSubmitting}
-        className="px-6 py-2 rounded-lg font-bold transition-all text-sm border-slate-300 text-slate-700 disabled:opacity-50"
-      >
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
         Cancel
       </Button>
       <Button
         onClick={handleSubmit}
-        disabled={isSubmitting || isLoadingPatient}
-        className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold hover:from-emerald-600 hover:to-teal-600 transition-all text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
+        disabled={isSubmitting}
+        className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md flex items-center gap-2"
       >
         {isSubmitting && <Loader size={14} className="animate-spin" />}
-        {isEditMode ? (
-          <>
-            <Edit3 size={14} />
-            Update Patient
-          </>
-        ) : (
-          <>
-            <UserPlus size={14} />
-            Register Patient
-          </>
-        )}
+        <UserPlus size={14} />
+        Register Patient
       </Button>
     </div>
   );
@@ -396,638 +262,339 @@ function RegistrationModal({ isOpen, onClose, editingPatient }: RegistrationModa
       isOpen={isOpen}
       onClose={onClose}
       title={
-        isEditMode ? (
-          <>
-            Edit <span className="text-emerald-200">Patient Record</span>
-          </>
-        ) : (
-          <>
-            New <span className="text-emerald-200">Patient Registration</span>
-          </>
-        )
+        <>
+          New <span className="text-emerald-200">Patient Registration</span>
+        </>
       }
-      description={isEditMode ? 'Update Patient Information' : 'Complete Patient Intake Form'}
+      description="Complete Patient Intake Form"
       footer={footer}
       maxWidth="xl"
     >
-      {isLoadingPatient ? (
-        <div className="flex flex-col items-center justify-center py-12 gap-4">
-          <Loader className="animate-spin text-emerald-500" size={32} />
-          <p className="text-slate-600 font-medium">Loading patient data...</p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Section 1: Basic Identity */}
-          <section className="space-y-6">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              01. Basic Identity
-            </h4>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Section 1: Basic Identity */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            01. Basic Identity
+          </h4>
 
-            {/* Name Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  First Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                  placeholder="John"
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.firstName
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.firstName && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.firstName}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Middle Name
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.middleName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, middleName: e.target.value }))}
-                  placeholder="Michael"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Last Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                  placeholder="Doe"
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.lastName
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.lastName && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.lastName}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* DOB, Gender, Blood Group */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Date of Birth <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                  max={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.dateOfBirth
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.dateOfBirth && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.dateOfBirth}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Gender <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-bold focus:ring-4 ${
-                    errors.gender
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                >
-                  <option value="">Select...</option>
-                  {GENDERS.map(g => <option key={g}>{g}</option>)}
-                </select>
-                {errors.gender && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.gender}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Blood Group <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  value={formData.bloodGroup}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium focus:ring-4 ${
-                    errors.bloodGroup
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                >
-                  <option value="">Select...</option>
-                  {BLOOD_GROUPS.map(bg => {
-                    const displayValue = bg.replace('_POS', '+').replace('_NEG', '-');
-                    return (
-                      <option key={bg} value={bg}>
-                        {displayValue}
-                      </option>
-                    );
-                  })}
-                </select>
-                {errors.bloodGroup && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.bloodGroup}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* ABHA ID */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                ABHA ID
-              </Label>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">First Name *</Label>
               <Input
-                type="text"
-                value={formData.abhaId}
-                onChange={(e) => setFormData(prev => ({ ...prev, abhaId: e.target.value }))}
-                placeholder="ABHA123456789"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+                value={formData.firstName}
+                onChange={e => setFormData(p => ({ ...p, firstName: e.target.value }))}
+                placeholder="John"
+                className={errors.firstName ? 'border-rose-300' : 'border-slate-200'}
               />
             </div>
-          </section>
-
-          {/* Section 2: Contact Information */}
-          <section className="space-y-6">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              02. Contact Information
-            </h4>
-
-            {/* Primary Mobile */}
             <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Primary Mobile <span className="text-red-500">*</span>
-              </Label>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Middle Name</Label>
               <Input
-                type="tel"
-                value={formData.mobilePrimary}
-                onChange={(e) => setFormData(prev => ({ ...prev, mobilePrimary: e.target.value }))}
-                placeholder="9876543210"
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                  errors.mobilePrimary
-                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                }`}
+                value={formData.middleName}
+                onChange={e => setFormData(p => ({ ...p, middleName: e.target.value }))}
+                placeholder="Michael"
               />
-              {errors.mobilePrimary && (
-                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.mobilePrimary}
-                </p>
-              )}
             </div>
-
-            {/* Alternate Mobile and Email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Alternate Mobile
-                </Label>
-                <Input
-                  type="tel"
-                  value={formData.mobileAlternate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, mobileAlternate: e.target.value }))}
-                  placeholder="9876543211"
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.mobileAlternate
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.mobileAlternate && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.mobileAlternate}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Email Address
-                </Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="patient@example.com"
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 italic focus:ring-4 ${
-                    errors.email
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.email && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.email}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* WhatsApp Consent */}
             <div>
-              <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                WhatsApp Consent
-              </Label>
-              <div className="flex gap-6">
-                {WHATSAPP_CONSENT.map(option => (
-                  <label key={option} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="whatsappConsent"
-                      value={option}
-                      checked={formData.whatsappConsent === option}
-                      onChange={(e) => setFormData(prev => ({ ...prev, whatsappConsent: e.target.value as 'YES' | 'NO' }))}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-sm font-bold text-slate-700">{option}</span>
-                  </label>
-                ))}
-              </div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Last Name *</Label>
+              <Input
+                value={formData.lastName}
+                onChange={e => setFormData(p => ({ ...p, lastName: e.target.value }))}
+                placeholder="Doe"
+                className={errors.lastName ? 'border-rose-300' : 'border-slate-200'}
+              />
             </div>
-          </section>
+          </div>
 
-          {/* Section 3: Medical & Referral */}
-          <section className="space-y-6">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-4 h-[1px] bg-slate-200"></span>
-              03. Medical & Referral
-            </h4>
-
-            {/* Referring Doctor and Patient Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Referring Doctor ID
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.referringDoctor}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      referringDoctor: val,
-                      referringDoctorId: val ? Number(val) : undefined,
-                    }));
-                  }}
-                  placeholder="Doctor ID or Name"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Patient Category
-                </Label>
-                <select
-                  value={formData.patientCategory}
-                  onChange={(e) => setFormData(prev => ({ ...prev, patientCategory: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                >
-                  {PATIENT_CATEGORIES.map(cat => <option key={cat}>{cat}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Insurance Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Insurance Company
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.insuranceCompany}
-                  onChange={(e) => setFormData(prev => ({ ...prev, insuranceCompany: e.target.value }))}
-                  placeholder="Health Insurance Co"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Insurance Policy No
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.insurancePolicyNo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, insurancePolicyNo: e.target.value }))}
-                  placeholder="POL123456"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
-              </div>
-            </div>
-
-            {/* Report Language and Photo Upload */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Report Language
-                </Label>
-                <select
-                  value={formData.reportLanguage}
-                  onChange={(e) => setFormData(prev => ({ ...prev, reportLanguage: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                >
-                  {REPORT_LANGUAGES.map(lang => <option key={lang}>{lang}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  {isEditMode ? 'Update Photo' : 'Upload Photo'}
-                </Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      photoFile: e.target.files?.[0],
-                    }))
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none text-sm font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                />
-                {formData.photoFile && (
-                  <p className="text-xs text-emerald-600 mt-1">✓ {formData.photoFile.name}</p>
-                )}
-                {isEditMode && formData.photoUrl && !formData.photoFile && (
-                  <p className="text-xs text-slate-500 mt-1">Current: {formData.photoUrl}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Active Status */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
-                />
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Mark as Active Patient</span>
-              </label>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Date of Birth *</Label>
+              <Input
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={e => setFormData(p => ({ ...p, dateOfBirth: e.target.value }))}
+              />
             </div>
-          </section>
-
-          {/* Section 4: Addresses */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-slate-200"></span>
-                04. Addresses
-              </h4>
-              <button
-                type="button"
-                onClick={addAddress}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Gender *</Label>
+              <select
+                value={formData.gender}
+                onChange={e => setFormData(p => ({ ...p, gender: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold"
               >
-                <Plus size={14} /> Add Address
-              </button>
+                <option value="">Select...</option>
+                {GENDERS.map(g => <option key={g}>{g}</option>)}
+              </select>
             </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Blood Group *</Label>
+              <select
+                value={formData.bloodGroup}
+                onChange={e => setFormData(p => ({ ...p, bloodGroup: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200"
+              >
+                <option value="">Select...</option>
+                {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg.replace('_POS', '+').replace('_NEG', '-')}</option>)}
+              </select>
+            </div>
+          </div>
+        </section>
 
-            {formData.addresses.map((address, index) => (
-              <div key={index} className="bg-slate-50 rounded-xl p-6 space-y-4 relative border border-slate-200">
+        {/* Contact Section */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            02. Contact Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Primary Mobile *</Label>
+              <Input
+                value={formData.mobilePrimary}
+                onChange={e => setFormData(p => ({ ...p, mobilePrimary: e.target.value }))}
+                placeholder="9876543210"
+                maxLength={10}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Email Address</Label>
+              <Input
+                value={formData.email}
+                onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
+                placeholder="patient@example.com"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Photo Upload Section */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            03. Profile Photo
+          </h4>
+          <div className="flex items-center gap-4">
+            {photoPreview && (
+              <div className="relative group w-20 h-20 rounded-2xl border-2 border-slate-100 overflow-hidden shadow-sm">
+                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                 <button
                   type="button"
-                  onClick={() => removeAddress(index)}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  onClick={() => {
+                    setFormData(p => ({ ...p, photoFile: undefined }));
+                    setPhotoPreview(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className="absolute inset-0 bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            )}
+            <div className="flex-1">
+              <Input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={e => setFormData(p => ({ ...p, photoFile: e.target.files?.[0] }))}
+                className="w-full border-slate-200 bg-white"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Addresses Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-4 h-[1px] bg-slate-200"></span>
+              04. Address Details
+            </h4>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setFormData(p => ({
+                ...p,
+                addresses: [...p.addresses, {
+                  addressLine1: '', addressLine2: '', city: '', district: '', state: '', pinCode: '', addressType: 'HOME', isPrimary: p.addresses.length === 0
+                }]
+              }))}
+              className="text-[10px] h-7 px-3 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+            >
+              <Plus size={12} className="mr-1" /> Add Address
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {formData.addresses.map((addr, idx) => (
+              <div key={idx} className="p-6 rounded-2xl border border-slate-100 bg-slate-50/30 space-y-4 relative group">
+                <button
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, addresses: p.addresses.filter((_, i) => i !== idx) }))}
+                  className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Address Line 1
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Address Line 1</Label>
                     <Input
-                      value={address.addressLine1}
-                      onChange={(e) => updateAddress(index, 'addressLine1', e.target.value)}
-                      placeholder="123 Main Street"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.addressLine1}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].addressLine1 = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      placeholder="e.g. 123 Main St"
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Address Line 2
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">City</Label>
                     <Input
-                      value={address.addressLine2}
-                      onChange={(e) => updateAddress(index, 'addressLine2', e.target.value)}
-                      placeholder="Apartment 4B"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.city}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].city = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      placeholder="e.g. Mumbai"
                     />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      City
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">District</Label>
                     <Input
-                      value={address.city}
-                      onChange={(e) => updateAddress(index, 'city', e.target.value)}
-                      placeholder="Mumbai"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.district}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].district = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      placeholder="e.g. Suburban"
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      District
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">State</Label>
                     <Input
-                      value={address.district}
-                      onChange={(e) => updateAddress(index, 'district', e.target.value)}
-                      placeholder="Mumbai Suburban"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      State
-                    </Label>
-                    <Input
-                      value={address.state}
-                      onChange={(e) => updateAddress(index, 'state', e.target.value)}
-                      placeholder="Maharashtra"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.state}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].state = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      placeholder="e.g. Maharashtra"
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Pin Code
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Pin Code</Label>
                     <Input
-                      value={address.pinCode}
-                      onChange={(e) => updateAddress(index, 'pinCode', e.target.value)}
-                      placeholder="400001"
-                      maxLength={6}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-mono font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.pinCode}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].pinCode = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      placeholder="e.g. 400001"
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Address Type
-                    </Label>
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Type</Label>
                     <select
-                      value={address.addressType}
-                      onChange={(e) => updateAddress(index, 'addressType', e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      value={addr.addressType}
+                      onChange={e => {
+                        const newAddr = [...formData.addresses];
+                        newAddr[idx].addressType = e.target.value;
+                        setFormData(p => ({ ...p, addresses: newAddr }));
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
                     >
-                      {ADDRESS_TYPES.map(type => <option key={type}>{type}</option>)}
+                      {ADDRESS_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    id={`address-${index}-primary`}
-                    checked={address.isPrimary}
-                    onChange={(e) => {
-                      const newAddresses = formData.addresses.map((addr, i) => ({
-                        ...addr,
-                        isPrimary: i === index ? e.target.checked : false,
-                      }));
-                      setFormData(prev => ({ ...prev, addresses: newAddresses }));
-                    }}
-                    className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
-                  />
-                  <label htmlFor={`address-${index}-primary`} className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Mark as Primary Address
-                  </label>
-                </div>
               </div>
             ))}
+          </div>
+        </section>
 
-            {formData.addresses.length === 0 && (
-              <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                <MapPin size={32} className="mx-auto text-slate-400 mb-2" />
-                <p className="text-sm text-slate-500 font-medium">No addresses added yet</p>
-                <p className="text-xs text-slate-400 mt-1">Click "Add Address" to add patient address</p>
-              </div>
-            )}
-          </section>
+        {/* Allergies Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-4 h-[1px] bg-slate-200"></span>
+              05. Clinical Allergies
+            </h4>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addAllergy}
+              className="text-[10px] h-7 px-3 border-rose-200 text-rose-600 hover:bg-rose-50"
+            >
+              <Plus size={12} className="mr-1" /> Add Allergy
+            </Button>
+          </div>
 
-          {/* Section 5: Allergies */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-slate-200"></span>
-                05. Allergies
-              </h4>
-              <button
-                type="button"
-                onClick={addAllergy}
-                className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 transition-colors"
-              >
-                <Plus size={14} /> Add Allergy
-              </button>
-            </div>
-
-            {formData.allergies.map((allergy, index) => (
-              <div key={index} className="bg-rose-50 border border-rose-200 rounded-xl p-6 space-y-4 relative">
+          <div className="space-y-4">
+            {formData.allergies.map((allergy, idx) => (
+              <div key={idx} className="p-6 rounded-2xl border border-rose-100 bg-rose-50/10 space-y-4 relative">
                 <button
                   type="button"
-                  onClick={() => removeAllergy(index)}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
+                  onClick={() => removeAllergy(idx)}
+                  className="absolute top-4 right-4 text-rose-300 hover:text-rose-600 transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Allergy Name
-                    </Label>
+                    <Label className="text-[10px] font-bold text-rose-600 uppercase mb-1 block">Allergy Name</Label>
                     <Input
                       value={allergy.allergyName}
-                      onChange={(e) => updateAllergy(index, 'allergyName', e.target.value)}
-                      placeholder="Penicillin"
-                      className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                      onChange={e => updateAllergy(idx, 'allergyName', e.target.value)}
+                      placeholder="e.g. Peanuts, Penicillin"
                     />
                   </div>
                   <div>
-                    <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                      Severity
-                    </Label>
+                    <Label className="text-[10px] font-bold text-rose-600 uppercase mb-1 block">Severity</Label>
                     <select
                       value={allergy.severity}
-                      onChange={(e) => updateAllergy(index, 'severity', e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                      onChange={e => updateAllergy(idx, 'severity', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-rose-100 text-xs bg-white"
                     >
-                      {ALLERGY_SEVERITY.map(sev => <option key={sev}>{sev}</option>)}
+                      {ALLERGY_SEVERITY.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                 </div>
-
                 <div>
-                  <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                    Remarks
-                  </Label>
+                  <Label className="text-[10px] font-bold text-rose-600 uppercase mb-1 block">Remarks</Label>
                   <textarea
                     value={allergy.remarks}
-                    onChange={(e) => updateAllergy(index, 'remarks', e.target.value)}
-                    placeholder="Avoid all penicillin-based medications"
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white text-slate-900 placeholder:text-slate-400 transition-all outline-none font-medium focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 resize-none"
+                    onChange={e => updateAllergy(idx, 'remarks', e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-rose-100 bg-white text-xs outline-none focus:ring-4 focus:ring-rose-500/5 transition-all"
+                    rows={2}
+                    placeholder="Describe reaction or symptoms..."
                   />
                 </div>
               </div>
             ))}
+          </div>
+        </section>
 
-            {formData.allergies.length === 0 && (
-              <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                <Activity size={32} className="mx-auto text-slate-400 mb-2" />
-                <p className="text-sm text-slate-500 font-medium">No allergies recorded</p>
-                <p className="text-xs text-slate-400 mt-1">Click "Add Allergy" to add patient allergies</p>
-              </div>
-            )}
-          </section>
-
-          {/* General Error Message */}
-          {errors.submit && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
-              <AlertCircle size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-rose-900 uppercase tracking-widest">Error</p>
-                <p className="text-sm text-rose-700 mt-1">{errors.submit}</p>
-              </div>
-            </div>
-          )}
-        </form>
-      )}
+        {/* Status Section */}
+        <section className="pt-6 border-t border-slate-100">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={e => setFormData(p => ({ ...p, isActive: e.target.checked }))}
+              className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded"
+            />
+            <span className="text-sm font-bold text-slate-700">Set as Active Patient</span>
+          </label>
+        </section>
+      </form>
     </RightDrawer>
   );
 }
-
-export default RegistrationModal;

@@ -295,20 +295,20 @@ export async function createPatient(
     }
 
     const url = `${API_BASE_URL}/patients`;
-    logger.debug('Creating patient', { 
+    logger.debug('Creating patient', {
       patientCode: input.patientCode,
       patientName: `${input.firstName} ${input.lastName}`,
     });
 
     // Create patientRequestDTO object (exclude photoFile from the DTO)
     const { photoFile, ...patientDTO } = input;
-    
+
     // Create FormData
     const formData = new FormData();
-    
+
     // Add patientRequestDTO as JSON string with proper type
     formData.append('patientRequestDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
-    
+
     // Add photo file if provided with explicit field name
     if (photoFile) {
       formData.append('photoUrl', photoFile, photoFile.name);
@@ -328,7 +328,7 @@ export async function createPatient(
     }
 
     const responseData = JSON.parse(responseText);
-    logger.debug('Successfully created patient', { 
+    logger.debug('Successfully created patient', {
       id: responseData.data?.id,
       patientCode: input.patientCode,
     });
@@ -357,21 +357,21 @@ export async function updatePatient(
 ): Promise<ApiResponse<Patient>> {
   try {
     const url = `${API_BASE_URL}/patients/${patientId}`;
-    
+
     // Separate photoFile from the DTO
     const { photoFile, ...patientDTO } = input;
-    
+
     // Create FormData for multipart request
     const formData = new FormData();
-    
+
     console.log('📤 SENDING UPDATE REQUEST');
     console.log('Patient ID:', patientId);
     console.log('Payload being sent:', JSON.stringify(patientDTO, null, 2));
-    
+
     // IMPORTANT: Use 'patientUpdateDTO' as the field name (not 'patientRequestDTO')
     // This matches the backend expectation shown in the curl example
     formData.append('patientUpdateDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
-    
+
     // Add photo file if provided
     if (photoFile) {
       formData.append('photoUrl', photoFile, photoFile.name);
@@ -390,7 +390,7 @@ export async function updatePatient(
     });
 
     const responseText = await response.text();
-    
+
     console.log('📥 RESPONSE RECEIVED');
     console.log('Status:', response.status);
     console.log('Response Text:', responseText);
@@ -403,7 +403,7 @@ export async function updatePatient(
     }
 
     const responseData = JSON.parse(responseText);
-    logger.debug('Successfully updated patient', { 
+    logger.debug('Successfully updated patient', {
       patientId,
       code: responseData.code,
     });
@@ -452,6 +452,48 @@ export async function deletePatient(
 
     const responseData = responseText ? JSON.parse(responseText) : { data: null };
     logger.debug('Successfully deleted patient', { patientId });
+
+    return responseData;
+  } catch (error) {
+    if (ApiErrorHandler.isNetworkError(error)) {
+      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
+      logger.error(message);
+      throw new Error(message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * FETCH PATIENT IMAGE - Fetch patient profile image in base64 format
+ * 
+ * @param patientId - ID of patient to fetch image for
+ * @returns ApiResponse containing base64 image data
+ */
+export async function fetchPatientImage(
+  patientId: number
+): Promise<ApiResponse<string>> {
+  try {
+    const url = `${API_BASE_URL}/patients/image/${patientId}`;
+    logger.debug('Fetching patient image', { patientId });
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      const error = ApiErrorHandler.handle(response, responseText);
+      logger.error('Failed to fetch patient image', error);
+      throw new Error(error.message);
+    }
+
+    const responseData = JSON.parse(responseText);
+    logger.debug('Successfully fetched patient image', { patientId });
 
     return responseData;
   } catch (error) {

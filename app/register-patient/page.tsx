@@ -15,6 +15,7 @@ import {
   X,
   UserPlus,
   MoreVertical,
+  Trash2,
   Database,
   ArrowRightCircle,
   Loader,
@@ -26,10 +27,14 @@ import {
   Activity,
   RefreshCw
 } from 'lucide-react';
+import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import RegistrationModal from './AddPatient';
-import { fetchPatients, Patient, ApiResponse, PaginatedResponse } from '../Apis/Patients/Patient_Service_API';
+import { AddPatient } from './AddPatient';
+import { EditPatient } from './EditPatient';
+import { PatientDetails } from './PatientDetails';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 interface PatientListState {
@@ -116,7 +121,13 @@ function EmptyState() {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function FindRegisterPatientPage() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState<Patient | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [patientIdToDelete, setPatientIdToDelete] = useState<number | null>(null);
   const [state, setState] = useState<PatientListState>({
     patients: [],
     pagination: {
@@ -182,6 +193,7 @@ export default function FindRegisterPatientPage() {
         }));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
+        toast.error(errorMessage);
         setState(prev => ({
           ...prev,
           loading: {
@@ -279,26 +291,96 @@ export default function FindRegisterPatientPage() {
 
   // ─── Handle Edit Patient ─────────────────────────────────────────────────
   const handleEditPatient = useCallback((patient: Patient) => {
-    console.log('=== EDIT BUTTON CLICKED ===', patient);
-    setEditingPatient(patient);
-    setIsRegistrationModalOpen(true);
+    if (patient.id) {
+      setEditingPatientId(patient.id);
+      setIsEditModalOpen(true);
+    }
   }, []);
 
   // ─── Handle Close Modal ──────────────────────────────────────────────────
-  const handleCloseModal = useCallback(() => {
-    console.log('=== MODAL CLOSING ===');
+  const handleCloseRegistration = useCallback(() => {
     setIsRegistrationModalOpen(false);
-    setEditingPatient(null);
-    loadPatients(0, 10, '', 'All');
-  }, [loadPatients]);
+    loadPatients(state.pagination.pageNo, 10, '', 'All');
+  }, [loadPatients, state.pagination.pageNo]);
+
+  const handleCloseEdit = useCallback(() => {
+    setIsEditModalOpen(false);
+    setEditingPatientId(null);
+    loadPatients(state.pagination.pageNo, 10, '', 'All');
+  }, [loadPatients, state.pagination.pageNo]);
+
+  // ─── Handle View Details ────────────────────────────────────────────────
+  const handleViewDetails = async (patientId: number) => {
+    try {
+      const response = await fetchPatientById(patientId);
+      if (response?.data) {
+        setSelectedPatientForDetails(response.data);
+        setIsDetailsOpen(true);
+      }
+    } catch (error) {
+      toast.error('Failed to fetch patient details');
+      console.error('Error fetching patient details:', error);
+    }
+  };
+
+  // ─── Handle Delete Patient ──────────────────────────────────────────────
+  const handleDeletePatient = async (patientId: number) => {
+    setPatientIdToDelete(patientId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!patientIdToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await deletePatient(patientIdToDelete);
+      if (response.response === true || response.code === 200 || response.code === 204 || (!response.code && response.data === null)) {
+        toast.success('Patient record deleted successfully');
+        setIsDetailsOpen(false);
+        setIsDeleteConfirmOpen(false);
+        loadPatients(state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
+      } else {
+        throw new Error(response.message || 'Deletion failed');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete patient';
+      toast.error(errorMessage);
+      console.error('Error deleting patient:', error);
+    } finally {
+      setIsDeleting(false);
+      setPatientIdToDelete(null);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* ═══ REGISTRATION MODAL ═════════════════════════════════════════════ */}
-      <RegistrationModal 
-        isOpen={isRegistrationModalOpen} 
-        onClose={handleCloseModal}
-        editingPatient={editingPatient}
+      <AddPatient
+        isOpen={isRegistrationModalOpen}
+        onClose={handleCloseRegistration}
+      />
+
+      <EditPatient
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEdit}
+        patientId={editingPatientId}
+      />
+
+      <DeleteAlertDialog
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+      />
+
+      <PatientDetails
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setSelectedPatientForDetails(null);
+        }}
+        patient={selectedPatientForDetails}
+        onDelete={handleDeletePatient}
       />
 
       {/* ═══ ALERTS ═════════════════════════════════════════════════════════ */}
@@ -341,9 +423,9 @@ export default function FindRegisterPatientPage() {
           <Button variant="outline" size="sm" className="gap-2 px-6">
             <LayoutGrid size={16} /> Patient View
           </Button>
-          <Button 
-            variant="gradient" 
-            size="sm" 
+          <Button
+            variant="gradient"
+            size="sm"
             className="gap-2 shadow-sm px-8"
             onClick={() => setIsRegistrationModalOpen(true)}
           >
@@ -386,9 +468,9 @@ export default function FindRegisterPatientPage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="rounded-lg p-2.5 border-slate-200"
             onClick={handleRetry}
             disabled={state.loading.isLoading}
@@ -478,18 +560,17 @@ export default function FindRegisterPatientPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs ${
-                          patient.gender === 'MALE' ? 'bg-blue-50 text-blue-600' : 
-                          patient.gender === 'FEMALE' ? 'bg-rose-50 text-rose-600' : 
-                          'bg-purple-50 text-purple-600'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs ${patient.gender === 'MALE' ? 'bg-blue-50 text-blue-600' :
+                          patient.gender === 'FEMALE' ? 'bg-rose-50 text-rose-600' :
+                            'bg-purple-50 text-purple-600'
+                          }`}>
                           {patient.gender?.charAt(0) || '-'}
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-1.5 text-slate-600 text-xs font-bold font-mono">
                           <CalendarIcon size={12} className="text-slate-300" />
-                          {patient.dateOfBirth 
+                          {patient.dateOfBirth
                             ? new Date(patient.dateOfBirth).toLocaleDateString('en-IN')
                             : 'N/A'
                           }
@@ -520,19 +601,28 @@ export default function FindRegisterPatientPage() {
                       </td>
                       <td className="px-6 py-5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button
+                          <Button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="View Details"
+                            onClick={() => patient.id && handleViewDetails(patient.id)}
+                          >
+                            <ArrowRightCircle size={14} />
+                          </Button>
+                          <Button
                             className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
                             title="Edit Patient"
                             onClick={() => handleEditPatient(patient)}
                           >
                             <Edit2 size={14} />
-                          </button>
-                          <button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="More actions"
+                          </Button>
+                          <Button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Delete Patient"
+                            onClick={() => patient.id && handleDeletePatient(patient.id)}
+                            disabled={isDeleting}
                           >
-                            <MoreVertical size={14} />
-                          </button>
+                            <Trash2 size={14} />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -554,7 +644,7 @@ export default function FindRegisterPatientPage() {
                   <Database size={12} /> System Resilience High
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <button
                   onClick={handlePrevPage}
