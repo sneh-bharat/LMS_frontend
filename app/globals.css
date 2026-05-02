@@ -40,6 +40,7 @@
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
   }
+
   .scrollbar-none::-webkit-scrollbar {
     display: none !important;
   }
@@ -79,6 +80,17 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: #00AC80;
+
+
+  --teal: #00ac80;
+  --dark-teal: #006d77;
+  --navy: #1A2B3C;
+  --slate-blue: #325969;
+  --gray-blue: #3a6172;
+  --orange: #ff671f;
+  --light-teal: #cceee6;
+  --deep-teal: #084551;
+  --pale-teal: #f4fbfc;
 }
 
 html,
@@ -119,7 +131,7 @@ body {
   background: #f8fafc;
 }
 
-@theme inline {
+@theme {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -160,6 +172,16 @@ body {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-teal: var(--teal);
+  --color-dark-teal: var(--dark-teal);
+  --color-navy: var(--navy);
+  --color-slate-blue: var(--slate-blue);
+  --color-gray-blue: var(--gray-blue);
+  --color-orange: var(--orange);
+  --color-light-teal: var(--light-teal);
+  --color-deep-teal: var(--deep-teal);
+  --color-pale-teal: var(--pale-teal);
 }
 
 .dark {
@@ -200,9 +222,11 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }

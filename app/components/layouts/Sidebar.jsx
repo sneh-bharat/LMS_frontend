@@ -178,7 +178,7 @@ const NAV = [
     },
 ];
 
-export default function Sidebar({ isOpen }) {
+export default function Sidebar({ isOpen, onExtendSidebar }) {
     const pathname = usePathname();
 
     const getDefaultOpen = () => {
@@ -193,7 +193,11 @@ export default function Sidebar({ isOpen }) {
     const [openGroups, setOpenGroups] = useState(getDefaultOpen);
 
     const toggleGroup = (id) => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            onExtendSidebar?.();
+            setOpenGroups([id]);
+            return;
+        }
         setOpenGroups((prev) =>
             prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
         );
@@ -228,7 +232,7 @@ export default function Sidebar({ isOpen }) {
                         />
                     ) : (
                         <img
-                            src="/images/favicon.jpg"
+                            src="/images/snehbharat-favicon.png"
                             alt="Icon"
                             className="w-full h-full object-contain"
                         />
