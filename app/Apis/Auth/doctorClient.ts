@@ -4,7 +4,7 @@ import axios from 'axios';
  * Professional Axios Instance
  * Centralized configuration for API calls with interceptors for auth and errors.
  */
-const apiClient = axios.create({
+const doctorClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_AUTH,
     headers: {
         'Content-Type': 'application/json',
@@ -12,10 +12,10 @@ const apiClient = axios.create({
 });
 
 // Request Interceptor: Attach tokens if available
-apiClient.interceptors.request.use(
+doctorClient.interceptors.request.use(
     (config) => {
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('doctor-token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -26,14 +26,14 @@ apiClient.interceptors.request.use(
 );
 
 // Response Interceptor: Global error handling
-apiClient.interceptors.response.use(
+doctorClient.interceptors.response.use(
     (response) => response.data,
     (error) => {
         // Handle 401 Unauthorized globally (e.g., redirect to login)
         if (error.response?.status === 401) {
             if (typeof window !== 'undefined') {
                 localStorage.clear();
-                window.location.href = '/login';
+                window.location.href = '/doctor-login';
             }
         }
 
@@ -43,4 +43,4 @@ apiClient.interceptors.response.use(
     }
 );
 
-export default apiClient;
+export default doctorClient;

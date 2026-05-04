@@ -15,7 +15,8 @@ export default function RootLayoutClient({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+  const isLoginPage = pathname === '/login' || pathname === '/doctor-login';
+  const isDoctorRoute = pathname.startsWith('/forDoctors');
 
   const handleToggleSidebar = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -25,10 +26,33 @@ export default function RootLayoutClient({
     }
   };
 
-  if (isLoginPage) {
+  if (isLoginPage || isDoctorRoute) {
     return (
       <main className="min-h-screen bg-[#eceff1]">
-        {children}
+        {isDoctorRoute ? (
+          <div className="flex flex-col h-screen overflow-hidden">
+            <Topbar onToggleSidebar={handleToggleSidebar} />
+            <div className="flex flex-1 overflow-hidden">
+              <div className="hidden md:flex">
+                <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+              </div>
+
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
+                  <div className="h-full flex flex-col ">
+                    <Sidebar isOpen={true} onExtendSidebar={() => { }} />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
+                {children}
+              </main>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </main>
     );
   }

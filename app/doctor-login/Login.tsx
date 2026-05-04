@@ -17,12 +17,12 @@ import {
     Input,
     Label,
 } from '@/components/ui';
-import SnehBharatEmr_Info from './SnehBharatEmr_Info';
 import Image from 'next/image';
 import { useMutation } from '@tanstack/react-query';
-import { authApi } from '../Apis/Auth/auth';
+import { authApi } from '../Apis/Auth/doctor_auth';
 import useDeviceId from '../utils/custom-hooks/UseDeviceId';
 import { useEffect } from 'react';
+import SnehBharatEmr_Info from '../login/SnehBharatEmr_Info';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,9 +34,9 @@ export default function LoginPage() {
 
     // Redirect if already logged in
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('doctor-token');
         if (token) {
-            router.replace('/dashboard');
+            router.replace('/forDoctors/dashboard');
         }
     }, [router]);
 
@@ -46,12 +46,12 @@ export default function LoginPage() {
             if (result.response) {
                 const { token, refreshToken, loginDetails } = result.data;
 
-                localStorage.setItem('token', token);
-                localStorage.setItem('refreshToken', refreshToken);
+                localStorage.setItem('doctor-token', token);
+                localStorage.setItem('doctor-refreshToken', refreshToken);
                 localStorage.setItem('role', loginDetails.role);
 
                 toast.success(result.message || 'Login successful');
-                router.push('/dashboard');
+                router.push('/forDoctors/dashboard');
             } else {
                 toast.error(result.message || 'Login failed');
             }
