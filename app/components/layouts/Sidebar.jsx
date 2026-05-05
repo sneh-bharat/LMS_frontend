@@ -66,7 +66,7 @@ const NAV = [
         children: [
 
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Estimations', href: '/estimation' },
+            { label: 'Estimations', href: 'diagnosis/invoice-details' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Investigations', href: '/investigation' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
@@ -112,6 +112,14 @@ const NAV = [
             { label: 'Invoice List', href: '/reception' },
 
         ],
+    },
+    {
+        id:'',
+        label: 'Daily Worksheet',
+        icon: <Activity size={20} />,
+        children: [
+            { label: 'Daily Worksheet', href: '/dailyworksheet' },
+        ]
     },
     {
         id: 'masters', label: 'Masters',

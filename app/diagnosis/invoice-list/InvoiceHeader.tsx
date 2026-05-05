@@ -1,17 +1,23 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { FileText, Search, Building2, Calendar as CalendarIcon, Filter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Input from '@/components/ui/input';
 import { SEARCH_OPTIONS, CENTRE_OPTIONS, STATUS_OPTIONS } from './constants';
 
 export default function InvoiceHeader() {
-  const today = new Date();
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
-  const dateRange = `${fmt(today)} - ${fmt(today)}`;
+  const [dateRange, setDateRange] = useState<string>('');
+
+  // Calculate date range only on client side to prevent hydration mismatch
+  useEffect(() => {
+    const today = new Date();
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(
+        d.getDate()
+      ).padStart(2, '0')}`;
+    setDateRange(`${fmt(today)} - ${fmt(today)}`);
+  }, []);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -77,7 +83,7 @@ export default function InvoiceHeader() {
 
         <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-xl bg-white text-[11px] font-bold text-slate-700 uppercase tracking-wider">
           <CalendarIcon size={14} className="text-slate-400" />
-          <span>{dateRange}</span>
+          <span>{dateRange || 'Loading...'}</span>
         </div>
 
         <div className="flex items-center gap-2">
