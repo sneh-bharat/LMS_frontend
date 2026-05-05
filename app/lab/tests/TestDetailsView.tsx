@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X,
   Edit2,
@@ -11,19 +11,20 @@ import {
   FileText,
   Beaker,
   Droplet,
-  DollarSign,
   CheckCircle2,
   XCircle,
   Copy,
   Download,
   Share2,
   ListChecks,
-  IndianRupee,
-} from 'lucide-react';
+  Loader2,
+  AlertCircle,
+} from 'lucide-react'; 
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import type { Test } from '@/app/Apis/lab/TestApis';
+import { fetchTestVersions, fetchTestParameters, fetchSampleRequirements } from '@/app/Apis/lab/TestApis';
 
 interface TestDetailsViewProps {
   isOpen: boolean;
@@ -33,7 +34,6 @@ interface TestDetailsViewProps {
   onDelete?: (testId: number) => void;
   onEditSample?: (test: Test) => void;
   onEditParameters?: (test: Test) => void;
-  onEditPricing?: (test: Test) => void;
 }
 
 export default function TestDetailsView({
@@ -44,10 +44,78 @@ export default function TestDetailsView({
   onDelete,
   onEditSample,
   onEditParameters,
-  onEditPricing,
 }: TestDetailsViewProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [parameters, setParameters] = useState<any[]>([]);
+  const [sampleRequirements, setSampleRequirements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch test details when component opens
+  useEffect(() => {
+    if (isOpen && testData?.id) {
+      fetchTestDetails();
+    }
+  }, [isOpen, testData?.id]);
+
+  const fetchTestDetails = async () => {
+    if (!testData?.id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('🔄 Fetching test details for test ID:', testData.id);
+
+      // Fetch all data in parallel, but handle errors individually
+      const promises = [
+        fetchTestVersions(testData.id).catch((err) => {
+          console.error('❌ Failed to fetch versions:', err);
+          return { data: [], message: 'Failed to fetch versions', response: false, status: 'error', timestamp: new Date().toISOString() };
+        }),
+        fetchTestParameters(testData.id).catch((err) => {
+          console.error('❌ Failed to fetch parameters:', err);
+          return { data: [], message: 'Failed to fetch parameters', response: false, status: 'error', timestamp: new Date().toISOString() };
+        }),
+        fetchSampleRequirements(testData.id).catch((err) => {
+          console.error('❌ Failed to fetch samples:', err);
+          return { data: [], message: 'Failed to fetch samples', response: false, status: 'error', timestamp: new Date().toISOString() };
+        }),
+      ];
+
+      const [versionsRes, parametersRes, samplesRes] = await Promise.all(promises);
+
+      console.log('✅ Versions response:', versionsRes);
+      console.log('✅ Parameters response:', parametersRes);
+      console.log('✅ Samples response:', samplesRes);
+
+      // Handle responses - versions can be paginated ({ content: [] }) or a plain array
+      const versionsPayload = (versionsRes as any)?.data;
+      const versionsData = Array.isArray(versionsPayload)
+        ? versionsPayload
+        : Array.isArray(versionsPayload?.content)
+          ? versionsPayload.content
+          : [];
+      const parametersData = (parametersRes as any)?.data || [];
+      const samplesData = (samplesRes as any)?.data || [];
+
+      setVersions(Array.isArray(versionsData) ? versionsData : []);
+      setParameters(Array.isArray(parametersData) ? parametersData : []);
+      setSampleRequirements(Array.isArray(samplesData) ? samplesData : []);
+
+      console.log('📊 Processed data:');
+      console.log('- Versions:', versionsData?.length);
+      console.log('- Parameters:', parametersData?.length);
+      console.log('- Samples:', samplesData?.length);
+    } catch (err: any) {
+      console.error('❌ Error fetching test details:', err);
+      setError(err.message || 'Failed to fetch test details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!testData) return null;
 
@@ -116,15 +184,6 @@ export default function TestDetailsView({
           suppressHydrationWarning
         >
           <ListChecks size={16} /> Edit Parameters
-        </Button>
-      )}
-      {onEditPricing && (
-        <Button
-          onClick={() => onEditPricing(testData)}
-          className="px-6 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition-all text-sm gap-2 flex items-center"
-          suppressHydrationWarning
-        >
-          <IndianRupee size={16} /> Edit Pricing
         </Button>
       )}
     </div>
@@ -241,7 +300,6 @@ export default function TestDetailsView({
           {/* Price */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-emerald-300 transition-all">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign size={16} className="text-emerald-600" />
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                 Price
               </span>
@@ -263,6 +321,230 @@ export default function TestDetailsView({
               {formattedDate}
             </p>
           </div>
+        </div>
+
+        {/* ═══ VERSIONS SECTION ════════════════════════════════════ */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ListChecks size={18} className="text-emerald-600" />
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">
+                Test Versions
+              </h3>
+            </div>
+            <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
+              {versions.length} version{versions.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-emerald-600" />
+              <span className="ml-3 text-slate-600">Loading versions...</span>
+            </div>
+          ) : versions.length === 0 ? (
+            <div className="text-center py-8">
+              <Package size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500 text-sm">No versions available</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {versions.map((version: any, index: number) => (
+                <div
+                  key={version.id || index}
+                  className="border border-slate-200 rounded-lg p-4 hover:border-emerald-300 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                        v{version.versionNo}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900">Version {version.versionNo}</h4>
+                        <p className="text-xs text-slate-500">Method: {version.method}</p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={index === 0 ? 'success' : 'secondary'}
+                      className="text-xs font-bold"
+                    >
+                      {index === 0 ? 'Latest' : 'Older'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Unit</p>
+                      <p className="font-semibold text-slate-900">{version.unit}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Price</p>
+                      <p className="font-semibold text-slate-900">₹{version.price?.toLocaleString('en-IN')}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">CGHS Price</p>
+                      <p className="font-semibold text-slate-900">
+                        {version.cghsPrice ? `₹${version.cghsPrice.toLocaleString('en-IN')}` : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Effective From</p>
+                      <p className="font-semibold text-slate-900">
+                        {version.effectiveFrom ? new Date(version.effectiveFrom).toLocaleDateString('en-IN') : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {version.effectiveTo && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-xs text-slate-500">
+                        <span className="font-semibold">Effective To:</span>{' '}
+                        {new Date(version.effectiveTo).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ PARAMETERS SECTION ═════════════════════════════════ */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Beaker size={18} className="text-emerald-600" />
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">
+                Test Parameters
+              </h3>
+            </div>
+            <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
+              {parameters.length} parameter{parameters.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-emerald-600" />
+              <span className="ml-3 text-slate-600">Loading parameters...</span>
+            </div>
+          ) : parameters.length === 0 ? (
+            <div className="text-center py-8">
+              <Beaker size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500 text-sm">No parameters available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-200">
+                  <tr className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="pb-3 pr-4">Parameter</th>
+                    <th className="pb-3 pr-4">Unit</th>
+                    <th className="pb-3 pr-4">Critical Low</th>
+                    <th className="pb-3 pr-4">Critical High</th>
+                    <th className="pb-3">Type</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {parameters.map((param: any, index: number) => (
+                    <tr key={param.id || index} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 pr-4 font-semibold text-slate-900">
+                        {param.parameterName}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-600">{param.unit}</td>
+                      <td className="py-3 pr-4">
+                        <Badge variant="secondary" className="text-xs font-bold">
+                          {param.criticalLow}
+                        </Badge>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <Badge variant="secondary" className="text-xs font-bold">
+                          {param.criticalHigh}
+                        </Badge>
+                      </td>
+                      <td className="py-3">
+                        <Badge
+                          variant={param.isCalculated ? 'primary' : 'success'}
+                          className="text-xs font-bold"
+                        >
+                          {param.isCalculated ? 'Calculated' : 'Direct'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ SAMPLE REQUIREMENTS SECTION ════════════════════════ */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Droplet size={18} className="text-emerald-600" />
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">
+                Sample Requirements
+              </h3>
+            </div>
+            <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
+              {sampleRequirements.length} sample{sampleRequirements.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-emerald-600" />
+              <span className="ml-3 text-slate-600">Loading samples...</span>
+            </div>
+          ) : sampleRequirements.length === 0 ? (
+            <div className="text-center py-8">
+              <Droplet size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500 text-sm">No sample requirements available</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sampleRequirements.map((sample: any, index: number) => (
+                <div
+                  key={sample.id || index}
+                  className="border border-slate-200 rounded-lg p-4 hover:border-emerald-300 transition-all"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center text-white">
+                      <Droplet size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900">{sample.sampleType}</h4>
+                      <p className="text-xs text-slate-500">
+                        Volume: {sample.volumeMl} ml
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Container</span>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full border border-slate-300"
+                          style={{ backgroundColor: sample.containerColor }}
+                        />
+                        <span className="font-semibold text-slate-900">
+                          {sample.containerColor}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Storage</span>
+                      <span className="font-semibold text-slate-900">
+                        {sample.storageCondition}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ═══ DESCRIPTION SECTION ══════════════════════════════════ */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -9,8 +9,6 @@ import {
   Edit2,
   Trash2,
   Settings,
-  CheckCircle2,
-  XCircle,
   LayoutGrid,
   ChevronDown,
   Eye,
@@ -20,6 +18,8 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import {
   fetchTestCategories,
+  fetchActiveTestCategories,
+  searchTestCategoriesByName,
   createTestCategory,
   updateTestCategory,
   deleteTestCategory,
@@ -34,68 +34,84 @@ function CategoryActions({
   category,
   onView,
   onEdit,
-  onToggleStatus,
   onDelete,
 }: {
   category: TestCategory;
   onView: (category: TestCategory) => void;
   onEdit: (category: TestCategory) => void;
-  onToggleStatus: (id: number, isActive: boolean) => void;
   onDelete: (id: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right - 224 + window.scrollX, // 224 = w-56 (14rem = 224px)
+      });
+    }
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div className="inline-block">
       <button
+        ref={buttonRef}
         onClick={() => setOpen(!open)}
-        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+        className="p-2 hover:bg-emerald-50 rounded-lg transition-all text-slate-400 hover:text-emerald-600 hover:shadow-sm"
       >
-        <MoreHorizontal size={20} />
+        <MoreHorizontal size={18} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
-          <button
-            onClick={() => {
-              onView(category);
-              setOpen(false);
+        <>
+          {/* Backdrop to close dropdown */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setOpen(false)}
+          />
+          <div 
+            className="fixed w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
             }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
           >
-            <Eye size={14} /> View Details
-          </button>
-          <button
-            onClick={() => {
-              onEdit(category);
-              setOpen(false);
-            }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-          >
-            <Edit2 size={14} /> Edit Category
-          </button>
-          <button
-            onClick={() => {
-              console.log('Delete Category button clicked for ID:', category.id);
-              onDelete(category.id);
-              setOpen(false);
-            }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-          >
-            <Trash2 size={14} /> Delete Category
-          </button>
-          <button
-            onClick={() => {
-              console.log('Delete button clicked for ID:', category.id);
-              onDelete(category.id);
-              setOpen(false);
-            }}
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-          >
-            {category.isActive ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
-            {category.isActive ? 'Deactivate' : 'Activate'}
-          </button>
-          <div className="h-[1px] bg-slate-100 my-2"></div>
-        </div>
+            
+            <button
+              onClick={() => {
+                onView(category);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors"
+            >
+              <Eye size={16} strokeWidth={2} />
+              <span>View Details</span>
+            </button>
+            <button
+              onClick={() => {
+                onEdit(category);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+            >
+              <Edit2 size={16} strokeWidth={2} />
+              <span>Edit Category</span>
+            </button>
+            <div className="h-px bg-slate-100 my-1"></div>
+            <button
+              onClick={() => {
+                onDelete(category.id);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+            >
+              <Trash2 size={16} strokeWidth={2} />
+              <span>Delete Category</span>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -112,6 +128,7 @@ export default function TestCategoriesPage() {
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState({
     categoryCode: '',
@@ -128,10 +145,52 @@ export default function TestCategoriesPage() {
     loadCategories();
   }, [currentPage, statusFilter]);
 
+  // Auto-search when typing (debounce with 300ms)
+  useEffect(() => {
+    // Clear previous timer
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    // Only search if 2+ characters
+    if (search && search.trim().length >= 2) {
+      const timer = setTimeout(() => {
+        setCurrentPage(0); // Reset to first page
+        loadCategories();
+      }, 300);
+      setSearchDebounceTimer(timer);
+    } else if (search === '' || search.trim().length === 0) {
+      // Reload categories when search is cleared
+      const timer = setTimeout(() => {
+        setCurrentPage(0);
+        loadCategories();
+      }, 300);
+      setSearchDebounceTimer(timer);
+    }
+
+    // Cleanup timer on unmount
+    return () => {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+      }
+    };
+  }, [search]);
+
   const loadCategories = async () => {
     setLoading(true);
     try {
-      const response = await fetchTestCategories(currentPage, pageSize, search, statusFilter);
+      let response;
+      
+      // If search term exists, use search API
+      if (search && search.trim()) {
+        response = await searchTestCategoriesByName(search, currentPage, pageSize, 'categoryId,asc');
+      } else {
+        // Otherwise use regular endpoints based on status filter
+        response = statusFilter === 'All' 
+          ? await fetchTestCategories(currentPage, pageSize, search, statusFilter)
+          : await fetchActiveTestCategories(currentPage, pageSize, search, statusFilter);
+      }
+      
       setCategories(response.data.content);
       setTotalPages(response.data.totalPages);
       setTotalElements(response.data.totalElements);
@@ -143,8 +202,13 @@ export default function TestCategoriesPage() {
   };
 
   const handleSearch = () => {
+    // Manual search button - just reload with current search term
     setCurrentPage(0);
     loadCategories();
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,15 +260,6 @@ export default function TestCategoriesPage() {
 
   const handleView = (category: TestCategory) => {
     console.log('View category:', category);
-  };
-
-  const handleToggleStatus = async (id: number, isActive: boolean) => {
-    try {
-      await toggleCategoryStatus(id, isActive);
-      loadCategories();
-    } catch (error) {
-      console.error('Failed to toggle status:', error);
-    }
   };
 
   const handleDelete = async (id: number) => {
@@ -277,7 +332,7 @@ export default function TestCategoriesPage() {
           />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search categories..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             suppressHydrationWarning
@@ -309,7 +364,6 @@ export default function TestCategoriesPage() {
           </Button>
         </div>
       </div>
-
       {/* ═══ CATEGORIES TABLE ═══════════════════════════════════ */}
       <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
@@ -403,7 +457,6 @@ export default function TestCategoriesPage() {
                         category={category}
                         onView={handleView}
                         onEdit={handleEdit}
-                        onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
                       />
                     </td>
