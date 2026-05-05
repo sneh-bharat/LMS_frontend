@@ -1,0 +1,96 @@
+import { DailyWorksheetEntry } from './types';
+
+export const SAMPLE_DATA: DailyWorksheetEntry[] = [
+  {
+    id: 1,
+    sampleId: 'S001234',
+    patientName: 'Rajesh Kumar',
+    patientId: 'P001234',
+    testName: 'Blood Glucose (Fasting)',
+    testCode: 'GLU',
+    department: 'Biochemistry',
+    departureTime: '2026-05-05 08:30:00',
+    arrivalTime: '2026-05-05 09:15:00',
+    deptReceivedTime: '2026-05-05 09:20:00',
+    analysisTime: '2026-05-05 09:45:00',
+    resultEntryTime: '2026-05-05 10:30:00',
+    approvalTime: '2026-05-05 11:00:00',
+    status: 'Approved',
+    priority: 'Routine',
+    technician: 'Dr. Anita Sharma'
+  },
+  {
+    id: 2,
+    sampleId: 'S001235',
+    patientName: 'Sunita Devi',
+    patientId: 'P001235',
+    testName: 'Glycated Hemoglobin',
+    testCode: 'HBA1C',
+    department: 'Biochemistry',
+    departureTime: '2026-05-05 09:00:00',
+    arrivalTime: '2026-05-05 09:45:00',
+    deptReceivedTime: '2026-05-05 09:50:00',
+    analysisTime: '2026-05-05 10:15:00',
+    resultEntryTime: '2026-05-05 11:00:00',
+    approvalTime: '',
+    status: 'Completed',
+    priority: 'Urgent',
+    technician: 'Mr. Ramesh Patel'
+  },
+  {
+    id: 3,
+    sampleId: 'S001236',
+    patientName: 'Mohammad Ali',
+    patientId: 'P001236',
+    testName: 'Complete Blood Count - WBC',
+    testCode: 'CBC',
+    department: 'Hematology',
+    departureTime: '2026-05-05 09:30:00',
+    arrivalTime: '2026-05-05 10:00:00',
+    deptReceivedTime: '2026-05-05 10:05:00',
+    analysisTime: '2026-05-05 10:30:00',
+    resultEntryTime: '',
+    approvalTime: '',
+    status: 'In Progress',
+    priority: 'Routine',
+    technician: 'Ms. Priya Singh'
+  },
+  {
+    id: 4,
+    sampleId: 'S001237',
+    patientName: 'Anita Singh',
+    patientId: 'P001237',
+    testName: 'Thyroid Stimulating Hormone',
+    testCode: 'TSH',
+    department: 'Endocrinology',
+    departureTime: '2026-05-05 10:00:00',
+    arrivalTime: '2026-05-05 10:30:00',
+    deptReceivedTime: '',
+    analysisTime: '',
+    resultEntryTime: '',
+    approvalTime: '',
+    status: 'Pending',
+    priority: 'STAT'
+  },
+  {
+    id: 5,
+    sampleId: 'S001238',
+    patientName: 'Vikram Malhotra',
+    patientId: 'P001238',
+    testName: 'Serum Creatinine',
+    testCode: 'CREAT',
+    department: 'Biochemistry',
+    departureTime: '2026-05-05 10:30:00',
+    arrivalTime: '2026-05-05 11:00:00',
+    deptReceivedTime: '2026-05-05 11:05:00',
+    analysisTime: '2026-05-05 11:30:00',
+    resultEntryTime: '2026-05-05 12:15:00',
+    approvalTime: '',
+    status: 'Completed',
+    priority: 'Urgent',
+    technician: 'Dr. Anita Sharma'
+  }
+];
+
+export const DEPARTMENTS = ['Biochemistry', 'Hematology', 'Endocrinology', 'Immunology', 'Microbiology'];
+export const FRANCHISES = ['Main Lab', 'Branch A', 'Branch B', 'Branch C', 'All Franchises'];
