@@ -24,6 +24,12 @@ import { Button } from '@/components/ui';
 // ─────────────────────────────────────────────────────────────────────────────
 const NAV = [
     {
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: <LayoutDashboard size={20} />,
+        href: '/dashboard',
+    },
+    {
         id: 'quick',
         label: 'Quick Activity',
         icon: <Zap size={20} />,
@@ -60,7 +66,7 @@ const NAV = [
         children: [
 
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Estimations', href: '/estimation' },
+            { label: 'Estimations', href: 'diagnosis/invoice-details' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Investigations', href: '/investigation' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
@@ -87,7 +93,7 @@ const NAV = [
             { label: 'Test Packages', href: '/lab/test-packages' },
             { label: 'Units', href: '/lab/units' },
             { label: 'Invoice', href: '/lab/invoice' },
-            { label: 'Lab Tests', href: '/lab/tests' },
+            { label: 'Create Tests', href: '/lab/tests' },
             { label: 'Test Categories', href: '/lab/categories' },
             { label: 'Test Sample ', href: '/lab/sample' },
             { label: 'Sample Receipt', href: '/lab/sample-receipt' },
@@ -106,6 +112,14 @@ const NAV = [
             { label: 'Invoice List', href: '/reception' },
 
         ],
+    },
+    {
+        id:'',
+        label: 'Daily Worksheet',
+        icon: <Activity size={20} />,
+        children: [
+            { label: 'Daily Worksheet', href: '/dailyworksheet' },
+        ]
     },
     {
         id: 'masters', label: 'Masters',
@@ -178,12 +192,12 @@ const NAV = [
     },
 ];
 
-export default function Sidebar({ isOpen }) {
+export default function Sidebar({ isOpen, onExtendSidebar }) {
     const pathname = usePathname();
 
     const getDefaultOpen = () => {
         const match = NAV.find((g) =>
-            g.children.some(
+            g.children?.some(
                 (c) => pathname === c.href || pathname.startsWith(c.href + '/')
             )
         );
@@ -193,7 +207,11 @@ export default function Sidebar({ isOpen }) {
     const [openGroups, setOpenGroups] = useState(getDefaultOpen);
 
     const toggleGroup = (id) => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            onExtendSidebar?.();
+            setOpenGroups([id]);
+            return;
+        }
         setOpenGroups((prev) =>
             prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
         );
@@ -228,7 +246,7 @@ export default function Sidebar({ isOpen }) {
                         />
                     ) : (
                         <img
-                            src="/images/favicon.jpg"
+                            src="/images/snehbharat-favicon.png"
                             alt="Icon"
                             className="w-full h-full object-contain"
                         />
@@ -238,51 +256,81 @@ export default function Sidebar({ isOpen }) {
 
             {/* ═══ NAV ════════════════════════════════════════════════ */}
             <nav className="flex-1 overflow-y-auto overflow-x-hidden pt-6 scrollbar-none">
-                {NAV.map((group) => {
-                    const groupOpen = openGroups.includes(group.id);
-                    const isGroupActive = group.children.some(c => isActive(c.href));
+                {NAV.map((item) => {
+                    const isGroup = !!item.children;
+                    const groupOpen = openGroups.includes(item.id);
+                    const isItemActive = item.href ? isActive(item.href) : item.children?.some(c => isActive(c.href));
 
                     return (
-                        <div key={group.id} className="px-3 mb-2">
-                            {/* ── Group header button ── */}
-                            <button
-                                onClick={() => toggleGroup(group.id)}
-                                title={!isOpen ? group.label : ''}
-                                suppressHydrationWarning
-                                className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
-                                    groupOpen && isOpen
-                                        ? 'bg-white/10 text-white'
-                                        : isGroupActive && !isOpen ? 'bg-[#00AC80]/20 text-[#00AC80]' : 'text-slate-100/70 hover:bg-white/5 hover:text-white'
-                                )}
-                            >
-                                <span className={cn(
-                                    "transition-all duration-200",
-                                    (groupOpen && isOpen) || (isGroupActive && !isOpen) ? 'text-white' : 'text-teal-100/80 group-hover:text-white'
-                                )}>
-                                    {group.icon}
-                                </span>
+                        <div key={item.id} className="px-3 mb-2">
+                            {/* ── Item header (Button or Link) ── */}
+                            {isGroup ? (
+                                <button
+                                    onClick={() => toggleGroup(item.id)}
+                                    title={!isOpen ? item.label : ''}
+                                    suppressHydrationWarning
+                                    className={cn(
+                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+                                        groupOpen && isOpen
+                                            ? 'bg-white/10 text-white'
+                                            : isItemActive && !isOpen ? 'bg-[#00AC80]/20 text-[#00AC80]' : 'text-slate-100/70 hover:bg-white/5 hover:text-white'
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "transition-all duration-200",
+                                        (groupOpen && isOpen) || (isItemActive && !isOpen) ? 'text-white' : 'text-teal-100/80 group-hover:text-white'
+                                    )}>
+                                        {item.icon}
+                                    </span>
 
-                                {isOpen && (
-                                    <>
-                                        <span className="text-sm font-semibold tracking-tight truncate flex-1 text-left">
-                                            {group.label}
+                                    {isOpen && (
+                                        <>
+                                            <span className="text-sm font-semibold tracking-tight truncate flex-1 text-left">
+                                                {item.label}
+                                            </span>
+                                            <ChevronDown size={14} className={cn(
+                                                "opacity-40 transition-transform duration-200",
+                                                groupOpen && "rotate-180 opacity-100"
+                                            )} />
+                                        </>
+                                    )}
+                                </button>
+                            ) : (
+                                <Link
+                                    href={item.href}
+                                    title={!isOpen ? item.label : ''}
+                                    className={cn(
+                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+                                        isItemActive
+                                            ? 'bg-white/10 text-white shadow-sm border border-white/10'
+                                            : 'text-slate-100/70 hover:bg-white/5 hover:text-white'
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "transition-all duration-200",
+                                        isItemActive ? 'text-white' : 'text-teal-100/80 group-hover:text-white'
+                                    )}>
+                                        {item.icon}
+                                    </span>
+
+                                    {isOpen && (
+                                        <span className={cn(
+                                            "text-sm tracking-tight truncate flex-1 text-left",
+                                            isItemActive ? "font-bold" : "font-semibold text-teal-50/70"
+                                        )}>
+                                            {item.label}
                                         </span>
-                                        <ChevronDown size={14} className={cn(
-                                            "opacity-40 transition-transform duration-200",
-                                            groupOpen && "rotate-180 opacity-100"
-                                        )} />
-                                    </>
-                                )}
-                            </button>
+                                    )}
+                                </Link>
+                            )}
 
                             {/* ── Child links ── */}
-                            {isOpen && (
+                            {isGroup && isOpen && (
                                 <div className={cn(
                                     "overflow-hidden transition-all duration-500 ease-in-out",
                                     groupOpen ? 'max-h-[800px] mt-2' : 'max-h-0'
                                 )}>
-                                    {group.children.map((child, index) => {
+                                    {item.children.map((child, index) => {
                                         const active = isActive(child.href);
                                         return (
                                             <Link

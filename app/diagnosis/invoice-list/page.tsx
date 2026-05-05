@@ -1,25 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  Search, 
-  ChevronRight, 
-  FileText, 
-  Calendar as CalendarIcon, 
-  Filter,
-  Building2,
-  CheckCircle2
-} from 'lucide-react';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import Input from '@/components/ui/input';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import InvoiceHeader from './InvoiceHeader';
+import InvoiceTable from './InvoiceTable';
+import { SAMPLE_INVOICES } from './constants';
+import { Invoice } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
@@ -53,134 +39,53 @@ const STATUS_OPTIONS = [
 ] as const;
 
 export default function InvoiceListPage() {
-  const [searchBy, setSearchBy] = useState<string>('UHID');
-  const [searchText, setSearchText] = useState('');
-  const [centre, setCentre] = useState<string>('Select centre');
-  const [status, setStatus] = useState<string>('All');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // Today's date range
-  const today = new Date();
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
-  const dateRange = `${fmt(today)} - ${fmt(today)}`;
+  // Initialize invoices on client side to prevent hydration mismatch
+  useEffect(() => {
+    setInvoices(SAMPLE_INVOICES);
+  }, []);
+
+  // Simple search filter
+  const [search, setSearch] = useState('');
+  const filtered = invoices.filter(invoice => {
+    if (!search) return true;
+    const searchText = search.toLowerCase();
+    return (
+      invoice.invoiceBarcode.toLowerCase().includes(searchText) ||
+      invoice.patientName.toLowerCase().includes(searchText) ||
+      invoice.mobile.includes(searchText) ||
+      invoice.patientId.toString().includes(searchText)
+    );
+  });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* ════════════════════════════════════════════════════════
-          ROW 1 — Header & Search
-      ════════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">List of Invoices</h1>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Manage patient billing and transaction history</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50 w-full">
+      {/* Background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-100/30 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-blue-100/20 to-transparent rounded-full blur-3xl"></div>
+      </div>
 
-          <div className="flex items-center gap-3 flex-1 md:max-w-xl">
-            <div className="w-48">
-              <Select value={searchBy} onValueChange={(val) => setSearchBy(val || '')}>
-                <SelectTrigger className="h-10 bg-slate-50 border-slate-200 font-bold text-xs uppercase tracking-wider text-slate-700">
-                  <SelectValue placeholder="Search by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SEARCH_OPTIONS.map(opt => (
-                    <SelectItem key={opt} value={opt} className="text-xs font-bold uppercase tracking-wider">{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header Section with Search & Filters */}
+        <InvoiceHeader />
 
-            <div className="relative flex-1 group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
-              <Input
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search patient record..."
-                className="pl-10 h-10 w-full"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Invoice Table */}
+        <InvoiceTable invoices={filtered} />
 
-        {/* ════════════════════════════════════════════════════════
-            ROW 2 — Filters
-        ════════════════════════════════════════════════════════ */}
-        <div className="bg-slate-50/50 p-3 flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-2">
-            <Building2 size={14} className="text-slate-400" />
-            <Select value={centre} onValueChange={(v) => setCentre(v || '')}>
-              <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
-                <SelectValue placeholder="Centre" />
-              </SelectTrigger>
-              <SelectContent>
-                {CENTRE_OPTIONS.map(opt => (
-                  <SelectItem key={opt} value={opt} className="text-[11px] font-bold uppercase tracking-wider">{opt}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-xl bg-white text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-            <CalendarIcon size={14} className="text-slate-400" />
-            <span>{dateRange}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-slate-400" />
-            <Select value={status} onValueChange={(v) => setStatus(v || '')}>
-              <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 font-bold text-[11px] uppercase tracking-wider text-slate-700">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(opt => (
-                  <SelectItem key={opt} value={opt} className="text-[11px] font-bold uppercase tracking-wider">{opt}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* ════════════════════════════════════════════════════════
-            TABLE
-        ════════════════════════════════════════════════════════ */}
-        <div className="overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-y border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-16">#</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Invoice & Patient info</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ref Doctor</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Amount</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="group hover:bg-slate-50 transition-colors">
-                <td colSpan={5} className="px-6 py-20">
-                  <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-sm mx-auto">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
-                      <Search size={32} />
-                    </div>
-                    <div>
-                      <h3 className="text-slate-900 font-bold text-sm mb-1">No record found.</h3>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                        Please try with <span className="text-emerald-600 font-bold">different search</span> terms or <span className="text-rose-500 font-bold">filter criteria</span>.
-                      </p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Footer Info */}
+        <div className="mt-6 flex items-center justify-between text-sm">
+          <p className="text-slate-600">
+            Showing <span className="font-bold text-slate-900">{filtered.length}</span> of{' '}
+            <span className="font-bold text-slate-900">{invoices.length}</span> invoices
+          </p>
+          <Badge variant="success" className="gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            All systems operational
+          </Badge>
         </div>
       </div>
     </div>
   );
-}
+}
