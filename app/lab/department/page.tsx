@@ -186,16 +186,31 @@ export default function DepartmentsPage() {
           search: search,
           status: statusFilter
         });
+      } else if (statusFilter === 'Active') {
+        // Use the active departments endpoint
+        response = await departmentApi.getActiveDepartments({
+          pageNo: currentPage,
+          pageSize: pageSize
+        });
+      } else if (statusFilter === 'Inactive') {
+        // Fetch all departments and filter inactive ones on client side
+        response = await departmentApi.getAllDepartments({
+          pageNo: currentPage,
+          pageSize: 100 // Get more to filter client-side
+        });
+        // Filter to show only inactive departments
+        const inactiveDepartments = response.data.content.filter(dept => !dept.isActive);
+        setDepartments(inactiveDepartments);
+        setTotalPages(response.data.totalPages);
+        setTotalElements(inactiveDepartments.length);
+        setLoading(false);
+        return;
       } else {
-        response = statusFilter === 'All' 
-          ? await departmentApi.getAllDepartments({
-              pageNo: currentPage,
-              pageSize: pageSize
-            })
-          : await departmentApi.getActiveDepartments({
-              pageNo: currentPage,
-              pageSize: pageSize
-            });
+        // Show all departments
+        response = await departmentApi.getAllDepartments({
+          pageNo: currentPage,
+          pageSize: pageSize
+        });
       }
       
       setDepartments(response.data.content);
