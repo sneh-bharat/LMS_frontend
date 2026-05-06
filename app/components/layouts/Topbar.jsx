@@ -73,48 +73,48 @@ export default function Topbar({ onToggleSidebar }) {
 
 
 
-            {/* ── Right side ── */}
-            <div className="ml-auto md:ml-0 flex items-center gap-2 md:gap-6 lg:gap-8">
-                {/* Support call info (Hidden on Mobile/Tablet) */}
-                <div className="hidden lg:flex flex-col items-end pr-6 border-r border-slate-200/60">
-                    <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Phone size={14} className="text-[#00AC80]" />
+            {/* ── Right side ─ */}
+            <div className="ml-auto flex items-center gap-6">
+                {/* Support Phone Section */}
+                <div className="hidden sm:flex flex-col items-end pr-4 border-r border-slate-200">
+                    <div className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <Phone size={16} className="text-emerald-500" />
                         08062179988
                     </div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
                         Priority Support Active
                     </div>
                 </div>
 
-                {/* Info Badges (Responsive: Icons only on smaller screens) */}
-                <div className="flex items-center gap-1 md:gap-2">
-                    <button className="p-2.5 md:p-3 text-slate-400 hover:text-[#00AC80] hover:bg-[#00AC80]/5 rounded-xl transition-all relative group" aria-label="Notifications" suppressHydrationWarning>
-                        <Bell size={20} className="group-hover:animate-shake" />
-                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 border-2 border-white rounded-full"></span>
+                {/* Notification Icons */}
+                <div className="hidden md:flex items-center gap-2">
+                    <button className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" aria-label="Notifications" suppressHydrationWarning>
+                        <Bell size={20} />
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
                     </button>
-                    <button className="hidden sm:flex p-2.5 md:p-3 text-slate-400 hover:text-[#00AC80] hover:bg-[#00AC80]/5 rounded-xl transition-all" aria-label="Apps" suppressHydrationWarning>
+                    <button className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" aria-label="Calendar" suppressHydrationWarning>
                         <CalendarCheck size={20} />
                     </button>
                 </div>
 
                 {/* Profile Widget */}
-                <div className="flex items-center gap-2 md:gap-3 p-1 rounded-xl hover:bg-slate-50 transition-all cursor-pointer group">
-                    <div className="flex flex-col items-end pl-1 md:pl-3">
-                        <span className="text-[11px] md:text-xs font-bold text-slate-900 group-hover:text-[#00AC80] transition-colors tracking-tight">Admin User</span>
-                        <span className="text-[9px] md:text-[10px] font-bold text-[#00AC80] uppercase tracking-wider">{userRole}</span>
+                <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold text-slate-900">Admin User</span>
+                        <span className="text-xs font-semibold text-emerald-600 uppercase">{userRole}</span>
                     </div>
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[#0C7372] to-[#3A6172] flex items-center justify-center text-white shadow-md shadow-[#0C7372]/20 transform group-hover:scale-105 transition-transform duration-200">
-                        <User size={18} />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                        <User size={20} />
                     </div>
                 </div>
 
                 {/* Logout Button */}
                 <button
                     onClick={() => setIsLogoutDialogOpen(true)}
-                    className="p-2.5 md:p-3 text-rose-500 hover:text-rose-600 cursor-pointer hover:bg-rose-50 rounded-xl transition-all group lg:ml-2 border border-transparent hover:border-rose-100"
+                    className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                     aria-label="Logout"
                 >
-                    <LogOut size={20} className="group-hover:translate-x-0.5 transition-transform" />
+                    <LogOut size={20} />
                 </button>
 
                 <LogoutConfirmDialog

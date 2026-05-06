@@ -1,13 +1,6 @@
-/**
- * COMPLETE Test API Service
- * 
- * This is the improved version with ALL functions that NewTest.tsx needs
- * Includes: createSampleRequirement, updateSampleRequirement, createTestVersion, createTestParameter
- * 
- * Replace your current TestApis.ts with this file
- */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ;
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_Test ;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -267,12 +260,7 @@ export async function fetchTests(
     if (status) params.append('status', status);
 
     const url = `${normalizedBaseUrl}/tests?${params.toString()}`;
-    console.log('=== FETCH TESTS DEBUG ===');
-    console.log('API_BASE_URL:', normalizedBaseUrl);
-    console.log('Full URL:', url);
-    console.log('Environment variable:', process.env.NEXT_PUBLIC_API_URL);
-    console.log('Request params:', { page, size, search, status });
-
+  
     const response = await fetch(url, {
       method: 'GET',
       headers: {

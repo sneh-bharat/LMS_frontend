@@ -1,150 +1,359 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, Input, Label, RightDrawer } from '@/components/ui';
+import { useState, useEffect } from 'react';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Building2,
+  MapPin,
+  Mail,
+  Phone,
+  Plus,
+  Loader,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Button, Input, Label, RightDrawer } from '@/components/ui';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { branchApi, CreateBranchInput, UpdateBranchInput } from '@/app/Apis/branch/branchApi';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const BRANCH_TYPES = ['MAIN', 'REGIONAL', 'COLLECTION_CENTER', 'FRANCHISE'];
+const COUNTRIES = ['India', 'USA', 'UK', 'Canada', 'Australia'];
+
+// ─── Add Franchise Modal ────────────────────────────────────────────────────
 
 interface AddFranchiseModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSave: (form: Record<string, string>) => void;
-    initialData?: Record<string, string>;
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: {
+    id: string;
+    branchName: string;
+    branchType: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    postalCode: string;
+    contactEmail: string;
+    contactPhone: string;
+  };
 }
 
-export default function AddFranchiseModal({ isOpen, onClose, onSave, initialData }: AddFranchiseModalProps) {
-    const [form, setForm] = useState({
-        name: initialData?.name || '',
-        mobile: initialData?.mobile || '',
-        email: initialData?.email || '',
-        orgType: initialData?.orgType || 'B2B',
-        opType: initialData?.opType || 'Postpaid - Credit',
-        status: initialData?.status || 'Active',
-        amount: initialData?.amount || '',
+export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddFranchiseModalProps) {
+  const [formData, setFormData] = useState({
+    branchName: initialData?.branchName || '',
+    branchType: initialData?.branchType || 'MAIN',
+    address: initialData?.address || '',
+    city: initialData?.city || '',
+    state: initialData?.state || '',
+    country: initialData?.country || 'India',
+    postalCode: initialData?.postalCode || '',
+    contactEmail: initialData?.contactEmail || '',
+    contactPhone: initialData?.contactPhone || '',
+    isActive: true,
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form when opened
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
+  const resetForm = () => {
+    setFormData({
+      branchName: initialData?.branchName || '',
+      branchType: initialData?.branchType || 'MAIN',
+      address: initialData?.address || '',
+      city: initialData?.city || '',
+      state: initialData?.state || '',
+      country: initialData?.country || 'India',
+      postalCode: initialData?.postalCode || '',
+      contactEmail: initialData?.contactEmail || '',
+      contactPhone: initialData?.contactPhone || '',
+      isActive: true,
     });
+    setErrors({});
+  };
 
-    const handleSubmit = () => {
-        onSave(form);
-        onClose();
-    };
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
 
-    return (
-        <RightDrawer
-            isOpen={isOpen}
-            onClose={onClose}
-            title={initialData ? 'Edit Franchise' : 'Add New Franchise'}
-            description="Enter the details of the new diagnostic center or partner lab."
-            footer={
-                <div className="flex w-full gap-3">
-                    <Button variant="outline" className="flex-1" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button variant="gradient" className="flex-1" onClick={handleSubmit}>
-                        {initialData ? 'Update Entity' : 'Save Entity'}
-                    </Button>
-                </div>
-            }
-        >
-            <div className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="name">Franchise Name</Label>
-                    <Input
-                        id="name"
-                        type="text"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        placeholder="Enter franchise name"
-                    />
-                </div>
+    if (!formData.branchName.trim()) {
+      newErrors.branchName = 'Branch name is required';
+    }
 
-                <div className="space-y-2">
-                    <Label htmlFor="mobile">Mobile Number</Label>
-                    <Input
-                        id="mobile"
-                        type="tel"
-                        value={form.mobile}
-                        onChange={(e) => setForm({ ...form, mobile: e.target.value })}
-                        placeholder="Enter mobile number"
-                    />
-                </div>
+    if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
+      newErrors.contactEmail = 'Invalid email format';
+    }
 
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
-                        placeholder="Enter email address"
-                    />
-                </div>
+    if (formData.contactPhone && !/^[\d\s\-\+\(\)]+$/.test(formData.contactPhone)) {
+      newErrors.contactPhone = 'Invalid phone number format';
+    }
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="org-type">Organization Type</Label>
-                        <Select
-                            value={form.orgType}
-                            onValueChange={(value) => setForm({ ...form, orgType: value ?? '' })}
-                        >
-                            <SelectTrigger id="org-type">
-                                <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="B2B">B2B</SelectItem>
-                                <SelectItem value="B2C">B2C</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-                    <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select
-                            value={form.status}
-                            onValueChange={(value) => setForm({ ...form, status: value ?? '' })}
-                        >
-                            <SelectTrigger id="status">
-                                <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validate()) {
+      toast.error('Please fix the form errors');
+      return;
+    }
 
-                <div className="space-y-2">
-                    <Label htmlFor="op-type">Operation Type</Label>
-                    <Select
-                        value={form.opType}
-                        onValueChange={(value) => setForm({ ...form, opType: value ?? '' })}
-                    >
-                        <SelectTrigger id="op-type">
-                            <SelectValue placeholder="Select operation type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Postpaid - Credit">Postpaid - Credit</SelectItem>
-                            <SelectItem value="Prepaid">Prepaid</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+    setIsSubmitting(true);
+    try {
+      if (initialData) {
+        // Update existing branch
+        const updateData: UpdateBranchInput = {
+          branchName: formData.branchName.trim(),
+          branchType: formData.branchType,
+          address: formData.address.trim() || undefined,
+          city: formData.city.trim() || undefined,
+          state: formData.state.trim() || undefined,
+          country: formData.country.trim() || undefined,
+          postalCode: formData.postalCode.trim() || undefined,
+          contactEmail: formData.contactEmail.trim().toLowerCase() || undefined,
+          contactPhone: formData.contactPhone.trim() || undefined,
+        };
+        
+        await branchApi.updateBranch(Number(initialData.id), updateData);
+        toast.success('Branch updated successfully!');
+      } else {
+        // Create new branch
+        const branchData: CreateBranchInput = {
+          branchName: formData.branchName.trim(),
+          branchType: formData.branchType as any,
+          address: formData.address.trim() || undefined,
+          city: formData.city.trim() || undefined,
+          state: formData.state.trim() || undefined,
+          country: formData.country.trim() || 'India',
+          postalCode: formData.postalCode.trim() || undefined,
+          contactEmail: formData.contactEmail.trim().toLowerCase() || undefined,
+          contactPhone: formData.contactPhone.trim() || undefined,
+          isActive: formData.isActive,
+        };
+        
+        await branchApi.createBranch(branchData);
+        toast.success('Branch created successfully!');
+      }
+      
+      onClose();
+    } catch (error: any) {
+      console.error('Failed to save branch:', error);
+      const errorMessage = error?.response?.data?.message || 
+                          error?.response?.data?.data?.errorCode || 
+                          'Failed to save branch. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                <div className="space-y-2">
-                    <Label htmlFor="amount">Initial Amount / Credit Limit</Label>
-                    <Input
-                        id="amount"
-                        type="number"
-                        value={form.amount}
-                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                        placeholder="0.00"
-                    />
-                </div>
+  const footer = (
+    <div className="flex gap-3 justify-end w-full">
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+        Cancel
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        disabled={isSubmitting}
+        className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md flex items-center gap-2"
+      >
+        {isSubmitting && <Loader size={14} className="animate-spin" />}
+        <Plus size={14} />
+        {initialData ? 'Update Branch' : 'Save Branch'}
+      </Button>
+    </div>
+  );
+
+  return (
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <>
+          {initialData ? 'Edit' : 'New'} <span className="text-emerald-200">Branch</span>
+        </>
+      }
+      description="Complete Branch Information Form"
+      footer={footer}
+      maxWidth="xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Section 1: Basic Information */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            01. Basic Information
+          </h4>
+
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Branch Name *</Label>
+            <Input
+              value={formData.branchName}
+              onChange={e => setFormData(p => ({ ...p, branchName: e.target.value }))}
+              placeholder="e.g., Main Branch"
+              className={errors.branchName ? 'border-rose-300' : 'border-slate-200'}
+            />
+            {errors.branchName && (
+              <p className="text-xs text-rose-500 font-medium mt-1">{errors.branchName}</p>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Branch Type *</Label>
+            <Select
+              value={formData.branchType}
+              onValueChange={(value) => setFormData(p => ({ ...p, branchType: value ?? 'MAIN' }))}
+            >
+              <SelectTrigger id="branchType">
+                <SelectValue placeholder="Select branch type" />
+              </SelectTrigger>
+              <SelectContent>
+                {BRANCH_TYPES.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+
+        {/* Section 2: Address Details */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            02. Address Details
+          </h4>
+
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Street Address</Label>
+            <Textarea
+              value={formData.address}
+              onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
+              placeholder="Enter complete street address"
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">City</Label>
+              <Input
+                value={formData.city}
+                onChange={e => setFormData(p => ({ ...p, city: e.target.value }))}
+                placeholder="e.g., Mumbai"
+              />
             </div>
-        </RightDrawer>
-    );
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">State *</Label>
+              <Input
+                value={formData.state}
+                onChange={e => setFormData(p => ({ ...p, state: e.target.value }))}
+                placeholder="e.g., Maharashtra"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Postal Code</Label>
+              <Input
+                value={formData.postalCode}
+                onChange={e => setFormData(p => ({ ...p, postalCode: e.target.value }))}
+                placeholder="e.g., 400001"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Country</Label>
+            <Select
+              value={formData.country}
+              onValueChange={(value) => setFormData(p => ({ ...p, country: value ?? 'India' }))}
+            >
+              <SelectTrigger id="country">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map(country => (
+                  <SelectItem key={country} value={country}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+
+        {/* Section 3: Contact Information */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            03. Contact Information
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Contact Email</Label>
+              <Input
+                type="email"
+                value={formData.contactEmail}
+                onChange={e => setFormData(p => ({ ...p, contactEmail: e.target.value }))}
+                placeholder="e.g., branch@company.com"
+                className={errors.contactEmail ? 'border-rose-300' : 'border-slate-200'}
+              />
+              {errors.contactEmail && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.contactEmail}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Contact Phone</Label>
+              <Input
+                type="tel"
+                value={formData.contactPhone}
+                onChange={e => setFormData(p => ({ ...p, contactPhone: e.target.value }))}
+                placeholder="e.g., +91 6207707624"
+                className={errors.contactPhone ? 'border-rose-300' : 'border-slate-200'}
+              />
+              {errors.contactPhone && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.contactPhone}</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 4: Status */}
+        <section className="space-y-6">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200"></span>
+            04. Branch Status
+          </h4>
+
+          <div>
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Status</Label>
+            <Select
+              value={formData.isActive ? 'ACTIVE' : 'INACTIVE'}
+              onValueChange={(value) => setFormData(p => ({ ...p, isActive: value === 'ACTIVE' }))}
+            >
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="INACTIVE">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </section>
+      </form>
+    </RightDrawer>
+  );
 }

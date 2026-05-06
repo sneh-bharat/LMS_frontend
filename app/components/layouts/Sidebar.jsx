@@ -95,6 +95,7 @@ const NAV = [
             { label: 'Invoice', href: '/lab/invoice' },
             { label: 'Create Tests', href: '/lab/tests' },
             { label: 'Test Categories', href: '/lab/categories' },
+            { label: 'Test Department', href: '/lab/department' },
             { label: 'Test Sample ', href: '/lab/sample' },
             { label: 'Sample Receipt', href: '/lab/sample-receipt' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
