@@ -295,6 +295,11 @@ export default function DepartmentsPage() {
   const handleSubmit = async (data: CreateDepartmentInput) => {
     toast.success(editingDepartment ? 'Department updated successfully!' : 'Department created successfully!');
     loadDepartments();
+    // Reload viewing department if it's open to show updated data
+    if (viewingDepartment && editingDepartment) {
+      const updatedDept = await departmentApi.getDepartmentById(editingDepartment.id);
+      setViewingDepartment(updatedDept.data);
+    }
   };
 
   const handleCloseModal = () => {

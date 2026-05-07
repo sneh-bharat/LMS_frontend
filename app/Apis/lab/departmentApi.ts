@@ -115,7 +115,6 @@ export const departmentApi = {
    */
   createDepartment: async (input: CreateDepartmentInput): Promise<ApiResponse<Department>> => {
     const requestBody = {
-      branchId: input.branchId || 1,
       departmentCode: input.departmentCode,
       departmentName: input.departmentName,
       departmentNameShort: input.departmentNameShort || null,
@@ -123,6 +122,7 @@ export const departmentApi = {
       displayOrder: input.displayOrder || 0,
       isActive: input.isActive !== undefined ? input.isActive : true,
       location: input.location || null,
+      branchId: input.branchId || 1,
       tenantId: input.tenantId || 2,
     };
 
@@ -134,7 +134,22 @@ export const departmentApi = {
    * Endpoint: PUT /api/v1/departments/{id}
    */
   updateDepartment: async (id: number, input: UpdateDepartmentInput): Promise<ApiResponse<Department>> => {
-    return departmentClient.put(`/api/v1/departments/${id}`, input);
+    const requestBody = {
+      departmentCode: input.departmentCode,
+      departmentName: input.departmentName,
+      departmentNameShort: input.departmentNameShort || null,
+      description: input.description || '',
+      displayOrder: input.displayOrder || 0,
+      isActive: input.isActive !== undefined ? input.isActive : true,
+      location: input.location || null,
+      branchId: input.branchId || 1,
+    };
+
+    console.log('Update Department - Input:', input);
+    console.log('Update Department - Request Body:', requestBody);
+    console.log('Update Department - Branch ID:', requestBody.branchId);
+
+    return departmentClient.put(`/api/v1/departments/${id}`, requestBody);
   },
 
   /**

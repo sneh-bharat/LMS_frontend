@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
   fetchTestCategories,
   fetchActiveTestCategories,
@@ -128,7 +129,9 @@ export default function TestCategoriesPage() {
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     categoryCode: '',
@@ -140,66 +143,103 @@ export default function TestCategoriesPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isFirstRender = useRef(true);
 
-  useEffect(() => {
-    loadCategories();
-  }, [currentPage, statusFilter]);
+  // Debounced loadCategories function
+  const loadCategoriesDebounced = useRef(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (searchTerm: string, page: number, filter: string) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          loadCategories(searchTerm, page, filter);
+        }, 300);
+      };
+    })()
+  );
 
-  // Auto-search when typing (debounce with 300ms)
-  useEffect(() => {
-    // Clear previous timer
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-    }
-
-    // Only search if 2+ characters
-    if (search && search.trim().length >= 2) {
-      const timer = setTimeout(() => {
-        setCurrentPage(0); // Reset to first page
-        loadCategories();
-      }, 300);
-      setSearchDebounceTimer(timer);
-    } else if (search === '' || search.trim().length === 0) {
-      // Reload categories when search is cleared
-      const timer = setTimeout(() => {
-        setCurrentPage(0);
-        loadCategories();
-      }, 300);
-      setSearchDebounceTimer(timer);
-    }
-
-    // Cleanup timer on unmount
-    return () => {
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer);
-      }
-    };
-  }, [search]);
-
-  const loadCategories = async () => {
+  const loadCategories = async (
+    searchTerm?: string,
+    page?: number,
+    filter?: string
+  ) => {
     setLoading(true);
     try {
       let response;
+      const currentSearch = searchTerm ?? search;
+      const currentPageNum = page ?? currentPage;
+      const currentFilter = filter ?? statusFilter;
       
       // If search term exists, use search API
-      if (search && search.trim()) {
-        response = await searchTestCategoriesByName(search, currentPage, pageSize, 'categoryId,asc');
+      if (currentSearch && currentSearch.trim().length >= 2) {
+        response = await searchTestCategoriesByName(currentSearch, currentPageNum, pageSize, 'categoryId,asc');
+      } else if (currentFilter === 'Active') {
+        // Use active API endpoint for Active filter
+        response = await fetchActiveTestCategories(currentPageNum, pageSize);
+      } else if (currentFilter === 'Inactive') {
+        // Use regular API with Inactive status filter
+        response = await fetchTestCategories(currentPageNum, pageSize, 'Inactive');
       } else {
-        // Otherwise use regular endpoints based on status filter
-        response = statusFilter === 'All' 
-          ? await fetchTestCategories(currentPage, pageSize, search, statusFilter)
-          : await fetchActiveTestCategories(currentPage, pageSize, search, statusFilter);
+        // Use regular API for listing (All or no filter)
+        response = await fetchTestCategories(currentPageNum, pageSize);
       }
       
-      setCategories(response.data.content);
-      setTotalPages(response.data.totalPages);
-      setTotalElements(response.data.totalElements);
+      console.log('API Response:', response);
+      console.log('Current filter:', currentFilter);
+      
+      // Check if response has the expected structure
+      if (response?.data?.content) {
+        // Response structure: { data: { content: [], totalPages, totalElements }, message, status, ... }
+        setCategories(response.data.content);
+        setTotalPages(response.data.totalPages || 0);
+        setTotalElements(response.data.totalElements || 0);
+      } else if ((response as any)?.content) {
+        // Fallback: response might be directly the paginated data
+        console.warn('Using direct content access');
+        const paginatedData = response as any;
+        setCategories(paginatedData.content || []);
+        setTotalPages(paginatedData.totalPages || 0);
+        setTotalElements(paginatedData.totalElements || 0);
+      } else {
+        // Empty or unexpected structure
+        console.warn('Unexpected response structure:', response);
+        setCategories([]);
+        setTotalPages(0);
+        setTotalElements(0);
+      }
     } catch (error) {
       console.error('Failed to load categories:', error);
+      setCategories([]);
+      setTotalPages(0);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
   };
+
+  // Initial load only
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      loadCategories();
+    }
+  }, []);
+
+  // Reload when page or status filter changes (not on initial render)
+  useEffect(() => {
+    if (!isFirstRender.current) {
+      loadCategories();
+    }
+  }, [currentPage, statusFilter]);
+
+  // Debounced search
+  useEffect(() => {
+    if (isFirstRender.current) return; // Skip on initial render
+
+    // Reset to page 0 when searching
+    setCurrentPage(0);
+    loadCategoriesDebounced.current(search, 0, statusFilter);
+  }, [search]);
 
   const handleSearch = () => {
     // Manual search button - just reload with current search term
@@ -262,14 +302,24 @@ export default function TestCategoriesPage() {
     console.log('View category:', category);
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      try {
-        await deleteTestCategory(id);
-        loadCategories();
-      } catch (error) {
-        console.error('Failed to delete category:', error);
-      }
+  const handleDelete = (id: number) => {
+    setDeletingCategoryId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingCategoryId) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteTestCategory(deletingCategoryId);
+      loadCategories();
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+    } finally {
+      setIsDeleting(false);
+      setDeletingCategoryId(null);
     }
   };
 
@@ -380,7 +430,7 @@ export default function TestCategoriesPage() {
                   Description
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Department ID
+                  Department
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   Display Order
@@ -435,9 +485,14 @@ export default function TestCategoriesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-semibold text-slate-700">
-                        {category.departmentId}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold text-slate-900">
+                          {category.departmentName || 'N/A'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ID: {category.departmentId}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-bold text-slate-900 font-mono">
@@ -513,6 +568,19 @@ export default function TestCategoriesPage() {
           loadCategories();
         }}
         editData={editingCategory}
+      />
+
+      {/* ═══ DELETE CONFIRMATION DIALOG ═══════════════════════════════════ */}
+      <DeleteAlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeletingCategoryId(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Test Category"
+        description="Are you sure you want to permanently delete this test category? This action cannot be undone and all associated tests may be affected."
+        isLoading={isDeleting}
       />
     </div>
   );

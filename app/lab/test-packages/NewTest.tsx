@@ -159,7 +159,7 @@ export default function NewTest({
             testName: test.testName,
             testCode: test.testCode,
             category: test.departmentId?.toString() || 'General',
-            price: test.version?.price,
+            price: test.price,
           }));
           setApiTests(mappedTests);
         } catch (error) {

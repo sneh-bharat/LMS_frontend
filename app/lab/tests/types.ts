@@ -32,17 +32,13 @@ export interface TestItem {
   loincCode: string;
   tatHours: string;
   isActive: boolean;
-  version: {
-    versionNo: number;
-    method: string;
-    unit: string;
-    price: string;
-    cghsPrice: string;
-    criticalLow: string;
-    criticalHigh: string;
-    effectiveFrom: string;
-    effectiveTo: string | null;
-  };
+  // Flat structure (no nested version object)
+  method: string;
+  unit: string;
+  price: string;
+  cghsPrice: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
   parameters: Parameter[];
   sampleRequirements: SampleRequirement[];
 }

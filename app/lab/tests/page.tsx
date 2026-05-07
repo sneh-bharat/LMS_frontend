@@ -253,12 +253,15 @@ export default function TestPackagePage() {
               return test;
             }
 
+            // Merge latest version fields directly into test object (flat structure)
             return {
               ...test,
-              version: {
-                ...(test.version || {}),
-                ...latestVersion,
-              },
+              method: latestVersion.method || test.method,
+              unit: latestVersion.unit || test.unit,
+              price: latestVersion.price || test.price,
+              cghsPrice: latestVersion.cghsPrice || test.cghsPrice,
+              effectiveFrom: latestVersion.effectiveFrom || test.effectiveFrom,
+              effectiveTo: latestVersion.effectiveTo || test.effectiveTo,
             };
           } catch (versionError) {
             console.warn(`Failed to fetch versions for test ${test.id}:`, versionError);
@@ -420,8 +423,9 @@ export default function TestPackagePage() {
   };
 
   const getLatestVersionPrice = (pkg: Test): number | null => {
-    if (typeof pkg.version?.price === 'number') {
-      return pkg.version.price;
+    // Price is now directly on the test object (flat structure)
+    if (typeof pkg.price === 'number') {
+      return pkg.price;
     }
 
     const versions = ((pkg as any)?.versions || (pkg as any)?.testVersions) as Array<{
@@ -574,7 +578,7 @@ export default function TestPackagePage() {
                             {pkg.testName}
                           </div>
                           <div className="text-xs text-slate-500 line-clamp-1">
-                            {pkg.version?.method || 'N/A'} • {pkg.version?.unit || 'N/A'}
+                            {pkg.method || 'N/A'} • {pkg.unit || 'N/A'}
                           </div>
                         </div>
                       </div>

@@ -27,29 +27,41 @@ interface DepartmentDetailsProps {
 }
 
 export function DepartmentDetails({ isOpen, onClose, department, onEdit }: DepartmentDetailsProps) {
-    const [branchName, setBranchName] = useState<string | null>(null);
-    const [loadingBranch, setLoadingBranch] = useState(false);
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [loadingBranches, setLoadingBranches] = useState(false);
 
     useEffect(() => {
-        const loadBranch = async () => {
-            if (isOpen && department?.branchId) {
-                setLoadingBranch(true);
+        const loadBranches = async () => {
+            if (isOpen) {
+                setLoadingBranches(true);
                 try {
-                    const response = await branchApi.getBranchById(department.branchId);
-                    setBranchName(response.data.branchName);
+                    const response = await branchApi.getAllBranches({
+                        page: 0,
+                        size: 100,
+                    });
+                    setBranches(response.data.content);
                 } catch (error) {
-                    console.error('Failed to load branch:', error);
-                    setBranchName(null);
+                    console.error('Failed to load branches:', error);
+                    setBranches([]);
                 } finally {
-                    setLoadingBranch(false);
+                    setLoadingBranches(false);
                 }
             } else {
-                setBranchName(null);
+                setBranches([]);
             }
         };
 
-        loadBranch();
-    }, [isOpen, department?.branchId]);
+        loadBranches();
+    }, [isOpen]);
+
+    // Find the branch name for the current department
+    const currentBranch = department?.branchId 
+        ? branches.find(b => b.id === department.branchId)
+        : null;
+    const branchName = currentBranch?.branchName || null;
+    const branchExists = department?.branchId 
+        ? branches.some(b => b.id === department.branchId)
+        : false;
 
     if (!department) return null;
 
@@ -134,14 +146,18 @@ export function DepartmentDetails({ isOpen, onClose, department, onEdit }: Depar
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
                             <Building2 size={10} /> Branch Name
                         </label>
-                        {loadingBranch ? (
+                        {loadingBranches ? (
                             <div className="flex items-center gap-2">
                                 <Loader2 size={14} className="animate-spin text-slate-400" />
                                 <p className="text-sm text-slate-400">Loading...</p>
                             </div>
-                        ) : (
+                        ) : branchExists ? (
                             <p className="text-sm font-bold text-slate-900">
-                                {branchName}
+                                {branchName || 'Unknown Branch'}
+                            </p>
+                        ) : (
+                            <p className="text-sm text-slate-400 italic">
+                                Branch not found (ID: {department.branchId})
                             </p>
                         )}
                     </div>

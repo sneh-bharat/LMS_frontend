@@ -1,8 +1,7 @@
 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_Test ;
+import departmentClient from './axios';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface ReferenceRange {
   id?: number;
@@ -24,6 +23,7 @@ export interface Parameter {
   isCalculated: boolean;
   calculationFormula?: string;
   sortOrder?: number;
+  displayOrder?: number;
   referenceRanges?: ReferenceRange[];
 }
 
@@ -50,15 +50,29 @@ export interface Test {
   id: number;
   testCode: string;
   testName: string;
-  testNameShort?: string;
+  testNameShort?: string | null;
+  testDescription?: string | null;
   description?: string;
+  branchId: number;
   departmentId: number;
+  departmentName: string;
   categoryId: number;
-  loincCode?: string;
+  categoryName: string;
+  loincCode?: string | null;
   tatHours: number;
+  tatMinutes?: number;
   isActive: boolean;
   isCalculated: boolean;
-  version?: TestVersion;
+  // Version fields (flat structure in response)
+  method?: string | null;
+  unit?: string | null;
+  price: number;
+  cghsPrice?: number | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  // Tenant and audit fields
+  tenantId?: number;
+  // Relationships (if included)
   parameters?: Parameter[];
   sampleRequirements?: SampleRequirement[];
   createdAt: string;
@@ -86,30 +100,33 @@ export interface PaginatedResponse<T> {
 export interface CreateTestInput {
   testCode: string;
   testName: string;
-  description?: string;
+  testNameShort?: string | null;
+  testDescription?: string | null;
   departmentId: number;
   categoryId: number;
-  loincCode?: string;
+  loincCode?: string | null;
   tatHours: number;
+  tatMinutes?: number;
+  method: string;
+  unit?: string | null;
+  price: number;
+  cghsPrice?: number | null;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  branchId: number;
   isActive?: boolean;
-  version: {
-    versionNo: number;
-    method: string;
-    unit: string;
-    price: number;
-    cghsPrice?: number;
-    effectiveFrom: string;
-    effectiveTo?: string;
-  };
+  isCalculated?: boolean;
   parameters?: Array<{
+    parameterCode: string;
     parameterName: string;
+    displayOrder?: number;
     unit: string;
+    decimalPlaces?: number;
     criticalLow?: number;
     criticalHigh?: number;
-    resultType: string;
     isCalculated: boolean;
+    resultType: string;
     calculationFormula?: string;
-    sortOrder?: number;
     referenceRanges?: Array<{
       gender: string;
       ageMin: number;
@@ -124,37 +141,41 @@ export interface CreateTestInput {
     volumeMl: number;
     containerColor: string;
     storageCondition: string;
+    isMandatory?: boolean;
   }>;
 }
 
 export interface UpdateTestInput {
   testCode?: string;
   testName?: string;
-  description?: string;
+  testNameShort?: string | null;
+  testDescription?: string | null;
   departmentId?: number;
   categoryId?: number;
-  loincCode?: string;
+  branchId?: number;
+  loincCode?: string | null;
   tatHours?: number;
+  tatMinutes?: number;
+  method?: string;
+  unit?: string | null;
+  price?: number;
+  cghsPrice?: number | null;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
   isActive?: boolean;
-  version?: {
-    versionNo: number;
-    method: string;
-    unit: string;
-    price: number;
-    cghsPrice?: number;
-    effectiveFrom: string;
-    effectiveTo: string;
-  };
+  isCalculated?: boolean;
   parameters?: Array<{
     id?: number;
+    parameterCode?: string;
     parameterName: string;
+    displayOrder?: number;
     unit: string;
+    decimalPlaces?: number;
     criticalLow: number;
     criticalHigh: number;
-    resultType: string;
     isCalculated: boolean;
+    resultType: string;
     calculationFormula?: string;
-    sortOrder?: number;
     referenceRanges?: Array<{
       id?: number;
       gender: string;
@@ -171,6 +192,7 @@ export interface UpdateTestInput {
     volumeMl: number;
     containerColor: string;
     storageCondition: string;
+    isMandatory?: boolean;
   }>;
 }
 
@@ -238,174 +260,60 @@ export interface ParameterResponse {
 
 /**
  * GET ALL TESTS - Fetch all tests with pagination and filters
+ * Endpoint: GET /api/v1/tests?pageNo=0&pageSize=10
  */
 export async function fetchTests(
-  page: number = 0,
-  size: number = 10,
+  pageNo: number = 0,
+  pageSize: number = 10,
   search?: string,
   status?: string
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
-    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
-    if (!normalizedBaseUrl) {
-      throw new Error('NEXT_PUBLIC_API_URL is not configured');
-    }
-
     const params = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString(),
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
     });
 
     if (search) params.append('search', search);
     if (status) params.append('status', status);
 
-    const url = `${normalizedBaseUrl}/tests?${params.toString()}`;
-  
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-    
-    console.log('Response status:', response.status);
-    console.log('Response type:', response.type);
-    console.log('Response URL:', response.url);
-    
-    const responseText = await response.text();
-    const contentType = (response.headers.get('content-type') || '').toLowerCase();
-    let parsedData: unknown = null;
+    const url = `/api/v1/tests?${params.toString()}`;
+    console.log('📡 Fetching tests from:', url);
 
-    if (responseText.trim().length > 0) {
-      const looksLikeJson =
-        contentType.includes('application/json') ||
-        responseText.trim().startsWith('{') ||
-        responseText.trim().startsWith('[');
-
-      if (looksLikeJson) {
-        try {
-          parsedData = JSON.parse(responseText);
-        } catch {
-          parsedData = null;
-        }
-      }
-    }
-    console.log('Response text (first 200 chars):', responseText.substring(0, 200));
-
-    if (!response.ok) {
-      const errorData =
-        parsedData && typeof parsedData === 'object'
-          ? (parsedData as Record<string, unknown>)
-          : { raw: responseText };
-      const errorMessage =
-        typeof errorData.message === 'string'
-          ? errorData.message
-          : typeof errorData.error === 'string'
-            ? errorData.error
-            : 'Failed to fetch tests';
-
-      console.error('❌ ERROR FETCHING TESTS');
-      console.error('HTTP Status:', response.status);
-      console.error('HTTP Status Text:', response.statusText);
-      console.error('Error data:', errorData);
-      throw new Error(`[${response.status}] ${errorMessage}`);
-    }
-
-    if (!parsedData || typeof parsedData !== 'object') {
-      throw new Error(
-        `Invalid response format from /tests (status ${response.status}). Expected JSON object.`
-      );
-    }
-
-    const responseData = parsedData as ApiResponse<PaginatedResponse<Test>>;
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
     console.log('✅ Tests loaded successfully');
-    console.log('Tests count:', responseData.data?.content?.length || 0);
+    console.log('Tests count:', response?.content?.length || 0);
     
-    return responseData;
+    return response;
   } catch (error) {
     console.error('=== FETCH TESTS ERROR ===');
     console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
     console.error('Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
-    
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      const debugBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '') || 'API_BASE_URL_MISSING';
-      console.error('\n🔌 NETWORK ERROR DETECTED:');
-      console.error('- The server might be unreachable');
-      console.error('- Check if the backend server is running');
-      console.error('- Check your internet connection');
-      console.error('- Check if CORS is configured on the server');
-      console.error('- Try accessing the API directly in browser:', `${debugBaseUrl}/tests`);
-    }
-    
     throw error;
   }
 }
 
 /**
  * GET ACTIVE TESTS - Fetch active tests only
- * Endpoint: GET /tests/active?page=0&size=10
+ * Endpoint: GET /api/v1/tests/active?pageNo=0&pageSize=10
  */
 export async function fetchActiveTests(
-  page: number = 0,
-  size: number = 10
+  pageNo: number = 0,
+  pageSize: number = 10
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
-    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
-    if (!normalizedBaseUrl) {
-      throw new Error('NEXT_PUBLIC_API_URL is not configured');
-    }
-
     const params = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString(),
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
     });
 
-    const url = `${normalizedBaseUrl}/tests/active?${params.toString()}`;
-    console.log('=== FETCH ACTIVE TESTS DEBUG ===');
-    console.log('API_BASE_URL:', normalizedBaseUrl);
-    console.log('Full URL:', url);
+    const url = `/api/v1/tests/active?${params.toString()}`;
+    console.log('📡 Fetching active tests from:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-    if (!response.ok) {
-      let errorData: Record<string, unknown> = { raw: responseText };
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        // keep raw response for error context
-      }
-      console.error('❌ ERROR FETCHING ACTIVE TESTS');
-      console.error('HTTP Status:', response.status);
-      console.error('Error data:', errorData);
-      throw new Error(`[${response.status}] Failed to fetch active tests`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: {
-          content: [],
-          totalElements: 0,
-          totalPages: 0,
-          pageNo: page,
-          pageSize: size,
-          first: page === 0,
-          last: true,
-        },
-        message: 'No active tests found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    return JSON.parse(responseText) as ApiResponse<PaginatedResponse<Test>>;
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
+    console.log('✅ Active tests loaded successfully');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching active tests:', error);
     throw error;
@@ -414,35 +322,16 @@ export async function fetchActiveTests(
 
 /**
  * GET TEST BY ID
+ * Endpoint: GET /api/v1/tests/{testId}
  */
 export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}`;
-    console.log('📡 Fetching test:', url);
+    const url = `/api/v1/tests/${testId}`;
+    console.log('📡 Fetching test from:', url);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-    
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error fetching test:', response.status);
-      throw new Error(`[${response.status}] Failed to fetch test`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Test loaded');
-    return responseData;
+    const response = await departmentClient.get<ApiResponse<Test>>(url);
+    console.log('✅ Test loaded successfully');
+    return response.data;
   } catch (error) {
     console.error('Error fetching test:', error);
     throw error;
@@ -451,29 +340,21 @@ export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> 
 
 /**
  * GET TEST BY CODE
- * Endpoint: GET /tests/code/{testCode}
+ * Endpoint: GET /api/v1/tests/code/{testCode}
  */
 export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Test | null>> {
   try {
-    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
-    if (!normalizedBaseUrl) {
-      throw new Error('NEXT_PUBLIC_API_URL is not configured');
-    }
-
     const encodedCode = encodeURIComponent(testCode.trim());
-    const url = `${normalizedBaseUrl}/tests/code/${encodedCode}`;
-    console.log('📡 Fetching test by code:', url);
+    const url = `/api/v1/tests/code/${encodedCode}`;
+    console.log('📡 Fetching test by code from:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (response.status === 404) {
+    const response = await departmentClient.get<ApiResponse<Test>>(url);
+    console.log('✅ Test by code loaded successfully');
+    
+    return response.data;
+  } catch (error: any) {
+    // Return null for 404
+    if (error.response?.status === 404) {
       return {
         data: null,
         message: 'Test not found',
@@ -482,24 +363,6 @@ export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Tes
         timestamp: new Date().toISOString(),
       };
     }
-
-    if (!response.ok) {
-      console.error('❌ Error fetching test by code:', response.status);
-      throw new Error(`[${response.status}] Failed to fetch test by code`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: null,
-        message: 'Test not found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    return JSON.parse(responseText) as ApiResponse<Test>;
-  } catch (error) {
     console.error('Error fetching test by code:', error);
     throw error;
   }
@@ -507,67 +370,28 @@ export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Tes
 
 /**
  * SEARCH TESTS BY NAME
- * Endpoint: GET /tests/search?name={name}&page=0&size=10&sort=testId,asc
+ * Endpoint: GET /api/v1/tests/search?categoryName={name}&pageNo=0&pageSize=10
  */
 export async function searchTestsByName(
   name: string,
-  page: number = 0,
-  size: number = 10
+  pageNo: number = 0,
+  pageSize: number = 10
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
-    const normalizedBaseUrl = API_BASE_URL?.trim().replace(/\/+$/, '');
-    if (!normalizedBaseUrl) {
-      throw new Error('NEXT_PUBLIC_API_URL is not configured');
-    }
-
     const params = new URLSearchParams({
-      name: name.trim(),
-      page: page.toString(),
-      size: size.toString(),
-      sort: 'testId,asc',
+      categoryName: name.trim(),
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
+      sort: 'categoryId,asc',
     });
 
-    const url = `${normalizedBaseUrl}/tests/search?${params.toString()}`;
-    console.log('📡 Searching tests by name:', url);
+    const url = `/api/v1/tests/search?${params.toString()}`;
+    console.log('📡 Searching tests by name from:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-    if (!response.ok) {
-      let errorData: Record<string, unknown> = { raw: responseText };
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        // keep raw
-      }
-      console.error('❌ Error searching tests by name:', response.status, errorData);
-      throw new Error(`[${response.status}] Failed to search tests by name`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: {
-          content: [],
-          totalElements: 0,
-          totalPages: 0,
-          pageNo: page,
-          pageSize: size,
-          first: page === 0,
-          last: true,
-        },
-        message: 'No tests found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    return JSON.parse(responseText) as ApiResponse<PaginatedResponse<Test>>;
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url);
+    console.log('✅ Search results loaded successfully');
+    
+    return response.data;
   } catch (error) {
     console.error('Error searching tests by name:', error);
     throw error;
@@ -576,83 +400,19 @@ export async function searchTestsByName(
 
 /**
  * CREATE TEST
+ * Endpoint: POST /api/v1/tests
  */
 export async function createTest(
   input: CreateTestInput
 ): Promise<ApiResponse<Test>> {
   try {
-    const url = `${API_BASE_URL}/tests`;
+    const url = `/api/v1/tests`;
     console.log('📡 Creating test...');
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error creating test:', response.status);
-      throw new Error(`[${response.status}] Failed to create test`);
-    }
-
-    const responseData = responseText?.trim()
-      ? JSON.parse(responseText)
-      : {
-          data: null,
-          message: 'Test created successfully',
-          response: true,
-          status: String(response.status),
-          timestamp: new Date().toISOString(),
-        };
-
-    // Some backend variants return success with data: null.
-    // Resolve and normalize created test so callers reliably receive an ID.
-    const existingId =
-      responseData?.data?.id ||
-      responseData?.data?.testId;
-
-    if (!existingId) {
-      const locationHeader = response.headers.get('location');
-      const locationIdMatch = locationHeader?.match(/\/tests\/(\d+)(?:\/|$)/);
-      const locationId = locationIdMatch ? Number(locationIdMatch[1]) : undefined;
-
-      if (locationId) {
-        try {
-          const byIdResponse = await fetchTestById(locationId);
-          responseData.data = byIdResponse?.data || responseData.data;
-        } catch (lookupByIdError) {
-          console.warn('⚠️ Could not resolve created test from Location header:', lookupByIdError);
-        }
-      }
-    }
-
-    if (!responseData?.data?.id && input.testCode) {
-      try {
-        const lookupResponse = await fetchTests(0, 20, input.testCode);
-        const matched = lookupResponse?.data?.content?.find(
-          (item) => item?.testCode?.toLowerCase?.() === input.testCode.toLowerCase()
-        );
-        if (matched?.id) {
-          responseData.data = matched;
-        }
-      } catch (lookupError) {
-        console.warn('⚠️ Could not resolve created test by search:', lookupError);
-      }
-    }
-
-    console.log('✅ Test created');
-    return responseData;
+    const response = await departmentClient.post<ApiResponse<Test>>(url, input) as any;
+    console.log('✅ Test created successfully');
+    
+    return response;
   } catch (error) {
     console.error('Error creating test:', error);
     throw error;
@@ -661,40 +421,20 @@ export async function createTest(
 
 /**
  * UPDATE TEST
+ * Endpoint: PUT /api/v1/tests/{testId}
  */
 export async function updateTest(
   testId: number,
   input: UpdateTestInput
 ): Promise<ApiResponse<Test>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}`;
+    const url = `/api/v1/tests/${testId}`;
     console.log('📡 Updating test...');
 
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error updating test:', response.status);
-      throw new Error(`[${response.status}] Failed to update test`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Test updated');
-    return responseData;
+    const response = await departmentClient.put<ApiResponse<Test>>(url, input) as any;
+    console.log('✅ Test updated successfully');
+    
+    return response;
   } catch (error) {
     console.error('Error updating test:', error);
     throw error;
@@ -703,35 +443,17 @@ export async function updateTest(
 
 /**
  * DELETE TEST
+ * Endpoint: DELETE /api/v1/tests/{testId}
  */
 export async function deleteTest(testId: number): Promise<ApiResponse<void>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}`;
+    const url = `/api/v1/tests/${testId}`;
     console.log('📡 Deleting test...');
 
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error deleting test:', response.status);
-      throw new Error(`[${response.status}] Failed to delete test`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Test deleted');
-    return responseData;
+    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    console.log('✅ Test deleted successfully');
+    
+    return response;
   } catch (error) {
     console.error('Error deleting test:', error);
     throw error;
@@ -740,40 +462,20 @@ export async function deleteTest(testId: number): Promise<ApiResponse<void>> {
 
 /**
  * TOGGLE TEST STATUS
+ * Endpoint: PATCH /api/v1/tests/{testId}/status
  */
 export async function toggleTestStatus(
   testId: number,
   isActive: boolean
 ): Promise<ApiResponse<Test>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/status`;
+    const url = `/api/v1/tests/${testId}/status`;
     console.log('📡 Toggling status...');
     
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ isActive }),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error toggling status:', response.status);
-      throw new Error(`[${response.status}] Failed to toggle status`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Status toggled');
-    return responseData;
+    const response = await departmentClient.patch<ApiResponse<Test>>(url, { isActive }) as any;
+    console.log('✅ Status toggled successfully');
+    
+    return response;
   } catch (error) {
     console.error('Error toggling status:', error);
     throw error;
@@ -784,25 +486,20 @@ export async function toggleTestStatus(
 
 /**
  * FETCH SAMPLE REQUIREMENTS
+ * Endpoint: GET /api/v1/tests/{testId}/sample-requirements
  */
 export async function fetchSampleRequirements(
   testId: number
 ): Promise<ApiResponse<any>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/sample-requirements`;
-    console.log('📡 Fetching sample requirements...');
+    const url = `/api/v1/tests/${testId}/sample-requirements`;
+    console.log('📡 Fetching sample requirements from:', url);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-    
-    const responseText = await response.text();
-
-    if (response.status === 404) {
-      console.warn('⚠️  No sample requirements found');
+    const response = await departmentClient.get<ApiResponse<any>>(url) as any;
+    console.log('✅ Sample requirements loaded successfully');
+    return response;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
       return {
         data: [],
         message: 'No sample requirements found',
@@ -811,32 +508,6 @@ export async function fetchSampleRequirements(
         timestamp: new Date().toISOString(),
       };
     }
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error fetching sample requirements:', response.status);
-      throw new Error(`[${response.status}] Failed to fetch sample requirements`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: [],
-        message: 'No sample requirements found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Sample requirements loaded');
-    return responseData;
-  } catch (error) {
     console.error('Error fetching sample requirements:', error);
     throw error;
   }
@@ -844,40 +515,19 @@ export async function fetchSampleRequirements(
 
 /**
  * CREATE SAMPLE REQUIREMENT
+ * Endpoint: POST /api/v1/tests/{testId}/sample-requirements
  */
 export async function createSampleRequirement(
   testId: number,
   input: CreateSampleRequirementInput
 ): Promise<ApiResponse<SampleRequirementResponse>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/sample-requirements`;
+    const url = `/api/v1/tests/${testId}/sample-requirements`;
     console.log('📡 Creating sample requirement...');
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error creating sample requirement:', response.status);
-      throw new Error(`[${response.status}] Failed to create sample requirement`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Sample requirement created');
-    return responseData;
+    const response = await departmentClient.post<ApiResponse<SampleRequirementResponse>>(url, input) as any;
+    console.log('✅ Sample requirement created successfully');
+    return response;
   } catch (error) {
     console.error('Error creating sample requirement:', error);
     throw error;
@@ -886,6 +536,7 @@ export async function createSampleRequirement(
 
 /**
  * UPDATE SAMPLE REQUIREMENT
+ * Endpoint: PUT /api/v1/tests/{testId}/sample-requirements/{requirementId}
  */
 export async function updateSampleRequirement(
   testId: number,
@@ -893,34 +544,12 @@ export async function updateSampleRequirement(
   input: UpdateSampleRequirementInput
 ): Promise<ApiResponse<SampleRequirementResponse>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`;
+    const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
     console.log('📡 Updating sample requirement...');
 
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error updating sample requirement:', response.status);
-      throw new Error(`[${response.status}] Failed to update sample requirement`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Sample requirement updated');
-    return responseData;
+    const response = await departmentClient.put<ApiResponse<SampleRequirementResponse>>(url, input) as any;
+    console.log('✅ Sample requirement updated successfully');
+    return response;
   } catch (error) {
     console.error('Error updating sample requirement:', error);
     throw error;
@@ -929,38 +558,19 @@ export async function updateSampleRequirement(
 
 /**
  * DELETE SAMPLE REQUIREMENT
+ * Endpoint: DELETE /api/v1/tests/{testId}/sample-requirements/{requirementId}
  */
 export async function deleteSampleRequirement(
   testId: number,
   requirementId: number
 ): Promise<ApiResponse<void>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/sample-requirements/${requirementId}`;
+    const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
     console.log('📡 Deleting sample requirement...');
 
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error deleting sample requirement:', response.status);
-      throw new Error(`[${response.status}] Failed to delete sample requirement`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Sample requirement deleted');
-    return responseData;
+    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    console.log('✅ Sample requirement deleted successfully');
+    return response;
   } catch (error) {
     console.error('Error deleting sample requirement:', error);
     throw error;
@@ -971,6 +581,7 @@ export async function deleteSampleRequirement(
 
 /**
  * FETCH TEST VERSIONS
+ * Endpoint: GET /api/v1/tests/{testId}/versions?pageNo=0&pageSize=10
  */
 export async function fetchTestVersions(testId: number): Promise<ApiResponse<TestVersion[]>> {
   try {
@@ -978,20 +589,14 @@ export async function fetchTestVersions(testId: number): Promise<ApiResponse<Tes
       pageNo: '0',
       pageSize: '10',
     });
-    const url = `${API_BASE_URL}/tests/${testId}/versions?${params.toString()}`;
-    console.log('📡 Fetching test versions...');
+    const url = `/api/v1/tests/${testId}/versions?${params.toString()}`;
+    console.log('📡 Fetching test versions from:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (response.status === 404) {
-      console.warn('⚠️  No versions found');
+    const response = await departmentClient.get<ApiResponse<TestVersion[]>>(url) as any;
+    console.log('✅ Test versions loaded successfully');
+    return response;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
       return {
         data: [],
         message: 'No versions found',
@@ -1000,32 +605,6 @@ export async function fetchTestVersions(testId: number): Promise<ApiResponse<Tes
         timestamp: new Date().toISOString(),
       };
     }
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error fetching versions:', response.status);
-      throw new Error(`[${response.status}] Failed to fetch versions`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: [],
-        message: 'No versions found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Versions loaded');
-    return responseData;
-  } catch (error) {
     console.error('Error fetching versions:', error);
     throw error;
   }
@@ -1033,6 +612,7 @@ export async function fetchTestVersions(testId: number): Promise<ApiResponse<Tes
 
 /**
  * CREATE TEST VERSION
+ * Endpoint: POST /api/v1/tests/{testId}/versions
  */
 export async function createTestVersion(
   testId: number,
@@ -1047,34 +627,12 @@ export async function createTestVersion(
   }
 ): Promise<ApiResponse<TestVersion>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/versions`;
+    const url = `/api/v1/tests/${testId}/versions`;
     console.log('📡 Creating test version...');
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error creating version:', response.status);
-      throw new Error(`[${response.status}] Failed to create version`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Version created');
-    return responseData;
+    const response = await departmentClient.post<ApiResponse<TestVersion>>(url, input) as any;
+    console.log('✅ Test version created successfully');
+    return response;
   } catch (error) {
     console.error('Error creating version:', error);
     throw error;
@@ -1085,23 +643,18 @@ export async function createTestVersion(
 
 /**
  * FETCH TEST PARAMETERS
+ * Endpoint: GET /api/v1/tests/{testId}/parameters
  */
 export async function fetchTestParameters(testId: number): Promise<ApiResponse<ParameterResponse[]>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/parameters`;
-    console.log('📡 Fetching test parameters...');
+    const url = `/api/v1/tests/${testId}/parameters`;
+    console.log('📡 Fetching test parameters from:', url);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (response.status === 404) {
-      console.warn('⚠️  No parameters found');
+    const response = await departmentClient.get<ApiResponse<ParameterResponse[]>>(url) as any;
+    console.log('✅ Test parameters loaded successfully');
+    return response;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
       return {
         data: [],
         message: 'No parameters found',
@@ -1110,32 +663,6 @@ export async function fetchTestParameters(testId: number): Promise<ApiResponse<P
         timestamp: new Date().toISOString(),
       };
     }
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error fetching parameters:', response.status);
-      throw new Error(`[${response.status}] Failed to fetch parameters`);
-    }
-
-    if (!responseText || responseText.trim() === '') {
-      return {
-        data: [],
-        message: 'No parameters found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Parameters loaded');
-    return responseData;
-  } catch (error) {
     console.error('Error fetching parameters:', error);
     throw error;
   }
@@ -1143,13 +670,14 @@ export async function fetchTestParameters(testId: number): Promise<ApiResponse<P
 
 /**
  * CREATE TEST PARAMETER
+ * Endpoint: POST /api/v1/tests/{testId}/parameters
  */
 export async function createTestParameter(
   testId: number,
   input: CreateParameterInput
 ): Promise<ApiResponse<ParameterResponse>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/parameters`;
+    const url = `/api/v1/tests/${testId}/parameters`;
     console.log('📡 Creating test parameter...');
 
     // Send only fields commonly accepted by backend DTOs.
@@ -1192,33 +720,9 @@ export async function createTestParameter(
         );
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error creating parameter:', response.status);
-      console.error('Parameter payload:', payload);
-      console.error('Error response body:', errorData);
-      throw new Error(`[${response.status}] Failed to create parameter`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Parameter created');
-    return responseData;
+    const response = await departmentClient.post<ApiResponse<ParameterResponse>>(url, payload) as any;
+    console.log('✅ Test parameter created successfully');
+    return response;
   } catch (error) {
     console.error('Error creating parameter:', error);
     throw error;
@@ -1227,6 +731,7 @@ export async function createTestParameter(
 
 /**
  * UPDATE TEST PARAMETER
+ * Endpoint: PUT /api/v1/tests/{testId}/parameters/{parameterId}
  */
 export async function updateTestParameter(
   testId: number,
@@ -1234,7 +739,7 @@ export async function updateTestParameter(
   input: CreateParameterInput
 ): Promise<ApiResponse<ParameterResponse>> {
   try {
-    const url = `${API_BASE_URL}/tests/${testId}/parameters/${parameterId}`;
+    const url = `/api/v1/tests/${testId}/parameters/${parameterId}`;
     console.log('📡 Updating test parameter...');
 
     const payload: Record<string, unknown> = {
@@ -1275,33 +780,9 @@ export async function updateTestParameter(
         );
     }
 
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { raw: responseText };
-      }
-      console.error('❌ Error updating parameter:', response.status);
-      console.error('Parameter payload:', payload);
-      console.error('Error response body:', errorData);
-      throw new Error(`[${response.status}] Failed to update parameter`);
-    }
-
-    const responseData = JSON.parse(responseText);
-    console.log('✅ Parameter updated');
-    return responseData;
+    const response = await departmentClient.put<ApiResponse<ParameterResponse>>(url, payload) as any;
+    console.log('✅ Test parameter updated successfully');
+    return response;
   } catch (error) {
     console.error('Error updating parameter:', error);
     throw error;
@@ -1333,21 +814,21 @@ export function validateTestData(data: Partial<CreateTestInput>): string[] {
     errors.push('Turnaround time must be a positive number');
   }
 
-  if (!data.version) {
-    errors.push('Test version information is required');
-  } else {
-    if (!data.version.method) {
-      errors.push('Version method is required');
-    }
-    if (!data.version.unit) {
-      errors.push('Version unit is required');
-    }
-    if (!data.version.price || data.version.price <= 0) {
-      errors.push('Version price must be a positive number');
-    }
-    if (!data.version.effectiveFrom) {
-      errors.push('Version effectiveFrom date is required');
-    }
+  // Required fields validation (flat structure)
+  if (!data.method) {
+    errors.push('Method is required');
+  }
+  if (!data.unit) {
+    errors.push('Unit is required');
+  }
+  if (!data.price || data.price <= 0) {
+    errors.push('Price must be a positive number');
+  }
+  if (!data.effectiveFrom) {
+    errors.push('Effective from date is required');
+  }
+  if (!data.branchId) {
+    errors.push('Branch ID is required');
   }
 
   return errors;

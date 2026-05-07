@@ -1,15 +1,18 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 
 /**
  * Department API Client - Axios Instance
  * Centralized HTTP client with authentication interceptors for department APIs
+ * 
+ * NOTE: The response interceptor unwraps response.data, so all methods return
+ * the response data directly, not wrapped in AxiosResponse.
  */
 const departmentClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_Test,
     headers: {
         'Content-Type': 'application/json',
     },
-});
+}) as AxiosInstance;
 
 // Request Interceptor: Attach token from localStorage
 departmentClient.interceptors.request.use(

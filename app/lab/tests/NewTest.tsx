@@ -26,6 +26,8 @@ import {
 } from '@/components/ui';
 import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestVersion, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
 import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/app/Apis/lab/TestApis';
+import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import { fetchTestCategories, type TestCategory } from '@/app/Apis/lab/TestCategories';
 
 // Define TestItem locally as it's the form data structure
 interface TestItem {
@@ -36,17 +38,13 @@ interface TestItem {
   loincCode: string;
   tatHours: string;
   isActive: boolean;
-  version: {
-    versionNo: number;
-    method: string;
-    unit: string;
-    price: string;
-    cghsPrice: string;
-    criticalLow: string;
-    criticalHigh: string;
-    effectiveFrom: string;
-    effectiveTo: string | null;
-  };
+  // Flat structure (no nested version object)
+  method: string;
+  unit: string;
+  price: string;
+  cghsPrice: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
   parameters: TestParameter[];
   sampleRequirements: SampleRequirement[];
 }
@@ -60,19 +58,9 @@ interface NewTestProps {
   activeTab?: 'test' | 'sample' | 'parameters' | 'pricing';
 }
 
-const DEPARTMENTS = [
-  { id: 1, name: 'Biochemistry' },
-  { id: 2, name: 'Hematology' },
-  { id: 3, name: 'Microbiology' },
-  { id: 4, name: 'Pathology' },
-];
-
-const CATEGORIES = [
-  { id: 5, name: 'Lipid Profile' },
-  { id: 6, name: 'Liver Function' },
-  { id: 7, name: 'Kidney Function' },
-  { id: 8, name: 'Thyroid Profile' },
-];
+// ─── State for Dropdowns ─────────────────────────────────────────────────────
+const DEPARTMENTS_PLACEHOLDER: Department[] = [];
+const CATEGORIES_PLACEHOLDER: TestCategory[] = [];
 
 const RESULT_TYPES = ['Numeric', 'Text', 'Qualitative', 'Semi_quantitative', 'Structured'];
 const GENDER_STATUS = ['Male', 'Female', 'Other', 'All'];
@@ -142,17 +130,12 @@ export default function NewTest({
     loincCode: '',
     tatHours: '',
     isActive: true,
-    version: {
-      versionNo: 1,
-      method: '',
-      unit: '',
-      price: '',
-      cghsPrice: '',
-      criticalLow: '',
-      criticalHigh: '',
-      effectiveFrom: new Date().toISOString().split('T')[0],
-      effectiveTo: null,
-    },
+    method: '',
+    unit: '',
+    price: '',
+    cghsPrice: '',
+    effectiveFrom: new Date().toISOString().split('T')[0],
+    effectiveTo: null,
     parameters: [],
     sampleRequirements: [],
   };
@@ -160,6 +143,48 @@ export default function NewTest({
   const [formData, setFormData] = useState<TestItem>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>(DEPARTMENTS_PLACEHOLDER);
+  const [categories, setCategories] = useState<TestCategory[]>(CATEGORIES_PLACEHOLDER);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+
+  // Load dropdowns (departments and categories)
+  useEffect(() => {
+    const loadDropdowns = async () => {
+      if (!isOpen) return;
+      
+      setLoadingDropdowns(true);
+      try {
+        // Load departments
+        console.log(' Fetching departments...');
+        const deptResponse = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 100 });
+        console.log('Department API Response:', deptResponse);
+        if (deptResponse?.data?.content) {
+          setDepartments(deptResponse.data.content);
+          console.log('✅ Departments loaded:', deptResponse.data.content.length);
+        }
+        
+        // Load categories using fetchTestCategories
+        console.log(' Fetching categories...');
+        const catResponse = await fetchTestCategories(0, 1000);
+        console.log('Category API Response:', catResponse);
+        console.log('Category Response keys:', Object.keys(catResponse || {}));
+        
+        // Axios interceptor unwraps response.data, so catResponse is already the ApiResponse
+        if (catResponse?.data?.content) {
+          setCategories(catResponse.data.content);
+          console.log('✅ Categories loaded:', catResponse.data.content.length);
+        } else {
+          console.warn('⚠️ No categories found in response');
+        }
+      } catch (error) {
+        console.error('❌ Failed to load dropdowns:', error);
+      } finally {
+        setLoadingDropdowns(false);
+      }
+    };
+
+    loadDropdowns();
+  }, [isOpen]);
 
   // Populate form with edit data when in edit mode
   useEffect(() => {
@@ -181,17 +206,13 @@ export default function NewTest({
         loincCode: editData.loincCode || '',
         tatHours: editData.tatHours?.toString() || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
-        version: {
-          versionNo: editData.version?.versionNo || 1,
-          method: editData.version?.method || '',
-          unit: editData.version?.unit || '',
-          price: editData.version?.price?.toString() || '',
-          cghsPrice: editData.version?.cghsPrice?.toString() || '',
-          criticalLow: '',
-          criticalHigh: '',
-          effectiveFrom: editData.version?.effectiveFrom || new Date().toISOString().split('T')[0],
-          effectiveTo: editData.version?.effectiveTo || null,
-        },
+        // Flat structure from API response
+        method: editData.method || '',
+        unit: editData.unit || '',
+        price: editData.price?.toString() || '',
+        cghsPrice: editData.cghsPrice?.toString() || '',
+        effectiveFrom: editData.effectiveFrom || new Date().toISOString().split('T')[0],
+        effectiveTo: editData.effectiveTo || null,
         parameters: editData.parameters || [],
         sampleRequirements: (editData.sampleRequirements || []).map((req) => ({
           ...req,
@@ -209,15 +230,25 @@ export default function NewTest({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
+    
+    // Debug: Log dropdown changes
+    if (name === 'departmentId' || name === 'categoryId') {
+      console.log(`🔄 Dropdown changed: ${name} = ${value}`);
+      console.log('📋 Available categories:', categories.length);
+      console.log('📋 Categories data:', categories);
+    }
 
-    if (name.startsWith('version.')) {
-      const field = name.split('.')[1];
+    // Handle select elements - ensure value is treated as string
+    if (name === 'departmentId' || name === 'categoryId') {
       setFormData(prev => ({
         ...prev,
-        version: {
-          ...prev.version,
-          [field]: type === 'number' ? (value === '' ? '' : Number(value)) : value
-        }
+        [name]: value.toString()
+      }));
+    } else if (name === 'method' || name === 'unit' || name === 'price' || name === 'cghsPrice' || name === 'effectiveFrom' || name === 'effectiveTo') {
+      // Flat structure fields
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'price' || name === 'cghsPrice' ? (value === '' ? '' : Number(value)) : value
       }));
     } else {
       setFormData(prev => ({
@@ -290,33 +321,31 @@ export default function NewTest({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    console.log('=== VALIDATION - ACTIVE TAB ===', activeTab);
-
     // Only validate General Information in 'test' or 'sample' mode
     if (activeTab === 'test' || activeTab === 'sample') {
       if (!formData.testCode.trim()) newErrors.testCode = 'Test Code is required';
       if (!formData.testName.trim()) newErrors.testName = 'Test Name is required';
       if (formData.departmentId === '') newErrors.departmentId = 'Department is required';
-      if (formData.categoryId === '') newErrors.categoryId = 'Category is required';
+      if (formData.categoryId === '') {
+        newErrors.categoryId = 'Category is required';
+        console.error('❌ VALIDATION ERROR: Category is empty! Make sure categories are loaded.');
+      }
     }
 
     // Only validate Version/Pricing fields in 'test' or 'pricing' mode
     if (activeTab === 'test' || activeTab === 'pricing') {
-      if (formData.version.price === '' || Number(formData.version.price) <= 0)
-        newErrors['version.price'] = 'Valid price is required';
-      if (!formData.version.method.trim()) newErrors['version.method'] = 'Method is required';
-      if (!formData.version.unit.trim()) newErrors['version.unit'] = 'Unit is required';
-      if (!formData.version.effectiveFrom) newErrors['version.effectiveFrom'] = 'Effective date is required';
+      if (formData.price === '' || Number(formData.price) <= 0)
+        newErrors['price'] = 'Valid price is required';
+      if (!formData.method.trim()) newErrors['method'] = 'Method is required';
+      if (!formData.unit.trim()) newErrors['unit'] = 'Unit is required';
+      if (!formData.effectiveFrom) newErrors['effectiveFrom'] = 'Effective date is required';
     }
-
-    // Always validate these if they have data (regardless of mode)
     // These are only relevant when editing those specific sections
     if (activeTab === 'test') {
       // Full edit mode - validate everything
     }
 
     setErrors(newErrors);
-    console.log('Validation errors:', newErrors);
     console.log('Validation result:', Object.keys(newErrors).length === 0);
     return Object.keys(newErrors).length === 0;
   };
@@ -326,26 +355,21 @@ export default function NewTest({
       e.preventDefault();
     }
 
-    if (!validateForm()) {
+ 
+    
+    const isValid = validateForm();
+    console.log('Validation Result:', isValid);
+    
+    if (!isValid) {
       console.error('❌ FORM VALIDATION FAILED');
-      console.error('Errors:', errors);
+      console.error('Validation Errors:', errors);
+      // Scroll to first error or show a toast/alert
       return;
     }
-
-    console.log('=== HANDLE SUBMIT CALLED ===');
-    console.log('isEditMode:', isEditMode);
-    console.log('editData:', editData);
-    console.log('editData?.id:', editData?.id);
-    console.log('formData:', formData);
-
     setLoading(true);
     try {
       // HANDLE SAMPLE REQUIREMENT UPDATE (dedicated API)
       if (isEditMode && editData?.id && activeTab === 'sample') {
-        console.log('=== UPDATING SAMPLE REQUIREMENT VIA DEDICATED API ===');
-        console.log('Test ID:', editData.id);
-        console.log('Active tab:', activeTab);
-
         const sampleReq = formData.sampleRequirements[0];
         
         if (!sampleReq) {
@@ -424,21 +448,19 @@ export default function NewTest({
         const testData: UpdateTestInput = {
           testCode: formData.testCode,
           testName: formData.testName,
-          description: '',
+          testDescription: '',
           departmentId: Number(formData.departmentId),
           categoryId: Number(formData.categoryId),
           loincCode: formData.loincCode || undefined,
           tatHours: Number(formData.tatHours),
           isActive: formData.isActive,
-          version: {
-            versionNo: Number(formData.version.versionNo),
-            method: formData.version.method,
-            unit: formData.version.unit,
-            price: Number(formData.version.price),
-            cghsPrice: formData.version.cghsPrice ? Number(formData.version.cghsPrice) : undefined,
-            effectiveFrom: formData.version.effectiveFrom,
-            effectiveTo: formData.version.effectiveTo || '',
-          },
+          method: formData.method,
+          unit: formData.unit,
+          price: Number(formData.price),
+          cghsPrice: formData.cghsPrice ? Number(formData.cghsPrice) : undefined,
+          effectiveFrom: formData.effectiveFrom,
+          effectiveTo: formData.effectiveTo || undefined,
+          branchId: editData.branchId || 1,
           parameters: formData.parameters.map(param => ({
             id: param.id,
             parameterName: param.parameterName,
@@ -448,7 +470,7 @@ export default function NewTest({
             resultType: param.resultType,
             isCalculated: param.isCalculated,
             calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
-            sortOrder: param.sortOrder,
+            displayOrder: param.displayOrder,
             referenceRanges: param.referenceRanges?.map(range => ({
               id: range.id,
               gender: range.gender,
@@ -482,23 +504,6 @@ export default function NewTest({
         setErrors({});
         onClose();
       } else {
-        // CREATE NEW TEST - CALL ALL API ENDPOINTS SEQUENTIALLY
-        console.log('=== CREATING NEW TEST WITH ALL ENDPOINTS ===');
-
-        // Step 1: Create basic test details
-        console.log('Step 1: Creating basic test details...');
-        
-        // Build version object, handling nullable effectiveTo properly
-        const versionData = {
-          versionNo: Number(formData.version.versionNo),
-          method: formData.version.method,
-          unit: formData.version.unit,
-          price: Number(formData.version.price),
-          ...(formData.version.cghsPrice && { cghsPrice: Number(formData.version.cghsPrice) }),
-          effectiveFrom: formData.version.effectiveFrom,
-          ...(formData.version.effectiveTo && { effectiveTo: formData.version.effectiveTo }),
-        };
-        
         const testData: CreateTestInput = {
           testCode: formData.testCode,
           testName: formData.testName,
@@ -506,8 +511,14 @@ export default function NewTest({
           categoryId: Number(formData.categoryId),
           loincCode: formData.loincCode || undefined,
           tatHours: Number(formData.tatHours),
+          method: formData.method,
+          unit: formData.unit || undefined,
+          price: Number(formData.price),
+          cghsPrice: formData.cghsPrice ? Number(formData.cghsPrice) : undefined,
+          effectiveFrom: formData.effectiveFrom,
+          effectiveTo: formData.effectiveTo || undefined,
+          branchId: 1,
           isActive: formData.isActive,
-          version: versionData,
         };
 
         console.log('Basic test data:', JSON.stringify(testData, null, 2));
@@ -591,10 +602,7 @@ export default function NewTest({
           }
         }
 
-        console.log('🎉 Full test creation completed successfully!');
-        console.log('Test ID:', testId);
-        console.log('Sample Requirements:', formData.sampleRequirements.length);
-        console.log('Parameters:', formData.parameters.length);
+       
         
         // Notify parent to reload the list
         onSubmit(formData);
@@ -734,10 +742,13 @@ export default function NewTest({
                     name="departmentId"
                     value={formData.departmentId}
                     onChange={handleInputChange}
+                    disabled={loadingDropdowns}
                     className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.departmentId ? 'border-rose-300' : ''}`}
                   >
-                    <option value="">Select Department</option>
-                    {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <option value="">{loadingDropdowns ? 'Loading...' : 'Select Department'}</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.departmentName}</option>
+                    ))}
                   </select>
                   {errors.departmentId && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.departmentId}</p>}
                 </div>
@@ -747,10 +758,13 @@ export default function NewTest({
                     name="categoryId"
                     value={formData.categoryId}
                     onChange={handleInputChange}
+                    disabled={loadingDropdowns}
                     className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.categoryId ? 'border-rose-300' : ''}`}
                   >
-                    <option value="">Select Category</option>
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="">{loadingDropdowns ? 'Loading...' : 'Select Category'}</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.categoryName}</option>
+                    ))}
                   </select>
                   {errors.categoryId && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.categoryId}</p>}
                 </div>
@@ -766,7 +780,7 @@ export default function NewTest({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
-                <Input type="date" name="version.effectiveFrom" value={formData.version.effectiveFrom} onChange={handleInputChange} />
+                <Input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleInputChange} />
               </div>
             </div>
           </div>
@@ -786,11 +800,11 @@ export default function NewTest({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Method</Label>
-                  <Input name="version.method" value={formData.version.method} onChange={handleInputChange} placeholder="Enzymatic Colorimetric" disabled={activeTab === 'pricing'} />
+                  <Input name="method" value={formData.method} onChange={handleInputChange} placeholder="Enzymatic Colorimetric" disabled={activeTab === 'pricing'} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Default Unit</Label>
-                  <Input name="version.unit" value={formData.version.unit} onChange={handleInputChange} placeholder="mg/dL" disabled={activeTab === 'pricing'} />
+                  <Input name="unit" value={formData.unit} onChange={handleInputChange} placeholder="mg/dL" disabled={activeTab === 'pricing'} />
                 </div>
               </div>
 
@@ -799,17 +813,17 @@ export default function NewTest({
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Standard Price (₹) *</Label>
                   <Input
                     type="number"
-                    name="version.price"
-                    value={formData.version.price}
+                    name="price"
+                    value={formData.price}
                     onChange={handleInputChange}
                     placeholder="500.00"
-                    className={errors['version.price'] ? 'border-rose-300 ring-rose-50' : ''}
+                    className={errors['price'] ? 'border-rose-300 ring-rose-50' : ''}
                   />
-                  {errors['version.price'] && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors['version.price']}</p>}
+                  {errors['price'] && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors['price']}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">CGHS Price (₹)</Label>
-                  <Input type="number" name="version.cghsPrice" value={formData.version.cghsPrice} onChange={handleInputChange} placeholder="350.00" />
+                  <Input type="number" name="cghsPrice" value={formData.cghsPrice} onChange={handleInputChange} placeholder="350.00" />
                 </div>
               </div>
             </div>

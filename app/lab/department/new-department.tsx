@@ -48,6 +48,7 @@ export default function AddDepartment({
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('1');
 
   useEffect(() => {
     loadBranches();
@@ -55,6 +56,8 @@ export default function AddDepartment({
 
   useEffect(() => {
     if (editData && isOpen) {
+      console.log('Edit mode - Department data:', editData);
+      console.log('Edit mode - Branch ID:', editData.branchId);
       setFormData({
         departmentCode: editData.departmentCode,
         departmentName: editData.departmentName,
@@ -79,9 +82,21 @@ export default function AddDepartment({
         location: '',
         tenantId: 2,
       });
+      setSelectedBranchId('1');
       setErrors({});
     }
   }, [editData, isOpen]);
+
+  // Set selected branch ID after branches are loaded
+  useEffect(() => {
+    if (editData && isOpen && branches.length > 0 && editData.branchId) {
+      const branchIdStr = editData.branchId.toString();
+      setSelectedBranchId(branchIdStr);
+      console.log('Set selected branch ID to:', branchIdStr);
+      const foundBranch = branches.find(b => b.id === editData.branchId);
+      console.log('Found branch:', foundBranch);
+    }
+  }, [branches, editData, isOpen]);
 
   const loadBranches = async () => {
     setLoadingBranches(true);
@@ -145,9 +160,12 @@ export default function AddDepartment({
     setLoading(true);
     try {
       if (editData) {
+        console.log('Updating department with data:', formData);
+       
         await departmentApi.updateDepartment(editData.id, formData);
         toast.success('Department updated successfully!');
       } else {
+        console.log('Creating department with data:', formData);
         await departmentApi.createDepartment(formData);
         toast.success('Department created successfully!');
       }
@@ -290,11 +308,12 @@ export default function AddDepartment({
                 </div>
               ) : (
                 <Select
-                  value={formData.branchId ? formData.branchId.toString() : undefined}
+                  value={selectedBranchId}
                   onValueChange={(value) => {
                     if (value) {
                       const branchId = parseInt(value);
                       console.log('Selected branch ID:', branchId);
+                      setSelectedBranchId(value);
                       setFormData((prev) => ({
                         ...prev,
                         branchId: branchId,
@@ -302,11 +321,15 @@ export default function AddDepartment({
                     }
                   }}
                 >
-                  <SelectTrigger id={`branchId-${formData.branchId}`} className="w-full">
+                  <SelectTrigger id={`branchId-${selectedBranchId}`} className="w-full">
                     <SelectValue placeholder="Select a branch">
-                      {formData.branchId ? (
-                        branches.find(b => b.id === formData.branchId)?.branchName || 'Select a branch'
-                      ) : undefined}
+                      {(() => {
+                        const selectedBranch = branches.find(b => b.id.toString() === selectedBranchId);
+                        if (selectedBranch) {
+                          return selectedBranch.branchName;
+                        }
+                        return 'Select a branch';
+                      })()}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>

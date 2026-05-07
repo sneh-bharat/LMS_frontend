@@ -156,7 +156,7 @@ export default function TestDetailsView({
 
   // Pre-calculate values to avoid hydration mismatch
   const formattedDate = formatDate(testData.createdAt);
-  const formattedPrice = testData.version?.price ? testData.version.price.toLocaleString('en-IN') : '0';
+  const formattedPrice = testData.price ? testData.price.toLocaleString('en-IN') : '0';
 
   const footer = (
     <div className="flex gap-3 justify-end w-full flex-wrap">
