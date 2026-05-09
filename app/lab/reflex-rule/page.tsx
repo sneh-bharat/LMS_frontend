@@ -9,38 +9,40 @@ import {
   Edit2,
   Trash2,
   Settings,
-  LayoutGrid,
   ChevronDown,
+  Zap,
+  CheckCircle,
   Eye,
-  Tag,
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
-  fetchTestCategories,
-  fetchActiveTestCategories,
-  searchTestCategoriesByName,
-  createTestCategory,
-  updateTestCategory,
-  deleteTestCategory,
-  toggleCategoryStatus,
-  type TestCategory,
-  type CreateCategoryInput,
-} from '@/app/Apis/lab/TestCategories';
-import AddCategory from './add-categories';
+  fetchReflexRules,
+  createReflexRule,
+  updateReflexRule,
+  deleteReflexRule,
+  toggleReflexRuleStatus,
+  type ReflexRule,
+  type CreateReflexRuleInput,
+  type UpdateReflexRuleInput,
+} from '@/app/Apis/lab/ReflexRules';
+import AddReflexRule from './add-reflex-rule';
+import ReflexRuleDetailsView from './view-details';
 
 // ─── Components ───────────────────────────────────────────────────────────────
-function CategoryActions({
-  category,
-
+function ReflexRuleActions({
+  rule,
+  onView,
   onEdit,
   onDelete,
+  onToggleStatus,
 }: {
-  category: TestCategory;
-
-  onEdit: (category: TestCategory) => void;
+  rule: ReflexRule;
+  onView: (rule: ReflexRule) => void;
+  onEdit: (rule: ReflexRule) => void;
   onDelete: (id: number) => void;
+  onToggleStatus: (id: number, isActive: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +53,7 @@ function CategoryActions({
       const rect = buttonRef.current.getBoundingClientRect();
       setMenuPosition({
         top: rect.bottom + window.scrollY + 8,
-        left: rect.right - 224 + window.scrollX, // 224 = w-56 (14rem = 224px)
+        left: rect.right - 224 + window.scrollX,
       });
     }
   }, [open]);
@@ -67,12 +69,8 @@ function CategoryActions({
       </button>
       {open && (
         <>
-          {/* Backdrop to close dropdown */}
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setOpen(false)}
-          />
-          <div 
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
             className="fixed w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: `${menuPosition.top}px`,
@@ -81,24 +79,44 @@ function CategoryActions({
           >
             <button
               onClick={() => {
-                onEdit(category);
+                onView(rule);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+            >
+              <Eye size={16} strokeWidth={2} />
+              <span>View Details</span>
+            </button>
+            <button
+              onClick={() => {
+                onEdit(rule);
                 setOpen(false);
               }}
               className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
             >
               <Edit2 size={16} strokeWidth={2} />
-              <span>Edit Category</span>
+              <span>Edit Rule</span>
+            </button>
+            <button
+              onClick={() => {
+                onToggleStatus(rule.id, rule.isActive);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+            >
+              <CheckCircle size={16} strokeWidth={2} />
+              <span>{rule.isActive ? 'Deactivate' : 'Activate'}</span>
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button
               onClick={() => {
-                onDelete(category.id);
+                onDelete(rule.id);
                 setOpen(false);
               }}
               className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
             >
               <Trash2 size={16} strokeWidth={2} />
-              <span>Delete Category</span>
+              <span>Delete Rule</span>
             </button>
           </div>
         </>
@@ -107,98 +125,67 @@ function CategoryActions({
   );
 }
 
-export default function TestCategoriesPage() {
-  const [categories, setCategories] = useState<TestCategory[]>([]);
+export default function ReflexRulePage() {
+  const [rules, setRules] = useState<ReflexRule[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<TestCategory | null>(null);
+  const [editingRule, setEditingRule] = useState<ReflexRule | null>(null);
+  const [viewingRule, setViewingRule] = useState<ReflexRule | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(10);
+  const [pageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+  const [deletingRuleId, setDeletingRuleId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isFirstRender, setIsFirstRender] = useState(true);
 
-  const [formData, setFormData] = useState({
-    categoryCode: '',
-    categoryName: '',
-    description: '',
-    departmentId: 1,
-    displayOrder: 1,
-    isActive: true,
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const isFirstRender = useRef(true);
-
-  // Debounced loadCategories function
-  const loadCategoriesDebounced = useRef(
+  // Debounced loadRules function
+  const loadRulesDebounced = useRef(
     (() => {
       let timeoutId: NodeJS.Timeout;
-      return (searchTerm: string, page: number, filter: string) => {
+      return (searchTerm: string, page: number, status: string) => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
-          loadCategories(searchTerm, page, filter);
+          loadRules(searchTerm, page, status);
         }, 300);
       };
     })()
   );
 
-  const loadCategories = async (
+  const loadRules = async (
     searchTerm?: string,
     page?: number,
-    filter?: string
+    status?: string
   ) => {
     setLoading(true);
     try {
-      let response;
       const currentSearch = searchTerm ?? search;
       const currentPageNum = page ?? currentPage;
-      const currentFilter = filter ?? statusFilter;
-      
-      // If search term exists, use search API
-      if (currentSearch && currentSearch.trim().length >= 2) {
-        response = await searchTestCategoriesByName(currentSearch, currentPageNum, pageSize, 'categoryId,asc');
-      } else if (currentFilter === 'Active') {
-        // Use active API endpoint for Active filter
-        response = await fetchActiveTestCategories(currentPageNum, pageSize);
-      } else if (currentFilter === 'Inactive') {
-        // Use regular API with Inactive status filter
-        response = await fetchTestCategories(currentPageNum, pageSize, 'Inactive');
-      } else {
-        // Use regular API for listing (All or no filter)
-        response = await fetchTestCategories(currentPageNum, pageSize);
-      }
-      
-      console.log('API Response:', response);
-      console.log('Current filter:', currentFilter);
-      
-      // Check if response has the expected structure
+      const currentStatus = status ?? statusFilter;
+
+      const response = await fetchReflexRules(
+        currentPageNum,
+        pageSize,
+        currentSearch || undefined,
+        currentStatus
+      );
+
       if (response?.data?.content) {
-        // Response structure: { data: { content: [], totalPages, totalElements }, message, status, ... }
-        setCategories(response.data.content);
+        setRules(response.data.content);
         setTotalPages(response.data.totalPages || 0);
         setTotalElements(response.data.totalElements || 0);
-      } else if ((response as any)?.content) {
-        // Fallback: response might be directly the paginated data
-        console.warn('Using direct content access');
-        const paginatedData = response as any;
-        setCategories(paginatedData.content || []);
-        setTotalPages(paginatedData.totalPages || 0);
-        setTotalElements(paginatedData.totalElements || 0);
       } else {
-        // Empty or unexpected structure
-        console.warn('Unexpected response structure:', response);
-        setCategories([]);
+        setRules([]);
         setTotalPages(0);
         setTotalElements(0);
       }
     } catch (error) {
-      console.error('Failed to load categories:', error);
-      setCategories([]);
+      console.error('Failed to load reflex rules:', error);
+      setRules([]);
       setTotalPages(0);
       setTotalElements(0);
     } finally {
@@ -208,124 +195,125 @@ export default function TestCategoriesPage() {
 
   // Initial load only
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      loadCategories();
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      loadRules();
     }
   }, []);
 
   // Reload when page or status filter changes (not on initial render)
   useEffect(() => {
-    if (!isFirstRender.current) {
-      loadCategories();
+    if (!isFirstRender) {
+      loadRules();
     }
   }, [currentPage, statusFilter]);
 
   // Debounced search
   useEffect(() => {
-    if (isFirstRender.current) return; // Skip on initial render
+    if (isFirstRender) return;
 
-    // Reset to page 0 when searching
     setCurrentPage(0);
-    loadCategoriesDebounced.current(search, 0, statusFilter);
+    loadRulesDebounced.current(search, 0, statusFilter);
   }, [search]);
 
   const handleSearch = () => {
-    // Manual search button - just reload with current search term
     setCurrentPage(0);
-    loadCategories();
+    loadRules();
   };
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const validationErrors: Record<string, string> = {};
-    
-    if (!formData.categoryCode.trim()) {
-      validationErrors.categoryCode = 'Category code is required';
-    }
-    
-    if (!formData.categoryName.trim()) {
-      validationErrors.categoryName = 'Category name is required';
-    }
-    
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setLoading(true);
+  const handleSubmit = async (data: CreateReflexRuleInput) => {
     try {
-      if (editingCategory) {
-        await updateTestCategory(editingCategory.id, formData);
+      if (editingRule) {
+        await updateReflexRule(editingRule.id, data as UpdateReflexRuleInput);
       } else {
-        await createTestCategory(formData);
+        await createReflexRule(data);
       }
       handleCloseModal();
-      loadCategories();
+      loadRules();
     } catch (error) {
-      console.error('Failed to save category:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to save reflex rule:', error);
     }
   };
 
-  const handleEdit = (category: TestCategory) => {
-    setEditingCategory(category);
-    setFormData({
-      categoryCode: category.categoryCode,
-      categoryName: category.categoryName,
-      description: category.description,
-      departmentId: category.departmentId,
-      displayOrder: category.displayOrder,
-      isActive: category.isActive,
-    });
+  const handleEdit = (rule: ReflexRule) => {
+    setEditingRule(rule);
     setIsModalOpen(true);
   };
 
-
+  const handleViewDetails = (rule: ReflexRule) => {
+    setViewingRule(rule);
+    setIsDetailsOpen(true);
+  };
 
   const handleDelete = (id: number) => {
-    setDeletingCategoryId(id);
+    setDeletingRuleId(id);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!deletingCategoryId) return;
-    
+    if (!deletingRuleId) return;
+
     setIsDeleting(true);
     try {
-      await deleteTestCategory(deletingCategoryId);
-      loadCategories();
+      await deleteReflexRule(deletingRuleId);
+      loadRules();
       setDeleteDialogOpen(false);
     } catch (error) {
-      console.error('Failed to delete category:', error);
+      console.error('Failed to delete reflex rule:', error);
     } finally {
       setIsDeleting(false);
-      setDeletingCategoryId(null);
+      setDeletingRuleId(null);
+    }
+  };
+
+  const handleToggleStatus = async (id: number, isActive: boolean) => {
+    try {
+      await toggleReflexRuleStatus(id, !isActive);
+      loadRules();
+    } catch (error) {
+      console.error('Failed to toggle rule status:', error);
     }
   };
 
   const handleCloseModal = () => {
-    console.log('Closing modal, current state:', isModalOpen);
     setIsModalOpen(false);
-    setEditingCategory(null);
+    setEditingRule(null);
   };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
+  // Helper function to get condition badge variant
+  const getConditionBadgeVariant = (conditionType: string) => {
+    switch (conditionType) {
+      case 'CRITICAL':
+        return 'destructive';
+      case 'ABOVE':
+      case 'BELOW':
+        return 'warning';
+      case 'BETWEEN':
+        return 'primary';
+      default:
+        return 'secondary';
     }
-    
+  };
+
+  // Helper function to format threshold display
+  const formatThreshold = (rule: ReflexRule) => {
+    if (rule.conditionType === 'BETWEEN') {
+      return `${rule.thresholdLow} - ${rule.thresholdHigh}`;
+    }
+    if (rule.conditionType === 'CRITICAL') {
+      return `< ${rule.thresholdLow} or > ${rule.thresholdHigh}`;
+    }
+    if (rule.conditionType === 'ABOVE') {
+      return `> ${rule.thresholdValue}`;
+    }
+    if (rule.conditionType === 'BELOW') {
+      return `< ${rule.thresholdValue}`;
+    }
+    return rule.thresholdValue?.toString() || '-';
   };
 
   return (
@@ -333,29 +321,21 @@ export default function TestCategoriesPage() {
       {/* ═══ HEADER ═════════════════════════════════════════════ */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">                      
-                        Test <span className="text-[#FF671F]">Categories</span>
-          </h1> 
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+            Reflex <span className="text-[#FF671F]">Rules</span>
+          </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
-            Manage diagnostic test categories and departments.
+            Automated test ordering based on laboratory results. Configure rules for reflex testing workflows.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-2 px-6" suppressHydrationWarning>
-            <LayoutGrid size={16} /> Category View
-          </Button>
           <Button
             variant="gradient"
             size="sm"
             className="gap-2 shadow-sm px-8"
-            onClick={() => {
-              console.log('Create Category button clicked');
-              console.log('Current isModalOpen:', isModalOpen);
-              setIsModalOpen(true);
-            }}
-            suppressHydrationWarning
+            onClick={() => setIsModalOpen(true)}
           >
-            <Plus size={16} /> Create Category
+            <Plus size={16} /> Create Rule
           </Button>
         </div>
       </div>
@@ -370,9 +350,8 @@ export default function TestCategoriesPage() {
           <input
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search categories..."
+            placeholder="Search rules..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
-            suppressHydrationWarning
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -382,7 +361,6 @@ export default function TestCategoriesPage() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-              suppressHydrationWarning
             >
               <option>All</option>
               <option>Active</option>
@@ -395,32 +373,38 @@ export default function TestCategoriesPage() {
             size="sm"
             className="rounded-lg p-2.5 border-slate-200"
             onClick={handleSearch}
-            suppressHydrationWarning
           >
             <Settings size={18} />
           </Button>
         </div>
       </div>
-      {/* ═══ CATEGORIES TABLE ═══════════════════════════════════ */}
+
+      {/* ═══ RULES TABLE ═══════════════════════════════════════ */}
       <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Code
+                  Priority
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Category Name
+                  Test Name
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Description
+                  Condition
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Department
+                  Threshold
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Display Order
+                  Reflex Test
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Logic
+                </th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Auto Order
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   Status
@@ -433,72 +417,92 @@ export default function TestCategoriesPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full"></div>
-                      <span>Loading categories...</span>
+                      <span>Loading reflex rules...</span>
                     </div>
                   </td>
                 </tr>
-              ) : categories.length === 0 ? (
+              ) : rules.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                    No categories found. Create your first category to get started.
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Zap size={32} className="text-slate-300" />
+                      <p>No reflex rules found. Create your first rule to automate test ordering.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                categories.map((category) => (
-                  <tr key={category.id} className="hover:bg-slate-50 transition-colors group cursor-pointer">
+                rules.map((rule) => (
+                  <tr key={rule.id} className="hover:bg-slate-50 transition-colors group cursor-pointer">
                     <td className="px-6 py-4">
-                      <span className="text-xs font-bold text-slate-600 font-mono hover:text-emerald-600 transition-colors">
-                        {category.categoryCode}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                          <Tag size={20} />
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm mb-0.5">
-                            {category.categoryName}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-slate-600 line-clamp-1">
-                        {category.description}
+                      <span className="text-sm font-bold text-slate-900 font-mono">
+                        {rule.priority}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm font-semibold text-slate-900">
-                          {category.departmentName || 'N/A'}
+                        <span className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                          {rule.testName}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                          ID: {category.departmentId}
+                          {rule.testCode}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-slate-900 font-mono">
-                        {category.displayOrder}
+                      <Badge
+                        variant={getConditionBadgeVariant(rule.conditionType)}
+                        className="text-[10px] font-bold"
+                      >
+                        {rule.conditionType}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-semibold text-slate-700 font-mono">
+                        {formatThreshold(rule)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-bold text-slate-900">
+                          {rule.reflexTestName}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {rule.reflexTestCode}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-700">
+                        {rule.logicOperator}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {rule.autoOrder ? (
+                        <span className="text-emerald-600">
+                          <CheckCircle size={18} />
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <Badge
-                        variant={category.isActive ? 'success' : 'secondary'}
+                        variant={rule.isActive ? 'success' : 'secondary'}
                         className="text-[10px] font-bold"
                       >
-                        {category.isActive ? 'Active' : 'Inactive'}
+                        {rule.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <CategoryActions
-                        category={category}
+                      <ReflexRuleActions
+                        rule={rule}
+                        onView={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onToggleStatus={handleToggleStatus}
                       />
                     </td>
                   </tr>
@@ -512,11 +516,10 @@ export default function TestCategoriesPage() {
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             <span>
-              Showing {categories.length} of {totalElements} Categories
+              Showing {rules.length} of {totalElements} Rules
             </span>
             <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-           
-            <span className="text-[#FF671F]">Test Categories v1.0</span>
+            <span className="text-[#FF671F]">Reflex Rules v1.0</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -525,7 +528,6 @@ export default function TestCategoriesPage() {
               className="px-4 py-1 text-[10px]"
               onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
-              suppressHydrationWarning
             >
               Prev
             </Button>
@@ -538,7 +540,6 @@ export default function TestCategoriesPage() {
               className="px-4 py-1 text-[10px]"
               onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              suppressHydrationWarning
             >
               Next
             </Button>
@@ -547,13 +548,21 @@ export default function TestCategoriesPage() {
       </div>
 
       {/* ═══ CREATE/EDIT RIGHT DRAWER ═══════════════════════════════════ */}
-      <AddCategory
+      <AddReflexRule
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={(data) => {
-          loadCategories();
+        onSubmit={handleSubmit}
+        editData={editingRule}
+      />
+
+      {/* ═══ VIEW DETAILS RIGHT DRAWER ═══════════════════════════════════ */}
+      <ReflexRuleDetailsView
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setViewingRule(null);
         }}
-        editData={editingCategory}
+        ruleData={viewingRule}
       />
 
       {/* ═══ DELETE CONFIRMATION DIALOG ═══════════════════════════════════ */}
@@ -561,11 +570,11 @@ export default function TestCategoriesPage() {
         isOpen={deleteDialogOpen}
         onClose={() => {
           setDeleteDialogOpen(false);
-          setDeletingCategoryId(null);
+          setDeletingRuleId(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Delete Test Category"
-        description="Are you sure you want to permanently delete this test category? This action cannot be undone and all associated tests may be affected."
+        title="Delete Reflex Rule"
+        description="Are you sure you want to permanently delete this reflex rule? This action cannot be undone and will affect automated test ordering."
         isLoading={isDeleting}
       />
     </div>

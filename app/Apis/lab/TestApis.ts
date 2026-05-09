@@ -63,16 +63,13 @@ export interface Test {
   tatMinutes?: number;
   isActive: boolean;
   isCalculated: boolean;
-  // Version fields (flat structure in response)
   method?: string | null;
   unit?: string | null;
   price: number;
   cghsPrice?: number | null;
   effectiveFrom?: string | null;
   effectiveTo?: string | null;
-  // Tenant and audit fields
   tenantId?: number;
-  // Relationships (if included)
   parameters?: Parameter[];
   sampleRequirements?: SampleRequirement[];
   createdAt: string;
@@ -98,7 +95,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface CreateTestInput {
-  testCode: string;
+  testCode?: string; // Optional - backend will auto-generate
   testName: string;
   testNameShort?: string | null;
   testDescription?: string | null;
@@ -196,6 +193,7 @@ export interface UpdateTestInput {
   }>;
 }
 
+// Legacy interfaces for backward compatibility (deprecated)
 export interface CreateSampleRequirementInput {
   sampleType: string;
   volumeMl: number;
@@ -370,7 +368,7 @@ export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Tes
 
 /**
  * SEARCH TESTS BY NAME
- * Endpoint: GET /api/v1/tests/search?categoryName={name}&pageNo=0&pageSize=10
+ * Endpoint: GET /api/v1/tests/search?name={name}&pageNo=0&pageSize=10
  */
 export async function searchTestsByName(
   name: string,
@@ -379,19 +377,18 @@ export async function searchTestsByName(
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
     const params = new URLSearchParams({
-      categoryName: name.trim(),
+      name: name.trim(),
       pageNo: pageNo.toString(),
       pageSize: pageSize.toString(),
-      sort: 'categoryId,asc',
     });
 
     const url = `/api/v1/tests/search?${params.toString()}`;
     console.log('📡 Searching tests by name from:', url);
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url);
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
     console.log('✅ Search results loaded successfully');
     
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error searching tests by name:', error);
     throw error;
@@ -577,69 +574,38 @@ export async function deleteSampleRequirement(
   }
 }
 
-// ─── Test Versions ──────────────────────────────────────────────────────────
+// ─── Test Parameters ────────────────────────────────────────────────────────
 
 /**
- * FETCH TEST VERSIONS
- * Endpoint: GET /api/v1/tests/{testId}/versions?pageNo=0&pageSize=10
+ * FETCH ALL PARAMETERS - Get All Parameters with pagination
+ * Endpoint: GET /api/v1/tests/parameters?pageNo=0&pageSize=10
  */
-export async function fetchTestVersions(testId: number): Promise<ApiResponse<TestVersion[]>> {
+export async function fetchAllParameters(
+  pageNo: number = 0,
+  pageSize: number = 10,
+  search?: string
+): Promise<ApiResponse<PaginatedResponse<ParameterResponse>>> {
   try {
     const params = new URLSearchParams({
-      pageNo: '0',
-      pageSize: '10',
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
     });
-    const url = `/api/v1/tests/${testId}/versions?${params.toString()}`;
-    console.log('📡 Fetching test versions from:', url);
 
-    const response = await departmentClient.get<ApiResponse<TestVersion[]>>(url) as any;
-    console.log('✅ Test versions loaded successfully');
-    return response;
-  } catch (error: any) {
-    if (error.response?.status === 404) {
-      return {
-        data: [],
-        message: 'No versions found',
-        response: true,
-        status: 'success',
-        timestamp: new Date().toISOString(),
-      };
+    if (search) {
+      params.append('search', search);
     }
-    console.error('Error fetching versions:', error);
-    throw error;
-  }
-}
 
-/**
- * CREATE TEST VERSION
- * Endpoint: POST /api/v1/tests/{testId}/versions
- */
-export async function createTestVersion(
-  testId: number,
-  input: {
-    versionNo: number;
-    method: string;
-    unit: string;
-    price: number;
-    cghsPrice?: number;
-    effectiveFrom: string;
-    effectiveTo?: string;
-  }
-): Promise<ApiResponse<TestVersion>> {
-  try {
-    const url = `/api/v1/tests/${testId}/versions`;
-    console.log('📡 Creating test version...');
+    const url = `/api/v1/tests/parameters?${params.toString()}`;
+    console.log('📡 Fetching all parameters from:', url);
 
-    const response = await departmentClient.post<ApiResponse<TestVersion>>(url, input) as any;
-    console.log('✅ Test version created successfully');
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<ParameterResponse>>>(url) as any;
+    console.log('✅ All parameters loaded successfully');
     return response;
   } catch (error) {
-    console.error('Error creating version:', error);
+    console.error('Error fetching all parameters:', error);
     throw error;
   }
 }
-
-// ─── Test Parameters ────────────────────────────────────────────────────────
 
 /**
  * FETCH TEST PARAMETERS
@@ -671,18 +637,27 @@ export async function fetchTestParameters(testId: number): Promise<ApiResponse<P
 /**
  * CREATE TEST PARAMETER
  * Endpoint: POST /api/v1/tests/{testId}/parameters
+ * 
+ * Note: branchId is required for ADMIN/SUPER_ADMIN roles
  */
 export async function createTestParameter(
   testId: number,
-  input: CreateParameterInput
+  input: CreateParameterInput,
+  branchId: number
 ): Promise<ApiResponse<ParameterResponse>> {
+  const url = `/api/v1/tests/${testId}/parameters`;
+  
   try {
-    const url = `/api/v1/tests/${testId}/parameters`;
-    console.log('📡 Creating test parameter...');
+
+    // Validate branchId (required for ADMIN/SUPER_ADMIN)
+    if (!branchId || branchId <= 0) {
+      throw new Error(`Invalid branchId: ${branchId}. Branch ID is required for ADMIN/SUPER_ADMIN roles.`);
+    }
 
     // Send only fields commonly accepted by backend DTOs.
     // Avoid empty arrays / undefined values that can trigger 500 on strict validators.
     const payload: Record<string, unknown> = {
+      branchId: branchId,  // Required for ADMIN/SUPER_ADMIN
       parameterName: input.parameterName?.trim(),
       unit: input.unit?.trim(),
       resultType: input.resultType,
@@ -720,11 +695,15 @@ export async function createTestParameter(
         );
     }
 
+    console.log('📤 Create payload:', JSON.stringify(payload, null, 2));
+    console.log('🚀 Making POST request to:', url);
+
     const response = await departmentClient.post<ApiResponse<ParameterResponse>>(url, payload) as any;
     console.log('✅ Test parameter created successfully');
+    console.log('📥 Response:', response);
     return response;
-  } catch (error) {
-    console.error('Error creating parameter:', error);
+  } catch (error: any) {
+    console.error('❌ Error creating parameter:');
     throw error;
   }
 }
@@ -732,23 +711,37 @@ export async function createTestParameter(
 /**
  * UPDATE TEST PARAMETER
  * Endpoint: PUT /api/v1/tests/{testId}/parameters/{parameterId}
+ * 
+ * Note: branchId is required for ADMIN/SUPER_ADMIN roles
  */
 export async function updateTestParameter(
   testId: number,
   parameterId: number,
-  input: CreateParameterInput
+  input: CreateParameterInput,
+  branchId: number
 ): Promise<ApiResponse<ParameterResponse>> {
   try {
     const url = `/api/v1/tests/${testId}/parameters/${parameterId}`;
-    console.log('📡 Updating test parameter...');
+   
 
+    // Validate required IDs
+    if (!parameterId || parameterId <= 0) {
+      throw new Error(`Invalid parameterId: ${parameterId}. Parameter ID must be a positive number.`);
+    }
+    if (!branchId || branchId <= 0) {
+      throw new Error(`Invalid branchId: ${branchId}. Branch ID is required for ADMIN/SUPER_ADMIN roles.`);
+    }
+
+    // Send only the fields that the API expects for update
     const payload: Record<string, unknown> = {
+      branchId: branchId,  // Required for ADMIN/SUPER_ADMIN
       parameterName: input.parameterName?.trim(),
       unit: input.unit?.trim(),
       resultType: input.resultType,
       isCalculated: Boolean(input.isCalculated),
     };
 
+    // Include optional numeric fields only if they are valid numbers
     if (typeof input.criticalLow === 'number' && Number.isFinite(input.criticalLow)) {
       payload.criticalLow = input.criticalLow;
     }
@@ -758,33 +751,17 @@ export async function updateTestParameter(
     if (input.isCalculated && input.calculationFormula?.trim()) {
       payload.calculationFormula = input.calculationFormula.trim();
     }
-    if (typeof input.sortOrder === 'number' && Number.isFinite(input.sortOrder)) {
-      payload.sortOrder = input.sortOrder;
-    }
-    if (Array.isArray(input.referenceRanges) && input.referenceRanges.length > 0) {
-      payload.referenceRanges = input.referenceRanges
-        .map((range) => ({
-          gender: range.gender,
-          ageMin: range.ageMin,
-          ageMax: range.ageMax,
-          minValue: range.minValue,
-          maxValue: range.maxValue,
-          unit: range.unit,
-        }))
-        .filter(
-          (range) =>
-            typeof range.ageMin === 'number' &&
-            typeof range.ageMax === 'number' &&
-            typeof range.minValue === 'number' &&
-            typeof range.maxValue === 'number'
-        );
-    }
 
+    console.log('📤 Update payload:', JSON.stringify(payload, null, 2));
+    console.log('🚀 Making PUT request to:', url);
+    
     const response = await departmentClient.put<ApiResponse<ParameterResponse>>(url, payload) as any;
+    
     console.log('✅ Test parameter updated successfully');
+    console.log('📥 Response:', response);
     return response;
-  } catch (error) {
-    console.error('Error updating parameter:', error);
+  } catch (error: any) {
+    console.error('❌ Error updating parameter:');
     throw error;
   }
 }
@@ -793,10 +770,6 @@ export async function updateTestParameter(
 
 export function validateTestData(data: Partial<CreateTestInput>): string[] {
   const errors: string[] = [];
-
-  if (!data.testCode || data.testCode.trim() === '') {
-    errors.push('Test code is required');
-  }
 
   if (!data.testName || data.testName.trim() === '') {
     errors.push('Test name is required');

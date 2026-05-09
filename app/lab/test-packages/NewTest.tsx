@@ -12,7 +12,6 @@ import {
   FlaskConical,
   Edit2,
   Search,
-  Percent,
   Loader,
 } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
@@ -38,6 +37,7 @@ import {
   fetchTests,
   Test
 } from '@/app/Apis/lab/TestApis';
+import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ interface TestWithDiscount {
   testName?: string;
   testCode?: string;
   category?: string;
-  discount: number;
+  displayOrder?: number;
 }
 
 interface FormData {
@@ -65,6 +65,7 @@ interface FormData {
   packagePrice: number | '';
   specialInstructions: string;
   isActive: boolean;
+  branchId: number;
   tests: TestWithDiscount[];
 }
 
@@ -117,12 +118,13 @@ export default function NewTest({
             : '',
         specialInstructions: editData.specialInstructions || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
-        tests: editData.tests?.map(t => ({
+        branchId: 1, // Default branch ID
+        tests: editData.tests?.map((t, index) => ({
           testId: t.testId,
           testName: t.testName,
           testCode: t.testCode,
           category: t.category,
-          discount: t.discount || 0,
+          displayOrder: index + 1,
         })) || [],
       };
     }
@@ -134,6 +136,7 @@ export default function NewTest({
       packagePrice: '',
       specialInstructions: '',
       isActive: true,
+      branchId: 1, // Default branch ID
       tests: [],
     };
   });
@@ -143,8 +146,41 @@ export default function NewTest({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiTests, setApiTests] = useState<AvailableTest[]>([]);
   const [isLoadingTests, setIsLoadingTests] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('1');
 
   // ─── Effects ───────────────────────────────────────────────────────────
+
+  // Load branches on component mount
+  useEffect(() => {
+    const loadBranches = async () => {
+      setLoadingBranches(true);
+      try {
+        const response = await branchApi.getAllBranches({
+          pageNo: 0,
+          pageSize: 100,
+        });
+        console.log('Loaded branches for test package:', response.data.content);
+        setBranches(response.data.content);
+      } catch (error) {
+        console.error('Failed to load branches:', error);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+
+    loadBranches();
+  }, []);
+
+  // Set selected branch ID when editData changes and branches are loaded
+  useEffect(() => {
+    if (editData && isOpen && branches.length > 0 && formData.branchId) {
+      const branchIdStr = formData.branchId.toString();
+      setSelectedBranchId(branchIdStr);
+      console.log('Set selected branch ID to:', branchIdStr);
+    }
+  }, [branches, editData, isOpen, formData.branchId]);
 
   // Fetch tests from API when component opens
   useEffect(() => {
@@ -178,12 +214,12 @@ export default function NewTest({
   useEffect(() => {
     if (isOpen && editData) {
       // Map tests with available test info
-      const mappedTests = editData.tests?.map(t => ({
+      const mappedTests = editData.tests?.map((t, index) => ({
         testId: t.testId,
         testName: t.testName,
         testCode: t.testCode,
         category: t.category,
-        discount: t.discount || 0,
+        displayOrder: index + 1,
       })) || [];
 
       setFormData({
@@ -196,6 +232,7 @@ export default function NewTest({
             : '',
         specialInstructions: editData.specialInstructions || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
+        branchId: 1,
         tests: mappedTests,
       });
     } else if (isOpen && !editData && !isEditMode) {
@@ -207,6 +244,7 @@ export default function NewTest({
         packagePrice: '',
         specialInstructions: '',
         isActive: true,
+        branchId: 1,
         tests: [],
       });
     }
@@ -289,7 +327,7 @@ export default function NewTest({
             testName: test.testName,
             testCode: test.testCode,
             category: test.category,
-            discount: 0,
+            displayOrder: prev.tests.length + 1,
           },
         ],
       }));
@@ -303,47 +341,29 @@ export default function NewTest({
     }));
   };
 
-  const handleDiscountChange = (testId: number, discount: number) => {
-    setFormData(prev => ({
-      ...prev,
-      tests: prev.tests.map(t =>
-        t.testId === testId
-          ? { ...t, discount: Math.max(0, Math.min(100, discount)) }
-          : t
-      ),
-    }));
-  };
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      // Common payload fields
-      const basePayload = {
+      // Common payload structure - same for both create and update
+      const apiData: CreateTestPackageInput | UpdateTestPackageInput = {
         packageCode: formData.packageCode,
         packageName: formData.packageName,
         description: formData.description || undefined,
         packagePrice: Number(formData.packagePrice),
         specialInstructions: formData.specialInstructions || undefined,
         isActive: formData.isActive,
-        tests: formData.tests.map(t => ({
+        branchId: formData.branchId,
+        tests: formData.tests.map((t, index) => ({
           testId: t.testId,
-          discount: t.discount,
+          displayOrder: index + 1,
         })),
       };
 
-      // Update payload must not include packageCode
-      const apiData: CreateTestPackageInput | UpdateTestPackageInput = isEditMode
-        ? {
-            packageName: basePayload.packageName,
-            description: basePayload.description,
-            packagePrice: basePayload.packagePrice,
-            specialInstructions: basePayload.specialInstructions,
-            isActive: basePayload.isActive,
-            tests: basePayload.tests,
-          }
-        : basePayload;
+      console.log('=== SUBMITTING PACKAGE ===');
+      console.log('Mode:', isEditMode ? 'UPDATE' : 'CREATE');
+      console.log('Payload:', JSON.stringify(apiData, null, 2));
 
       await onSubmit(apiData);
       handleClose();
@@ -363,6 +383,7 @@ export default function NewTest({
       packagePrice: '',
       specialInstructions: '',
       isActive: true,
+      branchId: 1,
       tests: [],
     });
     setErrors({});
@@ -441,31 +462,81 @@ export default function NewTest({
                 </p>
               )}
             </div>
-
             <div>
+            <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
+              Package Name *
+            </Label>
+            <Input
+              type="text"
+              name="packageName"
+              placeholder={isEditMode ? 'Existing package name' : 'Basic Health Checkup'}
+              value={formData.packageName}
+              onChange={handleInputChange}
+              maxLength={100}
+              className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
+                errors.packageName
+                  ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
+                  : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
+              }`}
+            />
+            {errors.packageName && (
+              <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {errors.packageName}
+              </p>
+            )}
+          </div>
+          </div>
+
+          
+          <div>
               <Label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Package Name *
+                Branch *
               </Label>
-              <Input
-                type="text"
-                name="packageName"
-                placeholder={isEditMode ? 'Existing package name' : 'Basic Health Checkup'}
-                value={formData.packageName}
-                onChange={handleInputChange}
-                maxLength={100}
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                  errors.packageName
-                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                }`}
-              />
-              {errors.packageName && (
-                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.packageName}
-                </p>
+              {loadingBranches ? (
+                <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2">
+                  <Loader size={16} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-400">Loading branches...</span>
+                </div>
+              ) : (
+                <Select
+                  value={selectedBranchId}
+                  onValueChange={(value) => {
+                    if (value) {
+                      const branchId = parseInt(value);
+                      console.log('Selected branch ID:', branchId);
+                      setSelectedBranchId(value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        branchId: branchId,
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger id={`branchId-${selectedBranchId}`} className="w-full">
+                    <SelectValue placeholder="Select a branch">
+                      {(() => {
+                        const selectedBranch = branches.find(b => b.id.toString() === selectedBranchId);
+                        if (selectedBranch) {
+                          return selectedBranch.branchName;
+                        }
+                        return 'Select a branch';
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.length > 0 ? (
+                      branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id.toString()}>
+                          {branch.branchName}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-sm text-slate-400">No branches available</div>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             </div>
-          </div>
 
           {/* Description */}
           <div>
@@ -559,7 +630,7 @@ export default function NewTest({
 
             {formData.tests.length > 0 ? (
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-3">
-                {formData.tests.map(test => (
+                {formData.tests.map((test, index) => (
                   <div
                     key={test.testId}
                     className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-100 hover:border-slate-200 transition-colors group"
@@ -573,27 +644,6 @@ export default function NewTest({
                         <div className="text-xs text-slate-500 font-mono">
                           {test.testCode} • {test.category}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Discount Input */}
-                    <div className="flex items-center gap-2 mr-3">
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={test.discount}
-                          onChange={e =>
-                            handleDiscountChange(test.testId, Number(e.target.value))
-                          }
-                          className="w-20 px-2 py-2 rounded-lg border border-slate-200 text-center text-sm font-bold text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
-                          placeholder="0"
-                          aria-label={`Discount for ${test.testName}`}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
-                          %
-                        </span>
                       </div>
                     </div>
 

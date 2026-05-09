@@ -64,8 +64,8 @@ export default function BranchesPage() {
     setLoading(true);
     try {
       const response = await branchApi.getAllBranches({
-        page: currentPage,
-        size: pageSize,
+        pageNo: currentPage,
+        pageSize: pageSize,
         search: search || undefined,
         status: statusFilter
       });

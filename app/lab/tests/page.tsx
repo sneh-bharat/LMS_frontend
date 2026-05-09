@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Plus,
   Search,
@@ -26,16 +27,13 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import Modal from '@/components/ui/modal';
-import Input from '@/components/ui/input';
-import Textarea from '@/components/ui/form-group';
 import NewTest from './NewTest';
 import TestDetailsView from './TestDetailsView';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
   fetchTests,
   fetchActiveTests,
   searchTestsByName,
-  fetchTestVersions,
   fetchTestParameters,
   createTest,
   updateTest,
@@ -46,7 +44,50 @@ import {
 } from '@/app/Apis/lab/TestApis';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-import { TestVersion, TestParameter, SampleRequirement, ReferenceRange, TestItem } from './types';
+import { TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';
+
+// Define TestItem to match the NewTest component's local interface
+type TestItem = Omit<Test, 'id' | 'testCode' | 'branchId' | 'departmentName' | 'categoryName' | 'createdAt' | 'updatedAt' | 'isCalculated'> & {
+  departmentId: string;
+  categoryId: string;
+  method: string;
+  unit: string;
+  price: string;
+  cghsPrice: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  isCalculated?: boolean;
+  parameters: Array<{
+    id?: number;
+    parameterCode?: string;
+    parameterName: string;
+    displayOrder?: number;
+    unit: string;
+    decimalPlaces?: number;
+    criticalLow?: number;
+    criticalHigh?: number;
+    isCalculated: boolean;
+    resultType: string;
+    calculationFormula?: string;
+    referenceRanges?: Array<{
+      id?: number;
+      gender: string;
+      ageMin: number;
+      ageMax: number;
+      minValue: number;
+      maxValue: number;
+      unit: string;
+    }>;
+  }>;
+  sampleRequirements: Array<{
+    id?: number;
+    sampleType: string;
+    volumeMl: number;
+    containerColor: string;
+    storageCondition: string;
+    isMandatory?: boolean;
+  }>;
+};
 
 const DEPARTMENTS = [
   { id: 1, name: 'Biochemistry' },
@@ -159,6 +200,11 @@ export default function TestPackagePage() {
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingTestId, setDeletingTestId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadTests();
@@ -167,20 +213,19 @@ export default function TestPackagePage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(0);
-      loadTests();
     }, 350);
 
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Reload tests when search, currentPage, or statusFilter changes
+  useEffect(() => {
+    loadTests();
+  }, [search, currentPage, statusFilter]);
+
   const loadTests = async () => {
     setLoading(true);
     try {
-      console.log('=== LOAD TESTS FUNCTION CALLED ===');
-      console.log('Current page:', currentPage);
-      console.log('Status filter:', statusFilter);
-      console.log('Search:', search);
-      
       const status = statusFilter === 'All' ? undefined : statusFilter === 'Active' ? 'true' : 'false';
       console.log('Converted status for API:', status);
       const trimmedSearch = search.trim();
@@ -190,17 +235,27 @@ export default function TestPackagePage() {
       let responseTotalElements = 0;
 
       if (trimmedSearch) {
-        console.log('Calling searchTestsByName with:', { name: trimmedSearch, currentPage, pageSize });
+        console.log('🔍 Calling searchTestsByName with:', { name: trimmedSearch, currentPage, pageSize });
         const searchResponse = await searchTestsByName(trimmedSearch, currentPage, pageSize);
+      
         const searchResults = searchResponse?.data?.content || [];
+        console.log('✅ Search results count:', searchResults.length);
 
         testsArray = searchResults.filter((test) => {
           if (statusFilter === 'All') return true;
           if (statusFilter === 'Active') return Boolean(test.isActive);
           return !test.isActive;
         });
+        
+        console.log('🔎 Filtered results count:', testsArray.length);
         responseTotalElements = searchResponse?.data?.totalElements || testsArray.length;
         responseTotalPages = searchResponse?.data?.totalPages || 0;
+        
+        console.log('📄 Pagination info:', {
+          totalPages: responseTotalPages,
+          totalElements: responseTotalElements,
+          currentPage: searchResponse?.data?.pageNo || 0
+        });
       } else {
         const response =
           statusFilter === 'Active'
@@ -208,95 +263,39 @@ export default function TestPackagePage() {
             : await fetchTests(currentPage, pageSize, undefined, status);
         console.log(
           statusFilter === 'Active'
-            ? 'Calling fetchActiveTests with:'
-            : 'Calling fetchTests with:',
+            ? '📡 Calling fetchActiveTests with:'
+            : '📡 Calling fetchTests with:',
           { currentPage, pageSize, status }
         );
-        
-        console.log('=== FETCH RESPONSE ===');
-        console.log('Full response:', response);
-        console.log('Response data:', response.data);
-        console.log('Content array:', response.data?.content);
-        console.log('Content length:', response.data?.content?.length);
-        console.log('Total elements:', response.data?.totalElements);
-        console.log('Total pages:', response.data?.totalPages);
-        
+
         testsArray = response.data?.content || [];
         responseTotalPages = response.data?.totalPages || 0;
         responseTotalElements = response.data?.totalElements || 0;
       }
       
-      console.log('Tests array to display:', testsArray);
-
-      // Load latest version price from versions API:
-      // /api/v1/tests/{testId}/versions?pageNo=0&pageSize=10
-      const testsWithVersionPrice = await Promise.all(
-        testsArray.map(async (test) => {
-          try {
-            const versionsRes = await fetchTestVersions(test.id);
-            const versionsPayload = (versionsRes as any)?.data;
-            const versions = Array.isArray(versionsPayload)
-              ? versionsPayload
-              : Array.isArray(versionsPayload?.content)
-                ? versionsPayload.content
-                : [];
-
-            if (!Array.isArray(versions) || versions.length === 0) {
-              return test;
-            }
-
-            const latestVersion = [...versions].sort(
-              (a: any, b: any) => (b?.versionNo || 0) - (a?.versionNo || 0)
-            )[0];
-
-            if (!latestVersion) {
-              return test;
-            }
-
-            // Merge latest version fields directly into test object (flat structure)
-            return {
-              ...test,
-              method: latestVersion.method || test.method,
-              unit: latestVersion.unit || test.unit,
-              price: latestVersion.price || test.price,
-              cghsPrice: latestVersion.cghsPrice || test.cghsPrice,
-              effectiveFrom: latestVersion.effectiveFrom || test.effectiveFrom,
-              effectiveTo: latestVersion.effectiveTo || test.effectiveTo,
-            };
-          } catch (versionError) {
-            console.warn(`Failed to fetch versions for test ${test.id}:`, versionError);
-            return test;
-          }
-        })
-      );
-      
-      setPackages(testsWithVersionPrice);
+ 
+      // Use tests directly without fetching versions
+      setPackages(testsArray);
       setTotalPages(responseTotalPages);
       setTotalElements(responseTotalElements);
-      
-      console.log('✅ Successfully loaded', testsArray.length, 'tests out of', responseTotalElements, 'total');
+  
     } catch (error) {
     
-      console.error('Error:', error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error type:', error);
-      
-      
       setPackages([]);
       setTotalPages(0);
       setTotalElements(0);
     } finally {
       setLoading(false);
-      console.log('Loading state set to false');
+      console.log('🏁 Loading state set to false');
     }
   };
 
   const handleSearch = () => {
+    // Just reset to page 0 - the useEffect will trigger loadTests
     setCurrentPage(0);
-    loadTests();
   };
 
-  const handleNewTestSubmit = async (newPackageData: TestItem) => {
+  const handleNewTestSubmit = async (newPackageData: any) => {
     console.log('=== PARENT COMPONENT NOTIFICATION ===');
     console.log('Test saved successfully, reloading list...');
     // Just reload the tests - the API call is already done in NewTest component
@@ -374,9 +373,52 @@ export default function TestPackagePage() {
       setIsModalOpen(true);
     } catch (error) {
       console.error('❌ Failed to fetch parameters:', error);
+      // If fetch fails, still open the modal with the test data
       setEditingPackage(pkg);
       setActiveTab('parameters');
       setIsModalOpen(true);
+    }
+  };
+
+  const handleEditSingleParameter = async (pkg: Test, parameterId: number) => {
+    console.log('=== EDIT SINGLE PARAMETER CLICKED ===');
+    console.log('Test ID:', pkg.id);
+    console.log('Parameter ID:', parameterId);
+
+    try {
+      console.log('📡 Fetching parameters from API...');
+      const response = await fetchTestParameters(pkg.id);
+      const parameterPayload = response.data;
+      const normalizedParameters = Array.isArray(parameterPayload)
+        ? parameterPayload
+        : parameterPayload
+          ? [parameterPayload]
+          : [];
+
+      // Find the specific parameter to edit
+      const parameterToEdit = normalizedParameters.find((p: any) => p.id === parameterId);
+
+      if (!parameterToEdit) {
+        console.error('❌ Parameter not found with ID:', parameterId);
+        alert('Parameter not found');
+        return;
+      }
+
+      console.log('✅ Parameter found:', parameterToEdit);
+      
+      // Set editing data with only the selected parameter
+      const parameterEditData = {
+        ...pkg,
+        parameters: [parameterToEdit],
+        editingParameterId: parameterId, // Flag to indicate single parameter edit
+      };
+
+      setEditingPackage(parameterEditData);
+      setActiveTab('parameters');
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('❌ Failed to fetch parameters:', error);
+      alert('Failed to load parameter data');
     }
   };
 
@@ -385,30 +427,59 @@ export default function TestPackagePage() {
     setDetailsOpen(true);
   };
 
-  const handleDetailsDelete = async (testId: number) => {
-    if (window.confirm('Are you sure you want to delete this test?')) {
-      try {
-        await deleteTest(testId);
-        setDetailsOpen(false);
-        setSelectedPackage(null);
-        loadTests();
-      } catch (error) {
-        console.error('Failed to delete test:', error);
-      }
-    }
+  // ─── Delete from Details View ─────────────────────────────────────────────
+  const handleDetailsDelete = (testId: number) => {
+    setDeletingTestId(testId);
+    setIsDeleteDialogOpen(true);
   };
 
-  const handleDeleteFromList = async (testId: number) => {
-    if (!window.confirm('Are you sure you want to delete this test?')) {
+  // ─── Delete from List View ────────────────────────────────────────────────
+  const handleDeleteFromList = (testId: number) => {
+    setDeletingTestId(testId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // ─── Confirm Delete ──────────────────────────────────────────────────────
+  const handleConfirmDelete = async () => {
+    if (!deletingTestId) {
+      toast.error('No test selected for deletion');
       return;
     }
 
+    setIsDeleting(true);
     try {
-      await deleteTest(testId);
+      console.log('🗑️ Deleting test with ID:', deletingTestId);
+      await deleteTest(deletingTestId);
+      
+      toast.success('Test deleted successfully!');
+      
+      // Close dialog if it was opened from details view
+      if (detailsOpen) {
+        setDetailsOpen(false);
+        setSelectedPackage(null);
+      }
+      
+      // Reload the test list
       loadTests();
-    } catch (error) {
-      console.error('Failed to delete test:', error);
+      
+      // Close dialog
+      setIsDeleteDialogOpen(false);
+      setDeletingTestId(null);
+    } catch (error: any) {
+      console.error('❌ Failed to delete test:', error);
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to delete test. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  // ─── Close Delete Dialog ─────────────────────────────────────────────────
+  const handleCloseDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingTestId(null);
   };
 
   const handleCloseModal = () => {
@@ -499,7 +570,7 @@ export default function TestPackagePage() {
             >
               <option>All</option>
               <option>Active</option>
-              <option>Inactive</option>
+             
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
@@ -588,7 +659,7 @@ export default function TestPackagePage() {
                       onClick={() => handleViewDetails(pkg)}
                     >
                       <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                        {pkg.categoryId === 5 ? 'Lipid Profile' : 'Other'}
+                        {pkg.categoryName || 'N/A'}
                       </Badge>
                     </td>
                     <td
@@ -693,6 +764,16 @@ export default function TestPackagePage() {
         onDelete={(id) => handleDetailsDelete(Number(id))}
         onEditSample={handleEditSample}
         onEditParameters={handleEditParameters}
+      />
+
+      {/* ═══ DELETE CONFIRMATION DIALOG ══════════════════════════ */}
+      <DeleteAlertDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        title="Delete Test"
+        description="Are you sure you want to permanently delete this test? This action cannot be undone and all associated data including parameters and sample requirements will be lost."
       />
     </div>
   );

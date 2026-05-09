@@ -85,8 +85,8 @@ export interface UpdateBranchInput {
 }
 
 export interface BranchQueryParams {
-  page?: number;
-  size?: number;
+  pageNo?: number;
+  pageSize?: number;
   search?: string;
   status?: string;
   tenantId?: number;
@@ -100,9 +100,9 @@ export interface BranchQueryParams {
  */
 export const branchApi = {
   getAllBranches: async (params: BranchQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
-    const { page = 0, size = 10, search, status, tenantId = 1 } = params;
+    const { pageNo = 0, pageSize = 10, search, status, tenantId = 1 } = params;
     
-    const queryParams: any = { page, size };
+    const queryParams: any = { pageNo, pageSize };
     
     if (search && search.trim()) {
       queryParams.search = search.trim();
@@ -122,10 +122,10 @@ export const branchApi = {
    * GET ACTIVE BRANCHES - Fetch active branches only
    * Endpoint: GET /api/v1/tenants/{tenantId}/branches/active
    */
-  getActiveBranches: async (params: { page?: number; size?: number; search?: string; tenantId?: number } = {}): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
-    const { page = 0, size = 10, search, tenantId = 1 } = params;
+  getActiveBranches: async (params: { pageNo?: number; pageSize?: number; search?: string; tenantId?: number } = {}): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
+    const { pageNo = 0, pageSize = 10, search, tenantId = 1 } = params;
     
-    const queryParams: any = { page, size };
+    const queryParams: any = { pageNo, pageSize };
     
     if (search && search.trim()) {
       queryParams.search = search.trim();

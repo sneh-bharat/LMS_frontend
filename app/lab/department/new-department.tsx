@@ -102,8 +102,8 @@ export default function AddDepartment({
     setLoadingBranches(true);
     try {
       const response = await branchApi.getAllBranches({
-        page: 0,
-        size: 100,
+        pageNo: 0,
+        pageSize: 100,
       });
       console.log('Loaded branches:', response.data.content);
       setBranches(response.data.content);

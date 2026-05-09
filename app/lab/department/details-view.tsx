@@ -36,8 +36,8 @@ export function DepartmentDetails({ isOpen, onClose, department, onEdit }: Depar
                 setLoadingBranches(true);
                 try {
                     const response = await branchApi.getAllBranches({
-                        page: 0,
-                        size: 100,
+                        pageNo: 0,
+                        pageSize: 100,
                     });
                     setBranches(response.data.content);
                 } catch (error) {

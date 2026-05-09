@@ -148,9 +148,18 @@ export async function fetchTestCategories(
     params.append('status', statusFilter);
   }
 
-  const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+  // Axios interceptor unwraps AxiosResponse.data at runtime
+  // So response is already ApiResponse at runtime
+  const response: any = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
     `/api/v1/test-categories?${params}`
   );
+  
+  console.log('📦 Raw API response:', response);
+  console.log('📦 Response type:', typeof response);
+  console.log('📦 Has data property:', 'data' in (response || {}));
+  console.log('📦 Response.data:', response?.data);
+  console.log('📦 Response.data.content:', response?.data?.content);
+  
   return response.data;
 }
 

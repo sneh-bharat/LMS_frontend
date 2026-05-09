@@ -24,7 +24,8 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import type { Test } from '@/app/Apis/lab/TestApis';
-import { fetchTestVersions, fetchTestParameters, fetchSampleRequirements } from '@/app/Apis/lab/TestApis';
+import { fetchTestParameters, fetchSampleRequirements } from '@/app/Apis/lab/TestApis';
+import { branchApi } from '@/app/Apis/branch/branchApi';
 
 interface TestDetailsViewProps {
   isOpen: boolean;
@@ -47,18 +48,31 @@ export default function TestDetailsView({
 }: TestDetailsViewProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [versions, setVersions] = useState<any[]>([]);
   const [parameters, setParameters] = useState<any[]>([]);
   const [sampleRequirements, setSampleRequirements] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
 
   // Fetch test details when component opens
   useEffect(() => {
     if (isOpen && testData?.id) {
       fetchTestDetails();
+      fetchBranchName();
     }
   }, [isOpen, testData?.id]);
+
+  const fetchBranchName = async () => {
+    if (!testData?.branchId) return;
+
+    try {
+      const response = await branchApi.getBranchById(testData.branchId);
+      setBranchName(response.data.branchName);
+    } catch (err: any) {
+      console.error('❌ Error fetching branch name:', err);
+      setBranchName(null);
+    }
+  };
 
   const fetchTestDetails = async () => {
     if (!testData?.id) return;
@@ -71,44 +85,26 @@ export default function TestDetailsView({
 
       // Fetch all data in parallel, but handle errors individually
       const promises = [
-        fetchTestVersions(testData.id).catch((err) => {
-          console.error('❌ Failed to fetch versions:', err);
-          return { data: [], message: 'Failed to fetch versions', response: false, status: 'error', timestamp: new Date().toISOString() };
-        }),
-        fetchTestParameters(testData.id).catch((err) => {
+        fetchTestParameters(testData.id).catch((err: any) => {
           console.error('❌ Failed to fetch parameters:', err);
           return { data: [], message: 'Failed to fetch parameters', response: false, status: 'error', timestamp: new Date().toISOString() };
         }),
-        fetchSampleRequirements(testData.id).catch((err) => {
+        fetchSampleRequirements(testData.id).catch((err: any) => {
           console.error('❌ Failed to fetch samples:', err);
           return { data: [], message: 'Failed to fetch samples', response: false, status: 'error', timestamp: new Date().toISOString() };
         }),
       ];
 
-      const [versionsRes, parametersRes, samplesRes] = await Promise.all(promises);
+      const [parametersRes, samplesRes] = await Promise.all(promises);
 
-      console.log('✅ Versions response:', versionsRes);
-      console.log('✅ Parameters response:', parametersRes);
-      console.log('✅ Samples response:', samplesRes);
-
-      // Handle responses - versions can be paginated ({ content: [] }) or a plain array
-      const versionsPayload = (versionsRes as any)?.data;
-      const versionsData = Array.isArray(versionsPayload)
-        ? versionsPayload
-        : Array.isArray(versionsPayload?.content)
-          ? versionsPayload.content
-          : [];
+      // Handle responses
       const parametersData = (parametersRes as any)?.data || [];
       const samplesData = (samplesRes as any)?.data || [];
 
-      setVersions(Array.isArray(versionsData) ? versionsData : []);
       setParameters(Array.isArray(parametersData) ? parametersData : []);
       setSampleRequirements(Array.isArray(samplesData) ? samplesData : []);
 
-      console.log('📊 Processed data:');
-      console.log('- Versions:', versionsData?.length);
-      console.log('- Parameters:', parametersData?.length);
-      console.log('- Samples:', samplesData?.length);
+
     } catch (err: any) {
       console.error('❌ Error fetching test details:', err);
       setError(err.message || 'Failed to fetch test details');
@@ -216,7 +212,13 @@ export default function TestDetailsView({
                 </h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
-                    {testData.categoryId ? `Category ${testData.categoryId}` : 'N/A'}
+                    {testData.categoryName || 'N/A'}
+                  </Badge>
+                  <Badge variant="info" className="px-3 py-1 text-xs font-bold">
+                    {testData.departmentName || 'N/A'}
+                  </Badge>
+                  <Badge variant="warning" className="px-3 py-1 text-xs font-bold">
+                    {branchName || 'N/A'}
                   </Badge>
                   <Badge
                     variant={testData.isActive ? 'success' : 'secondary'}
@@ -323,91 +325,7 @@ export default function TestDetailsView({
           </div>
         </div>
 
-        {/* ═══ VERSIONS SECTION ════════════════════════════════════ */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <ListChecks size={18} className="text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">
-                Test Versions
-              </h3>
-            </div>
-            <Badge variant="primary" className="px-3 py-1 text-xs font-bold">
-              {versions.length} version{versions.length !== 1 ? 's' : ''}
-            </Badge>
-          </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-emerald-600" />
-              <span className="ml-3 text-slate-600">Loading versions...</span>
-            </div>
-          ) : versions.length === 0 ? (
-            <div className="text-center py-8">
-              <Package size={40} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-500 text-sm">No versions available</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {versions.map((version: any, index: number) => (
-                <div
-                  key={version.id || index}
-                  className="border border-slate-200 rounded-lg p-4 hover:border-emerald-300 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        v{version.versionNo}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900">Version {version.versionNo}</h4>
-                        <p className="text-xs text-slate-500">Method: {version.method}</p>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={index === 0 ? 'success' : 'secondary'}
-                      className="text-xs font-bold"
-                    >
-                      {index === 0 ? 'Latest' : 'Older'}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Unit</p>
-                      <p className="font-semibold text-slate-900">{version.unit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Price</p>
-                      <p className="font-semibold text-slate-900">₹{version.price?.toLocaleString('en-IN')}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">CGHS Price</p>
-                      <p className="font-semibold text-slate-900">
-                        {version.cghsPrice ? `₹${version.cghsPrice.toLocaleString('en-IN')}` : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Effective From</p>
-                      <p className="font-semibold text-slate-900">
-                        {version.effectiveFrom ? new Date(version.effectiveFrom).toLocaleDateString('en-IN') : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {version.effectiveTo && (
-                    <div className="mt-3 pt-3 border-t border-slate-200">
-                      <p className="text-xs text-slate-500">
-                        <span className="font-semibold">Effective To:</span>{' '}
-                        {new Date(version.effectiveTo).toLocaleDateString('en-IN')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* ═══ PARAMETERS SECTION ═════════════════════════════════ */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -589,7 +507,7 @@ export default function TestDetailsView({
             </div>
           </div>
 
-          {/* Category Info */}
+          {/* Classification */}
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
               Classification
@@ -598,13 +516,19 @@ export default function TestDetailsView({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600 font-medium">Department</span>
                 <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                  {testData.departmentId ? `Dept ${testData.departmentId}` : 'N/A'}
+                  {testData.departmentName || 'N/A'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 font-medium">Branch</span>
+                <Badge variant="warning" className="px-2.5 py-1 text-[10px] font-bold">
+                  {branchName || 'N/A'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600 font-medium">Category</span>
                 <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                  {testData.categoryId ? `Cat ${testData.categoryId}` : 'N/A'}
+                  {testData.categoryName || 'N/A'}
                 </Badge>
               </div>
             </div>
