@@ -5,7 +5,9 @@
  * and troubleshoot common API issues.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL1 || 'http://localhost:8080/api/v1';
+import { getPatientServiceBaseUrl } from './patientServiceBaseUrl';
+
+const API_BASE_URL = getPatientServiceBaseUrl();
 
 export interface ConnectionTestResult {
   test: string;

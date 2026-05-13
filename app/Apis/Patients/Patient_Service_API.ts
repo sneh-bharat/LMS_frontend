@@ -9,7 +9,21 @@
  * - Fetching individual patient details
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL1;
+import { getPatientServiceBaseUrl } from './patientServiceBaseUrl';
+
+const API_BASE_URL = getPatientServiceBaseUrl();
+
+/** Same auth as `app/Apis/Auth/apiClient.ts` — backend requires Bearer for patient routes. */
+function staffAuthHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { Accept: 'application/json', ...extra };
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
 
 // ─── Logger Utility ──────────────────────────────────────────────────────────
 
@@ -35,6 +49,13 @@ class ApiErrorHandler {
   static handle(response: Response, responseText: string): { code: string; message: string; details?: unknown } {
     try {
       const data = JSON.parse(responseText);
+      if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+        return {
+          code: `HTTP_${response.status}`,
+          message: this.getStatusMessage(response.status),
+          details: data,
+        };
+      }
       return {
         code: data.code || `HTTP_${response.status}`,
         message: data.message || data.error || this.getStatusMessage(response.status),
@@ -202,16 +223,16 @@ export async function fetchPatients(
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
 
     if (!response.ok) {
       const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch patients', error);
+      logger.error(
+        `Failed to fetch patients: ${error.message} (HTTP ${response.status}) ${url}`
+      );
       throw new Error(error.message);
     }
 
@@ -248,9 +269,7 @@ export async function fetchPatientById(
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
@@ -316,6 +335,7 @@ export async function createPatient(
 
     const response = await fetch(url, {
       method: 'POST',
+      headers: staffAuthHeaders(),
       body: formData,
     });
 
@@ -385,6 +405,7 @@ export async function updatePatient(
 
     const response = await fetch(url, {
       method: 'PUT',
+      headers: staffAuthHeaders(),
       body: formData,
       // DO NOT set Content-Type header - browser will auto-set multipart/form-data with boundary
     });
@@ -437,9 +458,7 @@ export async function deletePatient(
 
     const response = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
@@ -479,9 +498,7 @@ export async function fetchPatientImage(
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
