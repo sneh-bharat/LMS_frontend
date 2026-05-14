@@ -11,6 +11,11 @@ const apiClient = axios.create({
     },
 });
 
+// Debug: Print the base URL
+console.log('API Base URL:', process.env.NEXT_PUBLIC_API_AUTH);
+console.log('Full Login URL:', `${process.env.NEXT_PUBLIC_API_AUTH}/api/v1/auth/login`);
+
+
 // Request Interceptor: Attach tokens if available
 apiClient.interceptors.request.use(
     (config) => {

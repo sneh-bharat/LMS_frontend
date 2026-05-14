@@ -9,7 +9,23 @@
  * - Fetching individual patient details
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL1;
+import axios from 'axios';
+import { getPatientServiceBaseUrl } from './patientServiceBaseUrl';
+import { patientServiceAxios } from './axios';
+
+const API_BASE_URL = getPatientServiceBaseUrl();
+
+/** Same auth as `app/Apis/Auth/apiClient.ts` — backend requires Bearer for patient routes. */
+function staffAuthHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { Accept: 'application/json', ...extra };
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
 
 // ─── Logger Utility ──────────────────────────────────────────────────────────
 
@@ -35,6 +51,13 @@ class ApiErrorHandler {
   static handle(response: Response, responseText: string): { code: string; message: string; details?: unknown } {
     try {
       const data = JSON.parse(responseText);
+      if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+        return {
+          code: `HTTP_${response.status}`,
+          message: this.getStatusMessage(response.status),
+          details: data,
+        };
+      }
       return {
         code: data.code || `HTTP_${response.status}`,
         message: data.message || data.error || this.getStatusMessage(response.status),
@@ -82,12 +105,25 @@ export interface PatientAddress {
   isPrimary: boolean;
 }
 
+/** Matches backend allergy severity (see patient update DTO / curl). */
+export type AllergySeverityLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
 export interface PatientAllergy {
   id?: number;
   allergyName: string;
-  severity: 'Mild' | 'Moderate' | 'Severe';
-  notedBy: number;
+  severity: AllergySeverityLevel;
+  /** Staff id (number) or free text (e.g. doctor name) per API. */
+  notedBy?: number | string;
   remarks?: string;
+}
+
+/** Map API or legacy UI values to the enum sent on create/update. */
+export function normalizeAllergySeverity(raw: string | undefined): AllergySeverityLevel {
+  const s = (raw || '').trim().toUpperCase();
+  if (s === 'LOW' || s === 'MILD') return 'LOW';
+  if (s === 'HIGH' || s === 'SEVERE') return 'HIGH';
+  if (s === 'MEDIUM' || s === 'MODERATE') return 'MEDIUM';
+  return 'MEDIUM';
 }
 
 export interface Patient {
@@ -103,7 +139,7 @@ export interface Patient {
   mobileAlternate?: string;
   email?: string;
   abhaId?: string;
-  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
+  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF' | 'GENERAL';
   clinicId: number;
   isActive: boolean;
   referringDoctorId?: number;
@@ -149,7 +185,7 @@ export interface CreatePatientInput {
   mobileAlternate?: string;
   email?: string;
   abhaId?: string;
-  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF';
+  patientCategory: 'REGULAR' | 'VIP' | 'CORPORATE' | 'TPA' | 'CGHS' | 'ECHS' | 'ESI' | 'BPL' | 'STAFF' | 'GENERAL';
   clinicId: number;
   isActive?: boolean;
   referringDoctorId?: number;
@@ -164,6 +200,154 @@ export interface CreatePatientInput {
 
 export interface UpdatePatientInput extends CreatePatientInput {
   id?: number;
+}
+
+// ─── Axios patient microservice (same base URL + Bearer as other patient routes) ─
+
+class AxiosPatientErrorHandler {
+  static handle(status: number, responseText: string): { message: string } {
+    try {
+      const data = JSON.parse(responseText) as { message?: string; error?: string };
+      if (data && typeof data === 'object') {
+        return { message: data.message || data.error || `HTTP ${status}` };
+      }
+    } catch {
+      /* ignore */
+    }
+    return { message: responseText || `HTTP ${status}` };
+  }
+}
+
+async function getPatientByIdClient(patientId: number): Promise<ApiResponse<Patient>> {
+  try {
+    const { data } = await patientServiceAxios.get<ApiResponse<Patient>>(`/patients/${patientId}`);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response) {
+      const body =
+        typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(e.response.status, body);
+      throw new Error(message);
+    }
+    throw e instanceof Error ? e : new Error('Failed to fetch patient');
+  }
+}
+
+function isMissingPatientImage(status: number, message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    status === 404 ||
+    m.includes('not found') ||
+    m.includes('no image') ||
+    m.includes('image not found')
+  );
+}
+
+async function getPatientImageClient(patientId: number): Promise<ApiResponse<string>> {
+  try {
+    const { data } = await patientServiceAxios.get<ApiResponse<string>>(`/patients/image/${patientId}`);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response) {
+      const status = e.response.status;
+      const body =
+        typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(status, body);
+      if (isMissingPatientImage(status, message)) {
+        return {
+          data: '',
+          message: message || 'No profile image',
+          response: false,
+          status: 'OK',
+          timestamp: new Date().toISOString(),
+        };
+      }
+      throw new Error(message);
+    }
+    throw e instanceof Error ? e : new Error('Failed to fetch patient image');
+  }
+}
+
+/**
+ * Build the JSON string for the multipart DTO part. Patient fields stay JSON; when a new
+ * photo file is sent, `photoUrl` is omitted from JSON so the image exists only as the binary
+ * `photoUrl` form part (Spring-style `@RequestPart`).
+ */
+function jsonPartForPatientMultipart(
+  fields: Record<string, unknown>,
+  photoFile: File | undefined
+): string {
+  const dto = { ...fields };
+  if (photoFile) {
+    delete dto.photoUrl;
+  }
+  return JSON.stringify(dto);
+}
+
+/**
+ * Multipart patient create/update:
+ * - **JSON**: `patientRequestDTO` / `patientUpdateDTO` as a part with `Content-Type: application/json` (UTF-8 body).
+ * - **Binary**: optional `photoUrl` part = raw file bytes (`File`), not base64 inside JSON.
+ */
+async function putPatientUpdateClient(
+  patientId: number,
+  input: CreatePatientInput & { photoFile?: File }
+): Promise<ApiResponse<Patient>> {
+  const { photoFile, ...rest } = input;
+  const json = jsonPartForPatientMultipart({ ...(rest as Record<string, unknown>), id: patientId }, photoFile);
+
+  const formData = new FormData();
+  formData.append(
+    'patientUpdateDTO',
+    new Blob([json], { type: 'application/json' }),
+    'patientUpdateDTO.json'
+  );
+  if (photoFile) {
+    formData.append('photoUrl', photoFile, photoFile.name);
+  }
+
+  try {
+    const { data } = await patientServiceAxios.put<ApiResponse<Patient>>(`/patients/${patientId}`, formData);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response) {
+      const body =
+        typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(e.response.status, body);
+      throw new Error(message);
+    }
+    throw e instanceof Error ? e : new Error('Failed to update patient');
+  }
+}
+
+async function postPatientCreateClient(
+  input: CreatePatientInput & { photoFile?: File }
+): Promise<ApiResponse<Patient>> {
+  const { photoFile, ...rest } = input;
+  const json = jsonPartForPatientMultipart(rest as Record<string, unknown>, photoFile);
+
+  const formData = new FormData();
+  formData.append(
+    'patientRequestDTO',
+    new Blob([json], { type: 'application/json' }),
+    'patientRequestDTO.json'
+  );
+  if (photoFile) {
+    formData.append('photoUrl', photoFile, photoFile.name);
+  }
+
+  try {
+    const { data } = await patientServiceAxios.post<ApiResponse<Patient>>('/patients', formData);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response) {
+      const body =
+        typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(e.response.status, body);
+      throw new Error(message);
+    }
+    throw e instanceof Error ? e : new Error('Failed to create patient');
+  }
 }
 
 // ─── API Functions ──────────────────────────────────────────────────────────
@@ -202,16 +386,16 @@ export async function fetchPatients(
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
 
     if (!response.ok) {
       const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch patients', error);
+      logger.error(
+        `Failed to fetch patients: ${error.message} (HTTP ${response.status}) ${url}`
+      );
       throw new Error(error.message);
     }
 
@@ -242,40 +426,7 @@ export async function fetchPatients(
 export async function fetchPatientById(
   patientId: number
 ): Promise<ApiResponse<Patient>> {
-  try {
-    const url = `${API_BASE_URL}/patients/${patientId}`;
-    logger.debug('Fetching patient details', { patientId });
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch patient details', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully fetched patient details', {
-      patientId,
-      patientName: `${responseData.data?.firstName} ${responseData.data?.lastName}`,
-    });
-
-    return responseData;
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
-    throw error;
-  }
+  return getPatientByIdClient(patientId);
 }
 
 /**
@@ -294,40 +445,12 @@ export async function createPatient(
       throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
     }
 
-    const url = `${API_BASE_URL}/patients`;
     logger.debug('Creating patient', {
       patientCode: input.patientCode,
       patientName: `${input.firstName} ${input.lastName}`,
     });
 
-    // Create patientRequestDTO object (exclude photoFile from the DTO)
-    const { photoFile, ...patientDTO } = input;
-
-    // Create FormData
-    const formData = new FormData();
-
-    // Add patientRequestDTO as JSON string with proper type
-    formData.append('patientRequestDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
-
-    // Add photo file if provided with explicit field name
-    if (photoFile) {
-      formData.append('photoUrl', photoFile, photoFile.name);
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to create patient', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
+    const responseData = await postPatientCreateClient(input);
     logger.debug('Successfully created patient', {
       id: responseData.data?.id,
       patientCode: input.patientCode,
@@ -356,68 +479,13 @@ export async function updatePatient(
   input: CreatePatientInput & { photoFile?: File }
 ): Promise<ApiResponse<Patient>> {
   try {
-    const url = `${API_BASE_URL}/patients/${patientId}`;
-
-    // Separate photoFile from the DTO
-    const { photoFile, ...patientDTO } = input;
-
-    // Create FormData for multipart request
-    const formData = new FormData();
-
-    console.log('📤 SENDING UPDATE REQUEST');
-    console.log('Patient ID:', patientId);
-    console.log('Payload being sent:', JSON.stringify(patientDTO, null, 2));
-
-    // IMPORTANT: Use 'patientUpdateDTO' as the field name (not 'patientRequestDTO')
-    // This matches the backend expectation shown in the curl example
-    formData.append('patientUpdateDTO', new Blob([JSON.stringify(patientDTO)], { type: 'application/json' }));
-
-    // Add photo file if provided
-    if (photoFile) {
-      formData.append('photoUrl', photoFile, photoFile.name);
-    }
-
-    console.log('📦 FormData entries:');
-    for (const [key, value] of formData.entries()) {
-      const val = value as any;
-      console.log(`  ${key}:`, val instanceof File ? `File: ${val.name}` : val instanceof Blob ? 'Blob (JSON)' : val);
-    }
-
-    const response = await fetch(url, {
-      method: 'PUT',
-      body: formData,
-      // DO NOT set Content-Type header - browser will auto-set multipart/form-data with boundary
-    });
-
-    const responseText = await response.text();
-
-    console.log('📥 RESPONSE RECEIVED');
-    console.log('Status:', response.status);
-    console.log('Response Text:', responseText);
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to update patient', error);
-      console.error('❌ UPDATE FAILED:', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully updated patient', {
-      patientId,
-      code: responseData.code,
-    });
-    console.log('✅ UPDATE SUCCESSFUL:', responseData);
-
-    return responseData;
+    return await putPatientUpdateClient(patientId, input);
   } catch (error) {
     if (ApiErrorHandler.isNetworkError(error)) {
       const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
       logger.error(message);
-      console.error('🌐 NETWORK ERROR:', message);
       throw new Error(message);
     }
-    console.error('💥 UNEXPECTED ERROR:', error);
     throw error;
   }
 }
@@ -437,16 +505,16 @@ export async function deletePatient(
 
     const response = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: staffAuthHeaders(),
     });
 
     const responseText = await response.text();
 
     if (!response.ok) {
       const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to delete patient', error);
+      logger.error(
+        `Failed to delete patient: ${error.message} (HTTP ${response.status}) ${url}`
+      );
       throw new Error(error.message);
     }
 
@@ -473,37 +541,7 @@ export async function deletePatient(
 export async function fetchPatientImage(
   patientId: number
 ): Promise<ApiResponse<string>> {
-  try {
-    const url = `${API_BASE_URL}/patients/image/${patientId}`;
-    logger.debug('Fetching patient image', { patientId });
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch patient image', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully fetched patient image', { patientId });
-
-    return responseData;
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
-    throw error;
-  }
+  return getPatientImageClient(patientId);
 }
 
 // ─── Validation Helper ──────────────────────────────────────────────────────

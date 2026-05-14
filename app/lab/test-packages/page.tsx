@@ -802,6 +802,10 @@ export default function TestPackagePage() {
                   Showing {packages.length} of {pagination.totalElements} Packages
                 </span>
                 <div className="w-1 h-1 rounded-full bg-slate-200"></div>
+                <span>
+                  Total Tests: {packages.reduce((sum, pkg) => sum + (pkg.tests?.length || 0), 0)}
+                </span>
+                <div className="w-1 h-1 rounded-full bg-slate-200"></div>
                 <span className="text-[#FF671F]">Test Packages v2.0</span>
               </div>
               <div className="flex items-center gap-2">

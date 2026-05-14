@@ -1,8 +1,5 @@
 /**
  * Test Categories API Service
- * 
- * This service handles all API operations for Test Category management.
- * 
  * API Endpoints:
  * - GET    /test-categories           - Get all categories (paginated)
  * - GET    /test-categories/{id}      - Get category by ID
@@ -11,7 +8,7 @@
  * - DELETE /test-categories/{id}      - Delete category
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import departmentClient from './axios';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +18,7 @@ export interface TestCategory {
   categoryName: string;
   description: string;
   departmentId: number;
+  departmentName?: string;
   displayOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -50,6 +48,7 @@ export interface CreateCategoryInput {
   categoryName: string;
   description?: string;
   departmentId?: number;
+  branchId?: number;
   displayOrder?: number;
   isActive?: boolean;
 }
@@ -58,153 +57,121 @@ export interface UpdateCategoryInput {
   categoryName?: string;
   description?: string;
   departmentId?: number;
+  branchId?: number;
   displayOrder?: number;
   isActive?: boolean;
 }
 
 /**
  * GET TEST CATEGORY BY CODE - Fetch category by its code
- * Endpoint: GET /test-categories/code/{categoryCode}
+ * Endpoint: GET /api/v1/test-categories/code/{categoryCode}
  */
 export async function fetchTestCategoryByCode(
   categoryCode: string
 ): Promise<ApiResponse<TestCategory>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/test-categories/code/${categoryCode}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch test category by code');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching test category by code:', error);
-    throw error;
-  }
+  const response = await departmentClient.get<ApiResponse<TestCategory>>(
+    `/api/v1/test-categories/code/${categoryCode}`
+  );
+  return response.data;
 }
 
 /**
  * SEARCH CATEGORIES BY NAME - Search categories with filters
- * Endpoint: GET /test-categories/search?categoryName=Hematology&page=0&size=10&sort=categoryId,asc
+ * Endpoint: GET /api/v1/test-categories/search?categoryName=Hematology&pageNo=0&pageSize=10
  */
 export async function searchTestCategoriesByName(
   categoryName: string,
-  page: number = 0,
-  size: number = 10,
+  pageNo: number = 0,
+  pageSize: number = 10,
   sort: string = 'categoryId,asc'
 ): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString(),
-      sort: sort,
-    });
+  const params = new URLSearchParams({
+    categoryName: categoryName.trim(),
+    pageNo: pageNo.toString(),
+    pageSize: pageSize.toString(),
+  });
 
-    if (categoryName && categoryName.trim()) {
-      params.append('categoryName', categoryName.trim());
-    }
-
-    const response = await fetch(`${API_BASE_URL}/test-categories/search?${params}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to search test categories');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error searching test categories:', error);
-    throw error;
+  if (sort) {
+    params.append('sort', sort);
   }
+
+  const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+    `/api/v1/test-categories/search?${params}`
+  );
+  return response.data;
 }
 
 /**
  * GET ACTIVE TEST CATEGORIES - Fetch active categories with filters
- * Endpoint: GET /test-categories/active?page=0&size=10
+ * Endpoint: GET /api/v1/test-categories/active?pageNo=0&pageSize=1000
  */
 export async function fetchActiveTestCategories(
-  page: number = 0,
-  size: number = 10,
+  pageNo: number = 0,
+  pageSize: number = 1000,
   search?: string,
   statusFilter?: string
 ): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString(),
-    });
+  const params = new URLSearchParams({
+    pageNo: pageNo.toString(),
+    pageSize: pageSize.toString(),
+  });
 
-    if (search && search.trim()) {
-      params.append('search', search.trim());
-    }
-
-    if (statusFilter && statusFilter !== 'All') {
-      params.append('status', statusFilter);
-    }
-
-    const response = await fetch(`${API_BASE_URL}/test-categories/active?${params}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch active test categories');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching active test categories:', error);
-    throw error;
+  if (search && search.trim()) {
+    params.append('search', search.trim());
   }
+
+  if (statusFilter && statusFilter !== 'All') {
+    params.append('status', statusFilter);
+  }
+
+  const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+    `/api/v1/test-categories/active?${params}`
+  );
+  return response.data;
 }
 
-// Line 56-81 in TestCategories.ts
+/**
+ * GET ALL TEST CATEGORIES - Fetch all categories with pagination
+ * Endpoint: GET /api/v1/test-categories?pageNo=0&pageSize=1000
+ */
 export async function fetchTestCategories(
-  page: number = 0,
-  size: number = 10,
-  search?: string,
+  pageNo: number = 0,
+  pageSize: number = 1000,
   statusFilter?: string
 ): Promise<ApiResponse<PaginatedResponse<TestCategory>>> {
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      size: size.toString(),
-    });
+  const params = new URLSearchParams({
+    pageNo: pageNo.toString(),
+    pageSize: pageSize.toString(),
+  });
 
-    if (search && search.trim()) {
-      params.append('search', search.trim());
-    }
-
-    if (statusFilter && statusFilter !== 'All') {
-      params.append('status', statusFilter);
-    }
-
-    const response = await fetch(`${API_BASE_URL}/test-categories?${params}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch test categories');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching test categories:', error);
-    throw error;
+  if (statusFilter && statusFilter !== 'All') {
+    params.append('status', statusFilter);
   }
+
+  // Axios interceptor unwraps AxiosResponse.data at runtime
+  // So response is already ApiResponse at runtime
+  const response: any = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+    `/api/v1/test-categories?${params}`
+  );
+  
+  console.log('📦 Raw API response:', response);
+  console.log('📦 Response type:', typeof response);
+  console.log('📦 Has data property:', 'data' in (response || {}));
+  console.log('📦 Response.data:', response?.data);
+  console.log('📦 Response.data.content:', response?.data?.content);
+  
+  return response.data;
 }
 
 /**
  * GET CATEGORY BY ID - Fetch a single test category
- * Endpoint: GET /test-categories/{categoryId}
+ * Endpoint: GET /api/v1/test-categories/{categoryId}
  */
 export async function fetchTestCategoryById(id: number): Promise<ApiResponse<TestCategory>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/test-categories/${id}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch test category');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching test category:', error);
-    throw error;
-  }
+  const response = await departmentClient.get<ApiResponse<TestCategory>>(
+    `/api/v1/test-categories/${id}`
+  );
+  return response.data;
 }
 
 /**
@@ -214,65 +181,21 @@ export async function fetchTestCategoryById(id: number): Promise<ApiResponse<Tes
 export async function createTestCategory(
   input: CreateCategoryInput
 ): Promise<ApiResponse<TestCategory>> {
-  try {
-    const requestBody = {
-      categoryCode: input.categoryCode,
-      categoryName: input.categoryName,
-      description: input.description || '',
-      departmentId: input.departmentId || 1,
-      displayOrder: input.displayOrder || 0,
-      isActive: input.isActive !== undefined ? input.isActive : true,
-    };
+  const requestBody = {
+    categoryCode: input.categoryCode,
+    categoryName: input.categoryName,
+    description: input.description || '',
+    departmentId: input.departmentId || 1,
+    branchId: input.branchId || 1,
+    displayOrder: input.displayOrder || 0,
+    isActive: input.isActive !== undefined ? input.isActive : true,
+  };
 
-    console.log('=== CREATE CATEGORY DEBUG ===');
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
-    console.log('API URL:', `${API_BASE_URL}/test-categories`);
-    console.log('Environment variable NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-
-    const response = await fetch(`${API_BASE_URL}/test-categories`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    console.log('Response status:', response.status);
-    console.log('Response status text:', response.statusText);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-    // Try to get raw text first to see what backend actually returns
-    const responseText = await response.text();
-    console.log('Raw response text:', responseText);
-
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-      console.log('Parsed JSON response:', responseData);
-    } catch (e) {
-      console.error('Failed to parse response as JSON:', e);
-      responseData = { raw: responseText };
-    }
-
-    if (!response.ok) {
-      console.error('=== ERROR DETAILS ===');
-      console.error('Status:', response.status);
-      console.error('Status text:', response.statusText);
-      console.error('Response data:', responseData);
-      console.error('Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      const errorMessage = responseData?.message || responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
-      throw new Error(errorMessage);
-    }
-
-    console.log('=== SUCCESS ===');
-    console.log('Created category:', responseData);
-    return responseData;
-  } catch (error) {
-    console.error('Error creating test category:', error);
-    throw error;
-  }
+  const response = await departmentClient.post<ApiResponse<TestCategory>>(
+    '/api/v1/test-categories',
+    requestBody
+  );
+  return response.data;
 }
 
 /**
@@ -283,95 +206,46 @@ export async function updateTestCategory(
   id: number,
   input: UpdateCategoryInput
 ): Promise<ApiResponse<TestCategory>> {
-  try {
-    console.log('Updating category:', id, 'with data:', input);
-    console.log('API URL:', `${API_BASE_URL}/test-categories/${id}`);
+  const requestBody = {
+    categoryName: input.categoryName,
+    description: input.description || '',
+    departmentId: input.departmentId || 1,
+    branchId: input.branchId || 1,
+    displayOrder: input.displayOrder || 0,
+    isActive: input.isActive !== undefined ? input.isActive : true,
+  };
 
-    const response = await fetch(`${API_BASE_URL}/test-categories/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    console.log('Response status:', response.status);
-
-    const responseData = await response.json();
-    console.log('Response data:', responseData);
-
-    if (!response.ok) {
-      throw new Error(responseData.message || responseData.error || 'Failed to update category');
-    }
-
-    return responseData;
-  } catch (error) {
-    console.error('Error updating test category:', error);
-    throw error;
-  }
+  const response = await departmentClient.put<ApiResponse<TestCategory>>(
+    `/api/v1/test-categories/${id}`,
+    requestBody
+  );
+  return response.data;
 }
 
 /**
  * DELETE CATEGORY - Delete a test category
- * Endpoint: DELETE /reference-ranges/{id}
+ * Endpoint: DELETE /api/v1/test-categories/{id}
  */
 export async function deleteTestCategory(id: number): Promise<ApiResponse<void>> {
-  try {
-    console.log('Deleting category with ID:', id);
-    console.log('API URL:', `${API_BASE_URL}/test-categories/${id}`);
-
-
-    const response = await fetch(`${API_BASE_URL}/test-categories/${id}`, {
-      method: 'DELETE',
-    });
-
-    console.log('Response status:', response.status);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Delete error response:', errorData);
-      throw new Error(errorData.message || errorData.error || 'Failed to delete category');
-    }
-
-    const responseData = await response.json();
-    console.log('Delete response:', responseData);
-    return responseData;
-  } catch (error) {
-    console.error('Error deleting test category:', error);
-    throw error;
-  }
+  const response = await departmentClient.delete<ApiResponse<void>>(
+    `/api/v1/test-categories/${id}`
+  );
+  return response.data;
 }
 
 /**
  * Toggle category active status (Optional - if you need this feature)
- * Endpoint: PATCH /test-categories/{id}/status
+ * Endpoint: PATCH /api/v1/test-categories/{id}/status
  */
 export async function toggleCategoryStatus(
   id: number,
   isActive: boolean
 ): Promise<ApiResponse<TestCategory>> {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/test-categories/${id}/status`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isActive }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update status');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error toggling category status:', error);
-    throw error;
-  }
+  const response = await departmentClient.patch<ApiResponse<TestCategory>>(
+    `/api/v1/test-categories/${id}/status`,
+    { isActive }
+  );
+  return response.data;
 }
 
 // ─── Helper Functions ───────────────────────────────────────────────────────

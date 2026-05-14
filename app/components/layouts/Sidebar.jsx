@@ -13,6 +13,7 @@ import {
     ChevronDown,
     Activity,
     Scan,
+    User,
     UserPlus,
     Layers,
 } from 'lucide-react';
@@ -37,12 +38,20 @@ const NAV = [
 
             { label: 'Find Diagnostic Invoice', href: '/diagnosis/invoice-list' },
             { label: 'Report Unlock Request', href: '/report-unlock' },
-            { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Error Invoices', href: '#' },
             { label: 'Daily Worksheet', href: '#' },
             { label: 'Bulk Report Print', href: '/reports/BulkReport' },
             { label: 'Invoice Journey', href: '#' },
         ],
+    },
+    {
+        id: 'patient',
+        label: 'Patient',
+        icon: <User size={20} />,
+        children: [
+            { label: 'Find Register Patient', href: '/register-patient' },
+            // { label: 'Patient Family Link', href: '/patient-family-link' },
+        ]
     },
     {
         id: 'booking', label: 'Booking & Registration',
@@ -95,7 +104,9 @@ const NAV = [
             { label: 'Invoice', href: '/lab/invoice' },
             { label: 'Create Tests', href: '/lab/tests' },
             { label: 'Test Categories', href: '/lab/categories' },
-            { label: 'Test Sample ', href: '/lab/sample' },
+            { label: 'Test Department', href: '/lab/department' },
+            { label: 'Reflex Rule', href: '/lab/reflex-rule' },
+            // { label: 'Test Sample ', href: '/lab/sample' },
             { label: 'Sample Receipt', href: '/lab/sample-receipt' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Test Result', href: '/lab/test-result' },
@@ -132,6 +143,7 @@ const NAV = [
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
+            { label: 'Patient Code Prefix', href: '/patient-code-prefix' },
         ]
     },
 

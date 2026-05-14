@@ -1,262 +1,400 @@
-// app/diagnostic/doctors/page.tsx — Doctor List
 'use client';
-import { useState } from 'react';
 
-const doctors = [
-  { id: 1, name: 'Aruna', qualification: 'MBBS', address: 'Hyderabad', mobile: '0000000000', pin: 'IIRIKD', marketing: '' },
-  { id: 2, name: 'DR AMAR', qualification: 'MBBS, MD', address: 'ERRAGADDA', mobile: '9948077443', pin: 'VILA0A', marketing: '' },
-  { id: 3, name: 'Dr B.C Mazumdar', qualification: 'MBBS, MS', address: 'Ranaghat', mobile: '9999999999', pin: 'GCJ0NK', marketing: '' },
-];
+/**
+ * Referring doctors directory — layout matches Patient Registry / family-links theme.
+ * List data: GET `/api/v1/referring-doctors` (paginated).
+ */
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Stethoscope,
+  Search,
+  Settings,
+  UserPlus,
+  Pencil,
+  ChevronDown,
+  Filter,
+  Phone,
+  MapPin,
+  Mail,
+  Loader,
+  RefreshCw,
+  Database,
+  AlertCircle,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import Button from '@/components/ui/button';
+import Badge from '@/components/ui/badge';
+import { Input, Label } from '@/components/ui';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import { useReferringDoctorsList, useDeleteReferringDoctor } from '@/app/Apis/doctor/useReferringDoctors';
+import AddDoctor from './add_doctor';
 
-type Doctor = typeof doctors[0];
+const PAGE_SIZE = 10;
 
 export default function DoctorsPage() {
-  const [showModal, setShowModal] = useState(false);
-  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
-  const [searchBy, setSearchBy] = useState('Name');
+  const [pageNo, setPageNo] = useState(0);
+  const [branchIdInput, setBranchIdInput] = useState('');
+  const [doctorDrawer, setDoctorDrawer] = useState<{ open: boolean; id: number | null }>({
+    open: false,
+    id: null,
+  });
+  const [searchBy, setSearchBy] = useState<'Name' | 'Mobile'>('Name');
   const [searchText, setSearchText] = useState('');
-  const [marketing, setMarketing] = useState('Select Marketing');
-  const [point, setPoint] = useState('Point - Yes');
-  const [status, setStatus] = useState('Active');
+  const [doctorToDelete, setDoctorToDelete] = useState<{ id: number; doctorName: string } | null>(null);
 
-  const openEdit = (doc: Doctor) => {
-    setEditingDoctor({ ...doc });
-    setShowModal(true);
+  const deleteMutation = useDeleteReferringDoctor();
+
+  const branchIdForApi = useMemo(() => {
+    const t = branchIdInput.trim();
+    if (t === '') return undefined;
+    const n = Number(t);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [branchIdInput]);
+
+  useEffect(() => {
+    setPageNo(0);
+  }, [branchIdForApi]);
+
+  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useReferringDoctorsList({
+    pageNo,
+    pageSize: PAGE_SIZE,
+    branchId: branchIdForApi,
+  });
+
+  const [flashApiMessage, setFlashApiMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const msg = data?.message?.trim();
+    if (!msg || !dataUpdatedAt) return;
+    setFlashApiMessage(msg);
+    const timer = window.setTimeout(() => setFlashApiMessage(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [data?.message, dataUpdatedAt]);
+
+  const page = data?.data;
+  const rows = page?.content ?? [];
+
+  const filteredRows = useMemo(() => {
+    const t = searchText.trim().toLowerCase();
+    if (!t) return rows;
+    return rows.filter((d) => {
+      if (searchBy === 'Mobile') {
+        const digits = t.replace(/\D/g, '');
+        const m = d.mobile.replace(/\D/g, '');
+        return m.includes(digits) || d.mobile.includes(searchText.trim());
+      }
+      return d.doctorName.toLowerCase().includes(t);
+    });
+  }, [rows, searchText, searchBy]);
+
+  const openEdit = (doc: { id: number }) => {
+    setDoctorDrawer({ open: true, id: doc.id });
   };
 
-  const openAdd = () => {
-    setEditingDoctor({ id: 0, name: '', qualification: '', address: '', mobile: '', pin: '', marketing: '' });
-    setShowModal(true);
+  const openAdd = () => setDoctorDrawer({ open: true, id: null });
+
+  const closeDoctorDrawer = () => setDoctorDrawer({ open: false, id: null });
+
+  const openDeleteDialog = (doc: { id: number; doctorName: string }) => {
+    setDoctorToDelete({ id: doc.id, doctorName: doc.doctorName });
   };
 
-  const isEdit = editingDoctor && editingDoctor.id !== 0;
+  const closeDeleteDialog = () => {
+    if (deleteMutation.isPending) return;
+    setDoctorToDelete(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!doctorToDelete) return;
+    const { id, doctorName } = doctorToDelete;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(`Deleted: ${doctorName}`);
+        setDoctorToDelete(null);
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete doctor.');
+      },
+    });
+  };
+
+  const totalPages = page?.totalPages ?? 0;
+  const totalElements = page?.totalElements ?? 0;
+  const canPrev = pageNo > 0;
+  const canNext = page ? !page.last : false;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Header Bar */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 8,
-        padding: '12px 20px',
-        border: '1px solid #e8e8e8',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexWrap: 'wrap',
-      }}>
-        <span style={{ fontSize: 16, fontWeight: 600, color: '#333', flex: 1 }}>
-          👨‍⚕️ Doctor list
-        </span>
-        <a href="#" style={{ color: '#1e88e5', fontWeight: 500, fontSize: 13, textDecoration: 'none' }}>
-          ⚙ Point Configuration
-        </a>
-        <button
-          onClick={openAdd}
-          style={{
-            background: '#1e88e5',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 4,
-            padding: '7px 14px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: 13,
-          }}
-        >
-          + New Doctor
-        </button>
-        <select
-          value={searchBy}
-          onChange={(e) => setSearchBy(e.target.value)}
-          style={{ border: '1px solid #ddd', borderRadius: 4, padding: '6px 10px', fontSize: 13 }}
-        >
-          <option>Name</option>
-          <option>Mobile</option>
-        </select>
-        <input
-          type="text"
-          placeholder="Type here..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ border: '1px solid #ddd', borderRadius: 4, padding: '6px 12px', fontSize: 13, width: 160 }}
-        />
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+            Referring <span className="text-emerald-600">Doctors</span>
+          </h1>
+          <p className="text-slate-500 text-sm font-medium max-w-xl">
+            Manage referring physicians, login access, and marketing associations for your network.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 border-slate-200 px-5 font-bold text-slate-600"
+            title="Point configuration"
+          >
+            <Settings size={16} className="text-[#006D77]" aria-hidden />
+            Point configuration
+          </Button>
+          <Button type="button" variant="gradient" size="sm" className="gap-2 shadow-sm px-8" onClick={openAdd}>
+            <UserPlus size={16} aria-hidden />
+            New doctor
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 8,
-        padding: '10px 20px',
-        border: '1px solid #e8e8e8',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 12,
-      }}>
-        <select value={marketing} onChange={(e) => setMarketing(e.target.value)}
-          style={{ border: '1px solid #ddd', borderRadius: 4, padding: '6px 10px', fontSize: 13 }}>
-          <option>Select Marketing</option>
-          <option>Associate A</option>
-          <option>Associate B</option>
-        </select>
-        <select value={point} onChange={(e) => setPoint(e.target.value)}
-          style={{ border: '1px solid #ddd', borderRadius: 4, padding: '6px 10px', fontSize: 13 }}>
-          <option>Point - Yes</option>
-          <option>Point - No</option>
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}
-          style={{ border: '1px solid #ddd', borderRadius: 4, padding: '6px 10px', fontSize: 13 }}>
-          <option>Active</option>
-          <option>Inactive</option>
-        </select>
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+        <div className="relative flex-1 group w-full min-w-0">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
+            size={18}
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder={searchBy === 'Mobile' ? 'Search by mobile…' : 'Search by doctor name…'}
+            className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            aria-label="Search doctors"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+          <div className="relative flex-1 sm:min-w-[140px] group">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <select
+              value={searchBy}
+              onChange={(e) => setSearchBy(e.target.value as 'Name' | 'Mobile')}
+              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              aria-label="Search field"
+              disabled={isLoading}
+            >
+              <option value="Name">Name</option>
+              <option value="Mobile">Mobile</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-lg p-2.5 border-slate-200 shrink-0"
+            onClick={() => refetch()}
+            disabled={isLoading || isFetching}
+            title="Refresh list"
+          >
+            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+          </Button>
+        </div>
+        {flashApiMessage ? (
+          <span className="text-xs font-medium text-emerald-700 ml-auto shrink-0 animate-in fade-in duration-300">
+            {flashApiMessage}
+          </span>
+        ) : null}
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e8e8e8', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #e0e0e0' }}>
-              {['#', 'Name, Qualification & Address', 'Mobile No', 'Login PIN', 'Marketing', 'Action'].map((h) => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: h === '#' || h === 'Action' ? 'center' : 'left', fontWeight: 600, color: '#444', fontSize: 13 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {doctors
-              .filter((d) => !searchText || d.name.toLowerCase().includes(searchText.toLowerCase()))
-              .map((doc, i) => (
-                <tr key={doc.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 1 ? '#fafafa' : '#fff' }}>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', color: '#888' }}>{doc.id}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontWeight: 600, color: '#333' }}>{doc.name}</span>
-                    <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>{doc.qualification}</span>
-                    <br />
-                    <span style={{ color: '#888', fontSize: 12 }}>{doc.address}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px', color: '#555' }}>{doc.mobile}</td>
-                  <td style={{ padding: '12px 16px', color: '#555', fontFamily: 'monospace' }}>{doc.pin}</td>
-                  <td style={{ padding: '12px 16px', color: '#888' }}>{doc.marketing || '—'}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => openEdit(doc)}
-                      style={{ background: '#4caf50', color: '#fff', border: 'none', borderRadius: 4, padding: '5px 12px', marginRight: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      style={{ background: '#1e88e5', color: '#fff', border: 'none', borderRadius: 4, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-                    >
-                      Point ⚙
-                    </button>
-                  </td>
+      {isError ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
+          <AlertCircle size={18} className="shrink-0" aria-hidden />
+          <span className="font-medium">{error instanceof Error ? error.message : 'Failed to load doctors.'}</span>
+          <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+          <Loader className="text-slate-400 animate-spin" size={32} />
+          <p className="text-slate-600 font-medium">Loading referring doctors…</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
+          No referring doctors found for this filter or page.
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-14">
+                    #
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Name, specialization & hospital
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mobile</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                    Branch
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-slate-500 font-medium text-sm">
+                      No matches on this page for your search. Clear search or change page.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="px-6 py-5 text-center">
+                        <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[10px] font-bold font-mono">
+                          {doc.id}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[#006D77] group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
+                            <Stethoscope size={18} aria-hidden />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 text-sm tracking-tight group-hover:text-emerald-700 transition-colors">
+                              {doc.doctorName}
+                              {doc.specialization ? (
+                                <span className="font-semibold text-slate-500 ml-2">{doc.specialization}</span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 font-medium">
+                              <MapPin size={12} className="text-emerald-500 shrink-0" aria-hidden />
+                              <span className="truncate">{doc.hospitalName || '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 max-w-[200px]">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
+                          <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
+                          <span className="truncate">{doc.email || '—'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
+                          <Phone size={12} className="text-emerald-500 shrink-0" aria-hidden />
+                          {doc.mobile}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-center text-xs font-mono font-bold text-slate-600">
+                        {doc.branchId ?? '—'}
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <Badge
+                          variant={doc.isActive ? 'default' : 'secondary'}
+                          className={
+                            doc.isActive
+                              ? 'bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold'
+                              : 'text-[10px] font-bold'
+                          }
+                        >
+                          {doc.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 rounded-lg border-emerald-200 font-bold text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => openEdit(doc)}
+                          >
+                            <Pencil size={12} aria-hidden />
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 rounded-lg border-rose-200 font-bold text-rose-700 hover:bg-rose-50"
+                            title="Delete referring doctor"
+                            onClick={() => openDeleteDialog(doc)}
+                          >
+                            <Trash2 size={12} aria-hidden />
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Load More */}
-        <button style={{
-          width: '100%',
-          background: '#666',
-          color: '#fff',
-          border: 'none',
-          padding: '12px',
-          cursor: 'pointer',
-          fontSize: 14,
-          fontWeight: 500,
-        }}>
-          Load More
-        </button>
-      </div>
-
-      {/* Modal */}
-      {showModal && editingDoctor && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 8, padding: '24px', width: 500,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-                {isEdit ? 'Update Doctor Information' : 'Add New Doctor'}
-              </h2>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>✕</button>
+          <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
+              <span>
+                Page {pageNo + 1} of {Math.max(totalPages, 1)}
+                <span className="text-slate-400 mx-2">·</span>
+                {totalElements} total
+              </span>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Name</label>
-                <input defaultValue={editingDoctor.name} style={inputStyle} placeholder="Doctor name" />
-              </div>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Mobile</label>
-                <input defaultValue={editingDoctor.mobile} style={inputStyle} placeholder="Mobile number" />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Qualification</label>
-              <input defaultValue={editingDoctor.qualification} style={{ ...inputStyle, width: '100%' }} placeholder="e.g. MBBS, MD" />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Address</label>
-              <input defaultValue={editingDoctor.address} style={{ ...inputStyle, width: '100%' }} placeholder="Address" />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
-              {[
-                { label: 'Marketing Associate', placeholder: 'Select Associate' },
-                { label: 'Point', placeholder: 'Active' },
-                { label: 'Status', placeholder: 'Active' },
-              ].map((f) => (
-                <div key={f.label}>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>{f.label}</label>
-                  <select style={{ ...inputStyle, width: '100%' }}>
-                    <option>{f.placeholder}</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Login PIN ⚙</label>
-                <input defaultValue={editingDoctor.pin} style={inputStyle} placeholder="PIN" />
-              </div>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>EMR Template</label>
-                <select style={{ ...inputStyle, width: '100%' }}><option>—</option></select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{ background: '#9e9e9e', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}
+            <div className="flex items-center gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="font-bold border-slate-200"
+                disabled={!canPrev || isFetching}
+                onClick={() => setPageNo((p) => Math.max(0, p - 1))}
               >
-                Cancel
-              </button>
-              <button
-                style={{ background: '#1e88e5', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="font-bold border-slate-200"
+                disabled={!canNext || isFetching}
+                onClick={() => setPageNo((p) => p + 1)}
               >
-                {isEdit ? 'Update' : 'Save'}
-              </button>
+                Next
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      <AddDoctor
+        isOpen={doctorDrawer.open}
+        doctorId={doctorDrawer.id}
+        onClose={closeDoctorDrawer}
+        doctorsForDuplicateCheck={rows}
+      />
+
+      <DeleteAlertDialog
+        isOpen={Boolean(doctorToDelete)}
+        onClose={closeDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="Delete referring doctor"
+        description={
+          doctorToDelete
+            ? `Remove "${doctorToDelete.doctorName}" from your referring doctors? This cannot be undone.`
+            : 'Are you sure you want to delete this referring doctor?'
+        }
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  border: '1px solid #ddd',
-  borderRadius: 4,
-  padding: '8px 12px',
-  fontSize: 14,
-  width: '100%',
-  boxSizing: 'border-box',
-};

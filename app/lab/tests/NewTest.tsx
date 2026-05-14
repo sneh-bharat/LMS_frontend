@@ -24,31 +24,61 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui';
-import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestVersion, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
+import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
 import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/app/Apis/lab/TestApis';
+import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import { fetchTestCategories, type TestCategory } from '@/app/Apis/lab/TestCategories';
+import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 // Define TestItem locally as it's the form data structure
 interface TestItem {
-  testCode: string;
   testName: string;
+  testNameShort?: string;
+  testDescription?: string;
   departmentId: string;
+  branchId: string;
   categoryId: string;
   loincCode: string;
   tatHours: string;
+  tatMinutes?: string;
   isActive: boolean;
-  version: {
-    versionNo: number;
-    method: string;
+  // Flat structure (no nested version object)
+  method: string;
+  unit: string;
+  price: string;
+  cghsPrice: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  parameters: Array<{
+    id?: number;
+    parameterCode?: string;
+    parameterName: string;
+    displayOrder?: number;
     unit: string;
-    price: string;
-    cghsPrice: string;
-    criticalLow: string;
-    criticalHigh: string;
-    effectiveFrom: string;
-    effectiveTo: string | null;
-  };
-  parameters: TestParameter[];
-  sampleRequirements: SampleRequirement[];
+    decimalPlaces?: number;
+    criticalLow?: number;
+    criticalHigh?: number;
+    isCalculated: boolean;
+    resultType: string;
+    calculationFormula?: string;
+    referenceRanges?: Array<{
+      id?: number;
+      gender: string;
+      ageMin: number;
+      ageMax: number;
+      minValue: number;
+      maxValue: number;
+      unit: string;
+    }>;
+  }>;
+  sampleRequirements: Array<{
+    id?: number;
+    sampleType: string;
+    volumeMl: number;
+    containerColor: string;
+    storageCondition: string;
+    isMandatory?: boolean;
+  }>;
 }
 
 interface NewTestProps {
@@ -60,33 +90,60 @@ interface NewTestProps {
   activeTab?: 'test' | 'sample' | 'parameters' | 'pricing';
 }
 
-const DEPARTMENTS = [
-  { id: 1, name: 'Biochemistry' },
-  { id: 2, name: 'Hematology' },
-  { id: 3, name: 'Microbiology' },
-  { id: 4, name: 'Pathology' },
-];
+// ─── State for Dropdowns ─────────────────────────────────────────────────────
+const DEPARTMENTS_PLACEHOLDER: Department[] = [];
+const CATEGORIES_PLACEHOLDER: TestCategory[] = [];
 
-const CATEGORIES = [
-  { id: 5, name: 'Lipid Profile' },
-  { id: 6, name: 'Liver Function' },
-  { id: 7, name: 'Kidney Function' },
-  { id: 8, name: 'Thyroid Profile' },
+const RESULT_TYPES = ['NUMERIC', 'TEXT', 'QUALITATIVE', 'SEMI_QUANTITATIVE', 'STRUCTURED'];
+const GENDER_STATUS = ['MALE', 'FEMALE', 'OTHER', 'ALL'];
+const UNIT_TYPES = [
+  'mg/dL',
+  'g/dL',
+  'mmol/L',
+  'μmol/L',
+  'cells/mcL',
+  'cells/μL',
+  'x10^9/L',
+  '%',
+  'hours',
+  'minutes',
+  'IU/L',
+  'U/L',
+  'ng/mL',
+  'pg/mL',
+  'mmHg',
+  'mEq/L',
+  'mL',
+  'L',
+  'g',
+  'mg',
+  'μg',
+  'ratio',
+  'positive',
+  'negative',
+  'present',
+  'absent',
+  'seen',
+  'not seen'
 ];
-
-const RESULT_TYPES = ['Numeric', 'Text', 'Qualitative', 'Semi_quantitative', 'Structured'];
-const GENDER_STATUS = ['Male', 'Female', 'Other', 'All'];
 const SAMPLE_TYPES = [
-  'Blood_EDTA',
-  'Blood_Serum',
-  'Urine',
-  'Stool',
-  'Swab',
-  'Sputum',
+  'BLOOD_EDTA',
+  'BLOOD_SERUM',
+  'BLOOD_PLASMA',
+  'WHOLE_BLOOD',
+  'URINE',
+  'STOOL',
   'CSF',
-  'Biopsy',
+  'SPUTUM',
   'FNAC',
-  'Fluid'
+  'FLUID',
+  'SWAB',
+  'CSF',
+  'BIOPSY',
+  'FNAC',
+  'BODY_FLUID',
+  'SALIVA'
+
 ];
 
 const normalizeSampleType = (value?: string | null): string => {
@@ -135,24 +192,22 @@ export default function NewTest({
   activeTab = 'test'
 }: NewTestProps) {
   const initialFormData: TestItem = {
-    testCode: '',
     testName: '',
+    testNameShort: '',
+    testDescription: '',
     departmentId: '',
+    branchId: '',
     categoryId: '',
     loincCode: '',
     tatHours: '',
+    tatMinutes: '',
     isActive: true,
-    version: {
-      versionNo: 1,
-      method: '',
-      unit: '',
-      price: '',
-      cghsPrice: '',
-      criticalLow: '',
-      criticalHigh: '',
-      effectiveFrom: new Date().toISOString().split('T')[0],
-      effectiveTo: null,
-    },
+    method: '',
+    unit: '',
+    price: '',
+    cghsPrice: '',
+    effectiveFrom: new Date().toISOString().split('T')[0],
+    effectiveTo: null,
     parameters: [],
     sampleRequirements: [],
   };
@@ -160,6 +215,74 @@ export default function NewTest({
   const [formData, setFormData] = useState<TestItem>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>(DEPARTMENTS_PLACEHOLDER);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [categories, setCategories] = useState<TestCategory[]>(CATEGORIES_PLACEHOLDER);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+
+  // Load dropdowns (departments and categories)
+  useEffect(() => {
+    const loadDropdowns = async () => {
+      if (!isOpen) return;
+      
+      setLoadingDropdowns(true);
+      try {
+        // Load branches
+        console.log('🔍 Fetching branches...');
+        const branchResponse = await branchApi.getAllBranches({ pageNo: 0, pageSize: 100 });
+        console.log('Branch API Response:', branchResponse);
+        if (branchResponse?.data?.content) {
+          setBranches(branchResponse.data.content);
+          console.log('✅ Branches loaded:', branchResponse.data.content.length);
+        }
+        
+        // Load departments
+        console.log('🔍 Fetching departments...');
+        const deptResponse = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 100 });
+        console.log('Department API Response:', deptResponse);
+        if (deptResponse?.data?.content) {
+          setDepartments(deptResponse.data.content);
+          console.log('✅ Departments loaded:', deptResponse.data.content.length);
+        }
+        
+        // Load categories using fetchTestCategories
+        console.log('🔍 Fetching categories...');
+        const catResponse = await fetchTestCategories(0, 1000);
+        console.log('📦 Category API Response (after fetchTestCategories):', catResponse);
+        console.log('📦 Response type:', typeof catResponse);
+        console.log('📦 Response keys:', Object.keys(catResponse || {}));
+        console.log('📦 catResponse.data:', catResponse?.data);
+        console.log('📦 catResponse.data.content:', catResponse?.data?.content);
+        console.log('📦 catResponse.data.content length:', catResponse?.data?.content?.length);
+        
+        // The structure should be: { data: { content: [...] }, message, response, status, timestamp }
+        if (catResponse?.data?.content && Array.isArray(catResponse.data.content)) {
+          console.log('✅ Categories found in catResponse.data.content');
+          console.log('📋 Sample category:', catResponse.data.content[0]);
+          setCategories(catResponse.data.content);
+          console.log('✅ Categories loaded:', catResponse.data.content.length);
+          console.log(' First category ID:', catResponse.data.content[0].id);
+          console.log('📋 First category name:', catResponse.data.content[0].categoryName);
+        } else {
+          console.warn('⚠️ No categories found or invalid structure');
+          console.warn('Full response:', JSON.stringify(catResponse, null, 2));
+          
+          // Fallback: try accessing content directly if structure is different
+          if ((catResponse as any)?.content && Array.isArray((catResponse as any).content)) {
+            console.log('🔄 Trying fallback: catResponse.content');
+            setCategories((catResponse as any).content);
+            console.log('✅ Categories loaded via fallback:', (catResponse as any).content.length);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to load dropdowns:', error);
+      } finally {
+        setLoadingDropdowns(false);
+      }
+    };
+
+    loadDropdowns();
+  }, [isOpen]);
 
   // Populate form with edit data when in edit mode
   useEffect(() => {
@@ -174,24 +297,23 @@ export default function NewTest({
       }
       
       setFormData({
-        testCode: editData.testCode || '',
         testName: editData.testName || '',
+        testNameShort: editData.testNameShort || '',
+        testDescription: editData.testDescription || '',
         departmentId: editData.departmentId?.toString() || '',
+        branchId: editData.branchId?.toString() || '',
         categoryId: editData.categoryId?.toString() || '',
         loincCode: editData.loincCode || '',
         tatHours: editData.tatHours?.toString() || '',
+        tatMinutes: editData.tatMinutes?.toString() || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
-        version: {
-          versionNo: editData.version?.versionNo || 1,
-          method: editData.version?.method || '',
-          unit: editData.version?.unit || '',
-          price: editData.version?.price?.toString() || '',
-          cghsPrice: editData.version?.cghsPrice?.toString() || '',
-          criticalLow: '',
-          criticalHigh: '',
-          effectiveFrom: editData.version?.effectiveFrom || new Date().toISOString().split('T')[0],
-          effectiveTo: editData.version?.effectiveTo || null,
-        },
+        // Flat structure from API response
+        method: editData.method || '',
+        unit: editData.unit || '',
+        price: editData.price?.toString() || '',
+        cghsPrice: editData.cghsPrice?.toString() || '',
+        effectiveFrom: editData.effectiveFrom || new Date().toISOString().split('T')[0],
+        effectiveTo: editData.effectiveTo || null,
         parameters: editData.parameters || [],
         sampleRequirements: (editData.sampleRequirements || []).map((req) => ({
           ...req,
@@ -209,15 +331,18 @@ export default function NewTest({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-
-    if (name.startsWith('version.')) {
-      const field = name.split('.')[1];
+  
+    // Handle select elements - ensure value is treated as string
+    if (name === 'departmentId' || name === 'categoryId') {
       setFormData(prev => ({
         ...prev,
-        version: {
-          ...prev.version,
-          [field]: type === 'number' ? (value === '' ? '' : Number(value)) : value
-        }
+        [name]: value.toString()
+      }));
+    } else if (name === 'method' || name === 'unit' || name === 'price' || name === 'cghsPrice' || name === 'effectiveFrom' || name === 'effectiveTo' || name === 'testNameShort' || name === 'testDescription' || name === 'tatMinutes') {
+      // Flat structure fields
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'price' || name === 'cghsPrice' ? (value === '' ? '' : Number(value)) : value
       }));
     } else {
       setFormData(prev => ({
@@ -290,33 +415,30 @@ export default function NewTest({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    console.log('=== VALIDATION - ACTIVE TAB ===', activeTab);
-
     // Only validate General Information in 'test' or 'sample' mode
     if (activeTab === 'test' || activeTab === 'sample') {
-      if (!formData.testCode.trim()) newErrors.testCode = 'Test Code is required';
       if (!formData.testName.trim()) newErrors.testName = 'Test Name is required';
       if (formData.departmentId === '') newErrors.departmentId = 'Department is required';
-      if (formData.categoryId === '') newErrors.categoryId = 'Category is required';
+      if (formData.branchId === '') newErrors.branchId = 'Branch is required';
+      if (formData.categoryId === '') {
+        newErrors.categoryId = 'Category is required';
+        console.error('❌ VALIDATION ERROR: Category is empty!');
+      }
     }
 
     // Only validate Version/Pricing fields in 'test' or 'pricing' mode
     if (activeTab === 'test' || activeTab === 'pricing') {
-      if (formData.version.price === '' || Number(formData.version.price) <= 0)
-        newErrors['version.price'] = 'Valid price is required';
-      if (!formData.version.method.trim()) newErrors['version.method'] = 'Method is required';
-      if (!formData.version.unit.trim()) newErrors['version.unit'] = 'Unit is required';
-      if (!formData.version.effectiveFrom) newErrors['version.effectiveFrom'] = 'Effective date is required';
+      if (formData.price === '' || Number(formData.price) <= 0)
+        newErrors['price'] = 'Valid price is required';
+      if (!formData.method.trim()) newErrors['method'] = 'Method is required';
+      if (!formData.effectiveFrom) newErrors['effectiveFrom'] = 'Effective date is required';
     }
-
-    // Always validate these if they have data (regardless of mode)
     // These are only relevant when editing those specific sections
     if (activeTab === 'test') {
       // Full edit mode - validate everything
     }
 
     setErrors(newErrors);
-    console.log('Validation errors:', newErrors);
     console.log('Validation result:', Object.keys(newErrors).length === 0);
     return Object.keys(newErrors).length === 0;
   };
@@ -326,26 +448,18 @@ export default function NewTest({
       e.preventDefault();
     }
 
-    if (!validateForm()) {
-      console.error('❌ FORM VALIDATION FAILED');
-      console.error('Errors:', errors);
+    
+    const isValid = validateForm();
+    console.log('Validation Result:', isValid);
+    
+    if (!isValid) {
+      // Scroll to first error or show a toast/alert
       return;
     }
-
-    console.log('=== HANDLE SUBMIT CALLED ===');
-    console.log('isEditMode:', isEditMode);
-    console.log('editData:', editData);
-    console.log('editData?.id:', editData?.id);
-    console.log('formData:', formData);
-
     setLoading(true);
     try {
       // HANDLE SAMPLE REQUIREMENT UPDATE (dedicated API)
       if (isEditMode && editData?.id && activeTab === 'sample') {
-        console.log('=== UPDATING SAMPLE REQUIREMENT VIA DEDICATED API ===');
-        console.log('Test ID:', editData.id);
-        console.log('Active tab:', activeTab);
-
         const sampleReq = formData.sampleRequirements[0];
         
         if (!sampleReq) {
@@ -388,8 +502,19 @@ export default function NewTest({
       else if (isEditMode && editData?.id && activeTab === 'parameters') {
         console.log('=== UPDATING PARAMETERS VIA DEDICATED API ===');
         console.log('Test ID:', editData.id);
+        console.log('All parameters:', formData.parameters);
 
-        for (const param of formData.parameters) {
+        // Check if we're editing a single parameter or all parameters
+        const isSingleParameterEdit = (editData as any).editingParameterId;
+        const parameterIdToEdit = (editData as any).editingParameterId;
+
+        if (isSingleParameterEdit && formData.parameters.length === 1) {
+          // SINGLE PARAMETER UPDATE - Use the specific endpoint
+          const param = formData.parameters[0];
+          console.log('📡 Updating single parameter via PUT /api/v1/tests/{testId}/parameters/{parameterId}');
+          console.log('Parameter ID to update:', parameterIdToEdit);
+          console.log('Branch ID:', editData.branchId);
+
           const parameterData = {
             parameterName: param.parameterName,
             unit: param.unit,
@@ -397,22 +522,55 @@ export default function NewTest({
             criticalHigh: param.criticalHigh || 0,
             resultType: param.resultType,
             isCalculated: param.isCalculated,
+            calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
+            referenceRanges: param.referenceRanges || [],
           };
 
-          if (param.id && param.id > 0) {
-            console.log('📡 Updating existing parameter (ID:', param.id, ')');
-            await updateTestParameter(editData.id, param.id, parameterData);
-          } else {
-            console.log('📡 Creating new parameter');
-            await createTestParameter(editData.id, parameterData);
-          }
-        }
+          console.log('Parameter data to update:', JSON.stringify(parameterData, null, 2));
 
-        console.log('✅ Parameters saved successfully');
-        onSubmit(formData as any);
-        setFormData(initialFormData);
-        setErrors({});
-        onClose();
+          try {
+            await updateTestParameter(editData.id, parameterIdToEdit, parameterData, editData.branchId);
+            console.log('✅ Parameter updated successfully');
+            onSubmit(formData as any);
+            setFormData(initialFormData);
+            setErrors({});
+            onClose();
+          } catch (error) {
+            console.error('❌ Failed to update parameter:', error);
+            throw error;
+          }
+        } else {
+          // MULTIPLE PARAMETERS UPDATE - Loop through all parameters
+          console.log('📡 Updating multiple parameters');
+          console.log('Branch ID:', editData.branchId);
+          
+          for (const param of formData.parameters) {
+            const parameterData = {
+              parameterName: param.parameterName,
+              unit: param.unit,
+              criticalLow: param.criticalLow || 0,
+              criticalHigh: param.criticalHigh || 0,
+              resultType: param.resultType,
+              isCalculated: param.isCalculated,
+              calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
+              referenceRanges: param.referenceRanges || [],
+            };
+
+            if (param.id && param.id > 0) {
+              console.log('📡 Updating existing parameter (ID:', param.id, ')');
+              await updateTestParameter(editData.id, param.id, parameterData, editData.branchId);
+            } else {
+              console.log('📡 Creating new parameter');
+              await createTestParameter(editData.id, parameterData, editData.branchId);
+            }
+          }
+
+          console.log('✅ Parameters saved successfully');
+          onSubmit(formData as any);
+          setFormData(initialFormData);
+          setErrors({});
+          onClose();
+        }
       }
       // HANDLE FULL TEST UPDATE
       else if (isEditMode && editData?.id) {
@@ -422,23 +580,21 @@ export default function NewTest({
 
         // Transform formData to match API UpdateTestInput
         const testData: UpdateTestInput = {
-          testCode: formData.testCode,
+          testCode: editData.testCode,
           testName: formData.testName,
-          description: '',
+          testDescription: '',
           departmentId: Number(formData.departmentId),
           categoryId: Number(formData.categoryId),
           loincCode: formData.loincCode || undefined,
           tatHours: Number(formData.tatHours),
           isActive: formData.isActive,
-          version: {
-            versionNo: Number(formData.version.versionNo),
-            method: formData.version.method,
-            unit: formData.version.unit,
-            price: Number(formData.version.price),
-            cghsPrice: formData.version.cghsPrice ? Number(formData.version.cghsPrice) : undefined,
-            effectiveFrom: formData.version.effectiveFrom,
-            effectiveTo: formData.version.effectiveTo || '',
-          },
+          method: formData.method,
+          unit: formData.unit,
+          price: Number(formData.price),
+          cghsPrice: formData.cghsPrice ? Number(formData.cghsPrice) : undefined,
+          effectiveFrom: formData.effectiveFrom,
+          effectiveTo: formData.effectiveTo || undefined,
+          branchId: Number(formData.branchId) || editData.branchId || 1,
           parameters: formData.parameters.map(param => ({
             id: param.id,
             parameterName: param.parameterName,
@@ -448,7 +604,7 @@ export default function NewTest({
             resultType: param.resultType,
             isCalculated: param.isCalculated,
             calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
-            sortOrder: param.sortOrder,
+            displayOrder: param.displayOrder,
             referenceRanges: param.referenceRanges?.map(range => ({
               id: range.id,
               gender: range.gender,
@@ -482,119 +638,57 @@ export default function NewTest({
         setErrors({});
         onClose();
       } else {
-        // CREATE NEW TEST - CALL ALL API ENDPOINTS SEQUENTIALLY
-        console.log('=== CREATING NEW TEST WITH ALL ENDPOINTS ===');
-
-        // Step 1: Create basic test details
-        console.log('Step 1: Creating basic test details...');
-        
-        // Build version object, handling nullable effectiveTo properly
-        const versionData = {
-          versionNo: Number(formData.version.versionNo),
-          method: formData.version.method,
-          unit: formData.version.unit,
-          price: Number(formData.version.price),
-          ...(formData.version.cghsPrice && { cghsPrice: Number(formData.version.cghsPrice) }),
-          effectiveFrom: formData.version.effectiveFrom,
-          ...(formData.version.effectiveTo && { effectiveTo: formData.version.effectiveTo }),
-        };
-        
+        // Create test WITH embedded parameters and sample requirements in single API call
         const testData: CreateTestInput = {
-          testCode: formData.testCode,
           testName: formData.testName,
           departmentId: Number(formData.departmentId),
           categoryId: Number(formData.categoryId),
           loincCode: formData.loincCode || undefined,
           tatHours: Number(formData.tatHours),
+          method: formData.method,
+          unit: formData.unit || undefined,
+          price: Number(formData.price),
+          cghsPrice: formData.cghsPrice ? Number(formData.cghsPrice) : undefined,
+          effectiveFrom: formData.effectiveFrom,
+          effectiveTo: formData.effectiveTo || undefined,
+          branchId: Number(formData.branchId) || 1,
           isActive: formData.isActive,
-          version: versionData,
+          // Embed parameters directly in the request body
+          parameters: formData.parameters.length > 0 ? formData.parameters.map(param => ({
+            parameterCode: param.parameterCode || `PARAM_${param.parameterName.toUpperCase().replace(/\s+/g, '_')}`,
+            parameterName: param.parameterName,
+            displayOrder: param.displayOrder || 0,
+            unit: param.unit,
+            decimalPlaces: param.decimalPlaces || 0,
+            criticalLow: param.criticalLow || 0,
+            criticalHigh: param.criticalHigh || 0,
+            isCalculated: param.isCalculated,
+            resultType: param.resultType,
+            calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
+            referenceRanges: param.referenceRanges?.map(range => ({
+              gender: range.gender,
+              ageMin: Number(range.ageMin),
+              ageMax: Number(range.ageMax),
+              minValue: Number(range.minValue),
+              maxValue: Number(range.maxValue),
+              unit: range.unit,
+            })) || [],
+          })) : undefined,
+          // Embed sample requirements directly in the request body
+          sampleRequirements: formData.sampleRequirements.length > 0 ? formData.sampleRequirements.map(req => ({
+            sampleType: req.sampleType,
+            volumeMl: Number(req.volumeMl),
+            containerColor: req.containerColor,
+            storageCondition: req.storageCondition,
+            isMandatory: req.isMandatory || false,
+          })) : undefined,
         };
 
-        console.log('Basic test data:', JSON.stringify(testData, null, 2));
+        console.log('Complete test data with embedded parameters and samples:', JSON.stringify(testData, null, 2));
 
+        // Single API call - creates test, parameters, and sample requirements together
         const testResponse = await createTest(testData);
-        console.log('✅ Test created successfully:', testResponse);
-        console.log('Test response data:', testResponse.data);
-        console.log('Test response type:', typeof testResponse);
-        console.log('Test response keys:', Object.keys(testResponse || {}));
-        
-        // Handle different response structures from backend variants
-        let testId =
-          (testResponse as any)?.data?.id ||
-          (testResponse as any)?.data?.testId ||
-          (testResponse as any)?.id ||
-          (testResponse as any)?.testId;
-
-        // Fallback: resolve newly created test by unique code from list API
-        if (!testId) {
-          try {
-            const lookupResponse = await fetchTests(0, 10, formData.testCode);
-            const matched = lookupResponse?.data?.content?.find(
-              (item: any) => item?.testCode?.toLowerCase?.() === formData.testCode.toLowerCase()
-            );
-            testId = matched?.id;
-          } catch (lookupError) {
-            console.warn('⚠️ Test lookup fallback failed:', lookupError);
-          }
-        }
-        
-        if (!testId) {
-          console.error('❌ No test ID in response:', testResponse);
-          throw new Error('Test creation failed: No test ID returned from API');
-        }
-        
-        console.log('🆔 New Test ID:', testId);
-
-        // Step 2: Create sample requirements (if any)
-        if (formData.sampleRequirements.length > 0) {
-          console.log('Step 3: Creating sample requirements...');
-          for (const req of formData.sampleRequirements) {
-            const sampleData = {
-              sampleType: req.sampleType,
-              volumeMl: Number(req.volumeMl),
-              containerColor: req.containerColor,
-              storageCondition: req.storageCondition,
-            };
-
-            console.log('Creating sample requirement:', sampleData);
-            const sampleResponse = await createSampleRequirement(testId, sampleData);
-            console.log('✅ Sample requirement created:', sampleResponse);
-          }
-        }
-
-        // Step 4: Create parameters (if any)
-        if (formData.parameters.length > 0) {
-          console.log('Step 4: Creating test parameters...');
-          for (const param of formData.parameters) {
-            const parameterData = {
-              parameterName: param.parameterName,
-              unit: param.unit,
-              criticalLow: param.criticalLow || 0,
-              criticalHigh: param.criticalHigh || 0,
-              resultType: param.resultType,
-              isCalculated: param.isCalculated,
-              calculationFormula: param.isCalculated ? param.calculationFormula : undefined,
-              sortOrder: param.sortOrder,
-              referenceRanges: param.referenceRanges?.map(range => ({
-                gender: range.gender,
-                ageMin: Number(range.ageMin),
-                ageMax: Number(range.ageMax),
-                minValue: Number(range.minValue),
-                maxValue: Number(range.maxValue),
-                unit: range.unit,
-              })) || [],
-            };
-
-            console.log('Creating parameter:', parameterData);
-            const parameterResponse = await createTestParameter(testId, parameterData);
-            console.log('✅ Parameter created:', parameterResponse);
-          }
-        }
-
-        console.log('🎉 Full test creation completed successfully!');
-        console.log('Test ID:', testId);
-        console.log('Sample Requirements:', formData.sampleRequirements.length);
-        console.log('Parameters:', formData.parameters.length);
+        console.log('✅ Test created successfully with all data:', testResponse);
         
         // Notify parent to reload the list
         onSubmit(formData);
@@ -605,8 +699,6 @@ export default function NewTest({
         onClose();
       }
     } catch (error) {
-      console.error(`❌ Failed to ${isEditMode ? 'update' : 'create'} test:`, error);
-      console.error('Error details:', error);
       setErrors({
         submit: error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'create'} test. Please try again.`,
       });
@@ -704,27 +796,37 @@ export default function NewTest({
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Test Code *</Label>
-                  <Input
-                    name="testCode"
-                    value={formData.testCode}
-                    onChange={handleInputChange}
-                    placeholder="LIPID_001"
-                    className={errors.testCode ? 'border-rose-300 ring-rose-50' : ''}
-                  />
-                  {errors.testCode && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.testCode}</p>}
-                </div>
-                <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Test Name *</Label>
                   <Input
                     name="testName"
                     value={formData.testName}
                     onChange={handleInputChange}
-                    placeholder="Lipid Profile"
+                    placeholder="Complete Blood Count (CBC)"
                     className={errors.testName ? 'border-rose-300 ring-rose-50' : ''}
                   />
                   {errors.testName && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.testName}</p>}
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Test Name Short</Label>
+                  <Input
+                    name="testNameShort"
+                    value={formData.testNameShort || ''}
+                    onChange={handleInputChange}
+                    placeholder="CBC"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Test Description</Label>
+                <textarea
+                  name="testDescription"
+                  value={formData.testDescription || ''}
+                  onChange={handleInputChange}
+                  placeholder="Full blood count analysis"
+                  rows={3}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -734,39 +836,74 @@ export default function NewTest({
                     name="departmentId"
                     value={formData.departmentId}
                     onChange={handleInputChange}
+                    disabled={loadingDropdowns}
                     className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.departmentId ? 'border-rose-300' : ''}`}
                   >
-                    <option value="">Select Department</option>
-                    {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    <option value="">{loadingDropdowns ? 'Loading...' : 'Select Department'}</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.departmentName}</option>
+                    ))}
                   </select>
                   {errors.departmentId && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.departmentId}</p>}
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Branch *</Label>
+                  <select
+                    name="branchId"
+                    value={formData.branchId}
+                    onChange={handleInputChange}
+                    disabled={loadingDropdowns}
+                    className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.branchId ? 'border-rose-300' : ''}`}
+                  >
+                    <option value="">{loadingDropdowns ? 'Loading...' : branches.length === 0 ? 'No branches available' : 'Select Branch'}</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.branchName}</option>
+                    ))}
+                  </select>
+                  {errors.branchId && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.branchId}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Category *</Label>
                   <select
                     name="categoryId"
                     value={formData.categoryId}
                     onChange={handleInputChange}
+                    disabled={loadingDropdowns}
                     className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.categoryId ? 'border-rose-300' : ''}`}
                   >
-                    <option value="">Select Category</option>
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="">{loadingDropdowns ? 'Loading...' : categories.length === 0 ? 'No categories available' : 'Select Category'}</option>
+                    {categories.length === 0 && !loadingDropdowns && (
+                      <option disabled>Loading categories... Please refresh if this persists</option>
+                    )}
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.categoryName}</option>
+                    ))}
                   </select>
                   {errors.categoryId && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.categoryId}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">LOINC Code</Label>
+                  <Input name="loincCode" value={formData.loincCode} onChange={handleInputChange} placeholder="58410-2" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">TAT (Hours)</Label>
+                  <Input type="number" name="tatHours" value={formData.tatHours} onChange={handleInputChange} placeholder="2" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">TAT (Minutes)</Label>
+                  <Input type="number" name="tatMinutes" value={formData.tatMinutes || ''} onChange={handleInputChange} placeholder="30" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">LOINC Code</Label>
-                <Input name="loincCode" value={formData.loincCode} onChange={handleInputChange} placeholder="24331-1" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">TAT (Hours)</Label>
-                <Input type="number" name="tatHours" value={formData.tatHours} onChange={handleInputChange} placeholder="24" />
-              </div>
-              <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
-                <Input type="date" name="version.effectiveFrom" value={formData.version.effectiveFrom} onChange={handleInputChange} />
+                <Input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleInputChange} />
               </div>
             </div>
           </div>
@@ -786,31 +923,36 @@ export default function NewTest({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Method</Label>
-                  <Input name="version.method" value={formData.version.method} onChange={handleInputChange} placeholder="Enzymatic Colorimetric" disabled={activeTab === 'pricing'} />
+                  <Input name="method" value={formData.method} onChange={handleInputChange} placeholder="Automated Hematology Analyzer" disabled={activeTab === 'pricing'} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Default Unit</Label>
-                  <Input name="version.unit" value={formData.version.unit} onChange={handleInputChange} placeholder="mg/dL" disabled={activeTab === 'pricing'} />
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Standard Price () *</Label>
+                  <Input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    placeholder="500.00"
+                    className={errors['price'] ? 'border-rose-300 ring-rose-50' : ''}
+                  />
+                  {errors['price'] && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors['price']}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Standard Price (₹) *</Label>
-                  <Input
-                    type="number"
-                    name="version.price"
-                    value={formData.version.price}
-                    onChange={handleInputChange}
-                    placeholder="500.00"
-                    className={errors['version.price'] ? 'border-rose-300 ring-rose-50' : ''}
-                  />
-                  {errors['version.price'] && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors['version.price']}</p>}
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">CGHS Price (₹)</Label>
+                  <Input type="number" name="cghsPrice" value={formData.cghsPrice} onChange={handleInputChange} placeholder="350.00" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">CGHS Price (₹)</Label>
-                  <Input type="number" name="version.cghsPrice" value={formData.version.cghsPrice} onChange={handleInputChange} placeholder="350.00" />
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
+                  <Input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleInputChange} />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective To</Label>
+                <Input type="date" name="effectiveTo" value={formData.effectiveTo || ''} onChange={handleInputChange} />
               </div>
             </div>
           </div>
@@ -829,7 +971,7 @@ export default function NewTest({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => addArrayItem('parameters', { parameterName: '', unit: '', criticalLow: null, criticalHigh: null, resultType: 'Numeric', isCalculated: false, referenceRanges: [] })}
+                onClick={() => addArrayItem('parameters', { parameterCode: '', parameterName: '', displayOrder: 0, unit: '', decimalPlaces: 0, criticalLow: 0, criticalHigh: 0, resultType: 'NUMERIC', isCalculated: false, referenceRanges: [] })}
                 className="h-8 gap-1.5 text-[10px] font-black border-slate-200 text-slate-600 hover:bg-white hover:text-emerald-600 hover:border-emerald-200 transition-all uppercase tracking-widest"
                 suppressHydrationWarning
               >
@@ -854,21 +996,38 @@ export default function NewTest({
                       </button>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pr-10">
                         <div className="space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Parameter Code</Label>
+                          <Input
+                            value={param.parameterCode || ''}
+                            onChange={(e) => updateArrayItem('parameters', idx, 'parameterCode', e.target.value)}
+                            placeholder="HB"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
                           <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Parameter Name</Label>
                           <Input
                             value={param.parameterName}
                             onChange={(e) => updateArrayItem('parameters', idx, 'parameterName', e.target.value)}
-                            placeholder="Total Cholesterol"
+                            placeholder="Hemoglobin"
                           />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5"> 
                           <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Unit</Label>
-                          <Input
-                            value={param.unit}
-                            onChange={(e) => updateArrayItem('parameters', idx, 'unit', e.target.value)}
-                            placeholder="mg/dL"
-                          />
+                         <select 
+                          value={param.unit}
+                          onChange={(e) => updateArrayItem('parameters', idx, 'unit', e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="">Select Unit</option>
+                          {UNIT_TYPES.map(u => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
                         </div>
+                       
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pr-10">
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Result Type</Label>
                           <select
@@ -922,7 +1081,7 @@ export default function NewTest({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => addNestedArrayItem(idx, { gender: 'All', ageMin: 0, ageMax: 100, minValue: '', maxValue: '', unit: param.unit })}
+                            onClick={() => addNestedArrayItem(idx, { gender: 'ALL', ageMin: 0, ageMax: 100, minValue: '', maxValue: '', unit: param.unit || '' })}
                             className="h-7 px-2 text-[9px] font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 uppercase tracking-wider"
                             suppressHydrationWarning
                           >
@@ -988,11 +1147,11 @@ export default function NewTest({
                                 </div>
                                 <div className="md:col-span-2 space-y-1">
                                   <Label className="text-[9px] font-bold text-slate-400 uppercase">Unit</Label>
-                                  <Input
-                                    placeholder="unit"
-                                    className="h-8 text-[11px] p-1 shadow-none"
-                                    value={range.unit}
-                                    onChange={(e) => updateNestedArrayItem(idx, rangeIdx, 'unit', e.target.value)}
+                                  <input
+                                    type="text"
+                                    className="h-8 w-full rounded border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-700 font-medium"
+                                    value={param.unit || '-'}
+                                    readOnly
                                   />
                                 </div>
                                 <div className="md:col-span-1 pb-1">

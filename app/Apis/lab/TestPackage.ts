@@ -9,7 +9,7 @@
  * - Server-side filtering support
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import departmentClient from './axios';
 
 // ─── Logger Utility ──────────────────────────────────────────────────────────
 
@@ -72,13 +72,15 @@ class ApiErrorHandler {
 
 export interface TestPackageItem {
   testId: number;
-  discount: number;
+  displayOrder?: number;
 }
 
 export interface TestDetailItem extends TestPackageItem {
   testName: string;
   testCode: string;
   category: string;
+  displayOrder?: number;
+  discount?: number;
 }
 
 export interface TestPackage {
@@ -145,21 +147,24 @@ export interface CreateTestPackageInput {
   packagePrice: number;
   specialInstructions?: string;
   isActive: boolean;
+  branchId: number;
   tests: Array<{
     testId: number;
-    discount: number;
+    displayOrder?: number;
   }>;
 }
 
 export interface UpdateTestPackageInput {
-  packageName?: string;
+  packageCode: string;
+  packageName: string;
   description?: string;
-  packagePrice?: number;
+  packagePrice: number;
   specialInstructions?: string;
-  isActive?: boolean;
-  tests?: Array<{
+  isActive: boolean;
+  branchId: number;
+  tests: Array<{
     testId: number;
-    discount: number;
+    displayOrder?: number;
   }>;
 }
 
@@ -194,48 +199,26 @@ export async function fetchTestPackages(
       params.append('category', category);
     }
 
-    const url = `${API_BASE_URL}/test-packages?${params}`;
+    const url = `/api/v1/test-packages?${params}`;
     logger.debug('Fetching test packages', { pageNo, pageSize, search, category });
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch test packages', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
+    const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestPackage>>>(url) as any;
+    
     logger.debug('Successfully fetched test packages', {
-      count: responseData.data?.content?.length,
-      totalElements: responseData.data?.totalElements,
-      totalPages: responseData.data?.totalPages,
+      count: response.data?.content?.length,
+      totalElements: response.data?.totalElements,
+      totalPages: response.data?.totalPages,
     });
 
-    return responseData;
+    return response;
   } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection and ensure the backend server is running.`;
-      logger.error(message);
-      throw new Error(message);
-    }
+    logger.error('Failed to fetch test packages', error);
     throw error;
   }
 }
 
 /**
  * GET TEST PACKAGE BY ID - Fetch single package with full test details
- * 
- * Handles both nested and flat response structures:
- * - Nested: { data: { packageInfo: {...}, tests: [...] } }
- * - Flat: { data: { id, packageCode, ..., tests: [...] } }
  * 
  * @param packageId - Package ID to fetch
  * @returns Test package with detailed test information
@@ -244,26 +227,26 @@ export async function fetchTestPackageById(
   packageId: number
 ): Promise<ApiResponse<TestPackageDetail>> {
   try {
-    const url = `${API_BASE_URL}/test-packages/${packageId}`;
-    logger.debug('Fetching test package details', { packageId });
+    const url = `/api/v1/test-packages/${packageId}`;
+    logger.debug('Fetching test package details', { packageId, url });
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+    // Axios interceptor unwraps response.data, so 'response' is already the unwrapped data
+    const response: ApiResponse<any> = await departmentClient.get<ApiResponse<any>>(url) as any;
+    
+    logger.debug('Raw response from API', { response });
 
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to fetch test package details', error);
-      throw new Error(error.message);
+    // Check if the response indicates an error
+    if (response.response === false) {
+      throw new Error(response.message || 'Failed to fetch test package');
     }
 
-    const responseData = JSON.parse(responseText);
-    const detail = responseData.data;
+    const detail = response.data;
+
+    if (!detail) {
+      throw new Error(`No data returned for package ID: ${packageId}`);
+    }
+
+    logger.debug('Package detail data', { detail });
 
     // ✅ Handle both nested (packageInfo + tests) and flat structures
     let packageInfo: PackageInfoResponse;
@@ -271,10 +254,12 @@ export async function fetchTestPackageById(
 
     if (detail.packageInfo) {
       // Nested structure
+      logger.debug('Using nested structure');
       packageInfo = detail.packageInfo;
       tests = detail.tests || [];
     } else {
       // Flat structure - assume the whole detail is the package info
+      logger.debug('Using flat structure');
       packageInfo = {
         id: detail.id,
         packageCode: detail.packageCode,
@@ -306,15 +291,15 @@ export async function fetchTestPackageById(
 
     // Return transformed data while preserving the API response structure
     return {
-      ...responseData,
+      ...response,
       data: transformedData,
     };
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
+  } catch (error: any) {
+    logger.error('Failed to fetch test package details', {
+      packageId,
+      error: error.message || error,
+      response: error.response?.data,
+    });
     throw error;
   }
 }
@@ -336,43 +321,23 @@ export async function createTestPackage(
       throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
     }
 
-    const url = `${API_BASE_URL}/test-packages`;
+    const url = `/api/v1/test-packages`;
     logger.debug('Creating test package', { 
       packageCode: input.packageCode,
       packageName: input.packageName,
       testCount: input.tests.length,
     });
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to create test package', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
+    const response = await departmentClient.post<ApiResponse<TestPackage>>(url, input) as any;
+    
     logger.debug('Successfully created test package', { 
-      id: responseData.data?.id,
+      id: response.data?.id,
       packageCode: input.packageCode,
     });
 
-    return responseData;
+    return response;
   } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
+    logger.error('Failed to create test package', error);
     throw error;
   }
 }
@@ -380,7 +345,17 @@ export async function createTestPackage(
 /**
  * UPDATE TEST PACKAGE - Update an existing test package
  * 
- * Note: Package code cannot be updated after creation
+ * PUT /api/v1/test-packages/{packageId}
+ * 
+ * Request Body:
+ * - packageCode (required)
+ * - packageName (required)
+ * - description (optional)
+ * - packagePrice (required)
+ * - specialInstructions (optional)
+ * - isActive (required)
+ * - branchId (required)
+ * - tests (required) - Array of { testId, displayOrder }
  * 
  * @param packageId - ID of package to update
  * @param input - Updated package data
@@ -391,41 +366,41 @@ export async function updateTestPackage(
   input: UpdateTestPackageInput
 ): Promise<ApiResponse<TestPackage>> {
   try {
-    const url = `${API_BASE_URL}/test-packages/${packageId}`;
+    const url = `/api/v1/test-packages/${packageId}`;
+    
     logger.debug('Updating test package', { 
       packageId,
+      url,
+      payload: input,
       hasName: !!input.packageName,
+      hasDescription: !!input.description,
       hasPrice: input.packagePrice !== undefined,
-      hasTests: !!input.tests?.length,
+      hasInstructions: !!input.specialInstructions,
+      hasIsActive: input.isActive !== undefined,
+      testCount: input.tests?.length || 0,
+      tests: input.tests,
     });
 
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(input),
+    const response: ApiResponse<TestPackage> = await departmentClient.put<ApiResponse<TestPackage>>(url, input) as any;
+    
+    // Check if the response indicates an error
+    if (response.response === false) {
+      throw new Error(response.message || 'Failed to update test package');
+    }
+    
+    logger.debug('Successfully updated test package', { 
+      packageId,
+      updatedData: response.data,
     });
 
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to update test package', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = JSON.parse(responseText);
-    logger.debug('Successfully updated test package', { packageId });
-
-    return responseData;
-  } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
+    return response;
+  } catch (error: any) {
+    logger.error('Failed to update test package', { 
+      packageId,
+      error: error.message || error,
+      response: error.response?.data,
+      payload: input,
+    });
     throw error;
   }
 }
@@ -440,34 +415,16 @@ export async function deleteTestPackage(
   packageId: number
 ): Promise<ApiResponse<void>> {
   try {
-    const url = `${API_BASE_URL}/test-packages/${packageId}`;
+    const url = `/api/v1/test-packages/${packageId}`;
     logger.debug('Deleting test package', { packageId });
 
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = ApiErrorHandler.handle(response, responseText);
-      logger.error('Failed to delete test package', error);
-      throw new Error(error.message);
-    }
-
-    const responseData = responseText ? JSON.parse(responseText) : { data: null };
+    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    
     logger.debug('Successfully deleted test package', { packageId });
 
-    return responseData;
+    return response;
   } catch (error) {
-    if (ApiErrorHandler.isNetworkError(error)) {
-      const message = `Network Error: Unable to connect to API at ${API_BASE_URL}. Please check your internet connection.`;
-      logger.error(message);
-      throw new Error(message);
-    }
+    logger.error('Failed to delete test package', error);
     throw error;
   }
 }
@@ -507,6 +464,11 @@ export function validateTestPackageData(data: Partial<CreateTestPackageInput>): 
     errors.push('Active status is required');
   }
 
+  // Branch ID
+  if (!data.branchId || data.branchId <= 0) {
+    errors.push('Branch ID is required and must be a positive number');
+  }
+
   // Tests
   if (!data.tests || !Array.isArray(data.tests)) {
     errors.push('Tests array is required');
@@ -527,13 +489,88 @@ export function validateTestPackageData(data: Partial<CreateTestPackageInput>): 
         errors.push(`Test ID is required and must be a number (index ${index})`);
       }
 
-      // Validate discount
-      if (typeof test.discount !== 'number') {
-        errors.push(`Discount must be a number (test index ${index})`);
-      } else if (test.discount < 0) {
-        errors.push(`Discount cannot be negative (test index ${index})`);
-      } else if (test.discount > 100) {
-        errors.push(`Discount cannot exceed 100% (test index ${index})`);
+      // Validate displayOrder (optional, but must be positive if provided)
+      if (test.displayOrder !== undefined && test.displayOrder !== null) {
+        if (typeof test.displayOrder !== 'number') {
+          errors.push(`Display order must be a number (test index ${index})`);
+        } else if (test.displayOrder < 1) {
+          errors.push(`Display order must be at least 1 (test index ${index})`);
+        }
+      }
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * Validate update package data
+ */
+export function validateUpdateTestPackageData(data: Partial<UpdateTestPackageInput>): string[] {
+  const errors: string[] = [];
+
+  // Package Code
+  if (!data.packageCode?.trim()) {
+    errors.push('Package code is required');
+  } else if (data.packageCode.length > 20) {
+    errors.push('Package code must be 20 characters or less');
+  }
+
+  // Package Name
+  if (!data.packageName?.trim()) {
+    errors.push('Package name is required');
+  } else if (data.packageName.length > 100) {
+    errors.push('Package name must be 100 characters or less');
+  }
+
+  // Price
+  if (data.packagePrice === undefined || data.packagePrice === null) {
+    errors.push('Package price is required');
+  } else if (typeof data.packagePrice !== 'number') {
+    errors.push('Package price must be a number');
+  } else if (data.packagePrice < 0) {
+    errors.push('Package price cannot be negative');
+  } else if (data.packagePrice === 0) {
+    errors.push('Package price must be greater than 0');
+  }
+
+  // Active Status
+  if (typeof data.isActive !== 'boolean') {
+    errors.push('Active status is required');
+  }
+
+  // Branch ID
+  if (!data.branchId || data.branchId <= 0) {
+    errors.push('Branch ID is required and must be a positive number');
+  }
+
+  // Tests
+  if (!data.tests || !Array.isArray(data.tests)) {
+    errors.push('Tests array is required');
+  } else if (data.tests.length === 0) {
+    errors.push('At least one test must be included in the package');
+  } else {
+    const testIds = new Set<number>();
+    
+    data.tests.forEach((test, index) => {
+      // Check for duplicate tests
+      if (testIds.has(test.testId)) {
+        errors.push(`Duplicate test at index ${index}: Test ID ${test.testId} is already included`);
+      }
+      testIds.add(test.testId);
+
+      // Validate test ID
+      if (!test.testId || typeof test.testId !== 'number') {
+        errors.push(`Test ID is required and must be a number (index ${index})`);
+      }
+
+      // Validate displayOrder (optional, but must be positive if provided)
+      if (test.displayOrder !== undefined && test.displayOrder !== null) {
+        if (typeof test.displayOrder !== 'number') {
+          errors.push(`Display order must be a number (test index ${index})`);
+        } else if (test.displayOrder < 1) {
+          errors.push(`Display order must be at least 1 (test index ${index})`);
+        }
       }
     });
   }
