@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Database,
   Trash2,
+  ArrowLeft,
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
@@ -76,8 +77,16 @@ export default function FamilyLinksListing() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <Link href="/register-patient" className='mb-10 block w-fit'>
+        <Button variant="outline" size="sm" className="gap-2 shadow-sm px-6">
+          <ArrowLeft size={16} />
+          Back to Patients
+        </Button>
+      </Link>
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        <div>
+
+        <div className='space-y-2'>
+
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
             Patient <span className="text-emerald-600">Family Links</span>
           </h1>

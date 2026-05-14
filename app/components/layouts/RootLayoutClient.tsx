@@ -79,7 +79,7 @@ export default function RootLayoutClient({
               </SheetContent>
             </Sheet>
 
-            <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
+            <main className="flex-1 overflow-y-auto py-4 px-8 bg-[#eceff1]">
               {children}
             </main>
           </div>

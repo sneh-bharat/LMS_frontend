@@ -103,7 +103,7 @@ export default function Topbar({ onToggleSidebar }) {
                         <span className="text-sm font-semibold text-slate-900">Admin User</span>
                         <span className="text-xs font-semibold text-emerald-600 uppercase">{userRole}</span>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                    <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white shadow-lg">
                         <User size={20} />
                     </div>
                 </div>

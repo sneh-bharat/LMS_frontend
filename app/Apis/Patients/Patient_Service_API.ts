@@ -299,8 +299,7 @@ async function putPatientUpdateClient(
   const formData = new FormData();
   formData.append(
     'patientUpdateDTO',
-    new Blob([json], { type: 'application/json' }),
-    'patientUpdateDTO.json'
+    new Blob([json], { type: 'application/json' })
   );
   if (photoFile) {
     formData.append('photoUrl', photoFile, photoFile.name);
@@ -329,8 +328,7 @@ async function postPatientCreateClient(
   const formData = new FormData();
   formData.append(
     'patientRequestDTO',
-    new Blob([json], { type: 'application/json' }),
-    'patientRequestDTO.json'
+    new Blob([json], { type: 'application/json' })
   );
   if (photoFile) {
     formData.append('photoUrl', photoFile, photoFile.name);
