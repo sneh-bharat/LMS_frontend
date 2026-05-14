@@ -164,16 +164,60 @@ export async function createReflexRule(
 
 /**
  * Update existing reflex rule
+ * 
+ * PUT /api/v1/reflex-rules/{ruleId}
+ * 
+ * Request Body:
+ * - testId (required)
+ * - reflexTestId (required)
+ * - conditionType (required)
+ * - thresholdValue (optional)
+ * - thresholdLow (optional)
+ * - thresholdHigh (optional)
+ * - logicOperator (optional)
+ * - priority (optional)
+ * - autoOrder (optional)
+ * - notifyPhysician (optional)
+ * - gender (optional)
+ * - ageMin (optional)
+ * - ageMax (optional)
+ * - parameterId (optional)
+ * - branchId (optional)
+ * - clinicalRationale (optional)
+ * - technicianNotes (optional)
+ * - isActive (optional)
+ * 
+ * @param ruleId - ID of reflex rule to update
+ * @param input - Updated reflex rule data
+ * @returns Updated reflex rule
  */
 export async function updateReflexRule(
-  id: number,
+  ruleId: number,
   input: UpdateReflexRuleInput
 ): Promise<ApiResponse<ReflexRule>> {
   try {
-    const response = await departmentClient.put(`/api/v1/reflex-rules/${id}`, input);
-    return response as any;
+    const url = `/api/v1/reflex-rules/${ruleId}`;
+    
+    console.debug('Updating reflex rule', { 
+      ruleId,
+      url,
+      payload: input,
+    });
+
+    const response = await departmentClient.put<ApiResponse<ReflexRule>>(url, input) as any;
+    
+    console.debug('Successfully updated reflex rule', { 
+      ruleId,
+      updatedData: response.data,
+    });
+
+    return response;
   } catch (error) {
-    console.error('Failed to update reflex rule:', error);
+    console.error('Failed to update reflex rule', { 
+      ruleId,
+      error,
+      payload: input,
+    });
     throw error;
   }
 }

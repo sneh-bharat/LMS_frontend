@@ -60,13 +60,21 @@ export default function BranchesPage() {
     loadBranches();
   }, [currentPage, statusFilter]);
 
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      handleAutoSearch();
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [search]);
+
   const loadBranches = async () => {
     setLoading(true);
     try {
       const response = await branchApi.getAllBranches({
         pageNo: currentPage,
         pageSize: pageSize,
-        search: search || undefined,
+        term: search || undefined,
         status: statusFilter
       });
       
@@ -82,6 +90,11 @@ export default function BranchesPage() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
+  };
+
+  const handleAutoSearch = () => {
+    setCurrentPage(0);
+    loadBranches();
   };
 
   const handleSearch = () => {
@@ -162,14 +175,10 @@ export default function BranchesPage() {
                 <List size={20} />
               </Button>
             </div>
-            <Button
-              variant="gradient"
-              className="gap-2 shadow-xl shadow-green-500/20 px-6 h-12"
-              onClick={() => setShowAddModal(true)}
-            >
-              <Plus size={18} />
-              Add New Entity
-            </Button>
+             <Button variant="gradient" size="sm" className="gap-2 shadow-sm px-8"
+                      onClick={() => setShowAddModal(true)}>
+                        <Plus size={16} /> Add New Branch
+              </Button>
           </div>
         </div>
 
@@ -184,16 +193,14 @@ export default function BranchesPage() {
               placeholder="Search by branch name, location, or email..."
               className="pl-12 h-12 rounded-2xl bg-white/50 border-slate-200/60"
             />
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
-            <Button variant="outline" className="px-4 py-2.5 rounded-2xl border-slate-200/60 bg-white/50 whitespace-nowrap gap-2" onClick={handleSearch}>
-              <SlidersHorizontal size={16} />
-              Search
-            </Button>
-            <div className="h-8 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
-            <Badge variant="gradient" className="cursor-pointer px-4 py-2 text-[10px] shadow-md shadow-green-500/10">All Entities</Badge>
-            <Badge variant="secondary" className="cursor-pointer px-4 py-2 text-[10px] hover:bg-slate-200 transition-colors">Main Branch</Badge>
-            <Badge variant="secondary" className="cursor-pointer px-4 py-2 text-[10px] hover:bg-slate-200 transition-colors">Partner Labs</Badge>
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <SearchX size={18} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -213,7 +220,7 @@ export default function BranchesPage() {
               <p className="text-slate-500 mb-6">Create your first branch to get started</p>
               <Button variant="gradient" onClick={() => setShowAddModal(true)}>
                 <Plus size={18} className="mr-2" />
-                Add New Entity
+                Create Branch
               </Button>
             </div>
           </div>

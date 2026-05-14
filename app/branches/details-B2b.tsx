@@ -279,25 +279,7 @@ export default function BranchDetailsDrawer({ isOpen, onClose, branchId, onEdit 
             <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50">
               <p className="text-xs font-bold text-slate-500 mb-1">Active Users</p>
               <p className="text-3xl font-black text-green-600">{branch.activeUsers}</p>
-            </div>
-
-            {/* Usage Bar */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-slate-700">Usage</span>
-                <span className="text-sm font-black text-slate-900">
-                  {branch.maxUsers > 0 ? Math.round((branch.activeUsers / branch.maxUsers) * 100) : 0}%
-                </span>
-              </div>
-              <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-500"
-                  style={{
-                    width: `${branch.maxUsers > 0 ? (branch.activeUsers / branch.maxUsers) * 100 : 0}%`
-                  }}
-                ></div>
-              </div>
-            </div>
+            </div>           
           </div>
         </div>
       </div>

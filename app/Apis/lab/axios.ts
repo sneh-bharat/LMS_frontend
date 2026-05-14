@@ -14,7 +14,6 @@ const departmentClient = axios.create({
     },
 }) as AxiosInstance;
 
-// Request Interceptor: Attach token from localStorage
 departmentClient.interceptors.request.use(
     (config) => {
         if (typeof window !== 'undefined') {

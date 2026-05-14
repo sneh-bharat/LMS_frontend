@@ -23,6 +23,14 @@ import {
   type Department,
   type CreateDepartmentInput,
 } from '@/app/Apis/lab/departmentApi';
+import {
+  useDepartments,
+  useActiveDepartments,
+  useCreateDepartment,
+  useUpdateDepartment,
+  useDeleteDepartment,
+  useDepartmentById,
+} from '@/app/Apis/lab/departmentHooks';
 import AddDepartment from './new-department';
 import { DepartmentDetails } from '../department/details-view';
 // ─── Components ───────────────────────────────────────────────────────────────
@@ -113,7 +121,6 @@ function DepartmentActions({
 }
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -122,11 +129,8 @@ export default function DepartmentsPage() {
   const [deletingDepartmentId, setDeletingDepartmentId] = useState<number | null>(null);
   const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<CreateDepartmentInput>({
@@ -143,94 +147,25 @@ export default function DepartmentsPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    loadDepartments();
-  }, [currentPage, statusFilter]);
+  // React Query hooks for API integration
+  const {
+    data: departmentsResponse,
+    isLoading,
+    refetch,
+  } = useDepartments({
+    pageNo: currentPage,
+    pageSize: pageSize,
+    name: search || undefined,
+    status: statusFilter,
+  });
 
-  // Auto-search when typing (debounce with 300ms)
-  useEffect(() => {
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-    }
+  const createMutation = useCreateDepartment();
+  const updateMutation = useUpdateDepartment();
+  const deleteMutation = useDeleteDepartment();
 
-    if (search && search.trim().length >= 2) {
-      const timer = setTimeout(() => {
-        setCurrentPage(0);
-        loadDepartments();
-      }, 300);
-      setSearchDebounceTimer(timer);
-    } else if (search === '' || search.trim().length === 0) {
-      const timer = setTimeout(() => {
-        setCurrentPage(0);
-        loadDepartments();
-      }, 300);
-      setSearchDebounceTimer(timer);
-    }
-
-    return () => {
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer);
-      }
-    };
-  }, [search]);
-
-  const loadDepartments = async () => {
-    setLoading(true);
-    try {
-      let response;
-      
-      if (search && search.trim()) {
-        response = await departmentApi.getAllDepartments({
-          pageNo: currentPage,
-          pageSize: pageSize,
-          search: search,
-          status: statusFilter
-        });
-      } else if (statusFilter === 'Active') {
-        // Use the active departments endpoint
-        response = await departmentApi.getActiveDepartments({
-          pageNo: currentPage,
-          pageSize: pageSize
-        });
-      } else if (statusFilter === 'Inactive') {
-        // Fetch all departments and filter inactive ones on client side
-        response = await departmentApi.getAllDepartments({
-          pageNo: currentPage,
-          pageSize: 100 // Get more to filter client-side
-        });
-        // Filter to show only inactive departments
-        const inactiveDepartments = response.data.content.filter(dept => !dept.isActive);
-        setDepartments(inactiveDepartments);
-        setTotalPages(response.data.totalPages);
-        setTotalElements(inactiveDepartments.length);
-        setLoading(false);
-        return;
-      } else {
-        // Show all departments
-        response = await departmentApi.getAllDepartments({
-          pageNo: currentPage,
-          pageSize: pageSize
-        });
-      }
-      
-      setDepartments(response.data.content);
-      setTotalPages(response.data.totalPages);
-      setTotalElements(response.data.totalElements);
-    } catch (error) {
-      console.error('Failed to load departments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = () => {
-    setCurrentPage(0);
-    loadDepartments();
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-  };
+  const departments = departmentsResponse?.data?.content || [];
+  const totalPages = departmentsResponse?.data?.totalPages || 0;
+  const totalElements = departmentsResponse?.data?.totalElements || 0;
 
   const handleEdit = (department: Department) => {
     setEditingDepartment(department);
@@ -278,27 +213,61 @@ export default function DepartmentsPage() {
   const handleConfirmDelete = async () => {
     if (!deletingDepartmentId) return;
     
-    try {
-      await departmentApi.deleteDepartment(deletingDepartmentId);
-      toast.success('Department deleted successfully!');
-      loadDepartments();
-      setIsDeleteDialogOpen(false);
-      setDeletingDepartmentId(null);
-    } catch (error: any) {
-      console.error('Failed to delete department:', error);
-      const errorMessage = error?.response?.data?.message || 
-                          'Failed to delete department. Please try again.';
-      toast.error(errorMessage);
-    }
+    deleteMutation.mutate(deletingDepartmentId, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingDepartmentId(null);
+      },
+    });
   };
 
   const handleSubmit = async (data: CreateDepartmentInput) => {
-    toast.success(editingDepartment ? 'Department updated successfully!' : 'Department created successfully!');
-    loadDepartments();
-    // Reload viewing department if it's open to show updated data
-    if (viewingDepartment && editingDepartment) {
-      const updatedDept = await departmentApi.getDepartmentById(editingDepartment.id);
-      setViewingDepartment(updatedDept.data);
+    if (editingDepartment) {
+      updateMutation.mutate(
+        { id: editingDepartment.id, input: data },
+        {
+          onSuccess: (result) => {
+            if (result.response || result.status === 'success') {
+              setIsModalOpen(false);
+              setEditingDepartment(null);
+              setFormData({
+                departmentCode: '',
+                departmentName: '',
+                departmentNameShort: '',
+                description: '',
+                displayOrder: 1,
+                isActive: true,
+                branchId: 1,
+                location: '',
+                tenantId: 2,
+              });
+              if (viewingDepartment && editingDepartment) {
+                refetch();
+              }
+            }
+          },
+        }
+      );
+    } else {
+      createMutation.mutate(data, {
+        onSuccess: (result) => {
+          if (result.response || result.status === 'success') {
+            setIsModalOpen(false);
+            setEditingDepartment(null);
+            setFormData({
+              departmentCode: '',
+              departmentName: '',
+              departmentNameShort: '',
+              description: '',
+              displayOrder: 1,
+              isActive: true,
+              branchId: 1,
+              location: '',
+              tenantId: 2,
+            });
+          }
+        },
+      });
     }
   };
 
@@ -356,7 +325,7 @@ export default function DepartmentsPage() {
           />
           <input
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Search departments..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             suppressHydrationWarning
@@ -377,15 +346,6 @@ export default function DepartmentsPage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-lg p-2.5 border-slate-200"
-            onClick={handleSearch}
-            suppressHydrationWarning
-          >
-            <Settings size={18} />
-          </Button>
         </div>
       </div>
 
@@ -422,7 +382,7 @@ export default function DepartmentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">

@@ -20,14 +20,13 @@ import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
   fetchReflexRules,
   createReflexRule,
-  updateReflexRule,
   deleteReflexRule,
   toggleReflexRuleStatus,
   type ReflexRule,
   type CreateReflexRuleInput,
-  type UpdateReflexRuleInput,
 } from '@/app/Apis/lab/ReflexRules';
 import AddReflexRule from './add-reflex-rule';
+import EditReflexRule from './edit-reflex-rule';
 import ReflexRuleDetailsView from './view-details';
 
 // ─── Components ───────────────────────────────────────────────────────────────
@@ -227,15 +226,12 @@ export default function ReflexRulePage() {
 
   const handleSubmit = async (data: CreateReflexRuleInput) => {
     try {
-      if (editingRule) {
-        await updateReflexRule(editingRule.id, data as UpdateReflexRuleInput);
-      } else {
-        await createReflexRule(data);
-      }
+      // Only create new rules here - edit is handled by EditReflexRule component
+      await createReflexRule(data);
       handleCloseModal();
       loadRules();
     } catch (error) {
-      console.error('Failed to save reflex rule:', error);
+      console.error('Failed to create reflex rule:', error);
     }
   };
 
@@ -547,11 +543,21 @@ export default function ReflexRulePage() {
         </div>
       </div>
 
-      {/* ═══ CREATE/EDIT RIGHT DRAWER ═══════════════════════════════════ */}
+      {/* ═══ CREATE RIGHT DRAWER ═══════════════════════════════════ */}
       <AddReflexRule
-        isOpen={isModalOpen}
+        isOpen={isModalOpen && !editingRule}
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
+      />
+
+      {/* ═══ EDIT RIGHT DRAWER ═══════════════════════════════════ */}
+      <EditReflexRule
+        isOpen={isModalOpen && !!editingRule}
+        onClose={handleCloseModal}
+        onSuccess={() => {
+          handleCloseModal();
+          loadRules();
+        }}
         editData={editingRule}
       />
 

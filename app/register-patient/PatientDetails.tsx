@@ -200,11 +200,18 @@ export function PatientDetails({ isOpen, onClose, patient, onDelete }: PatientDe
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="text-sm font-bold text-slate-900">{allergy.allergyName}</span>
-                                            <span className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded ${allergy.severity === 'Severe' ? 'bg-rose-600 text-white' :
-                                                allergy.severity === 'Moderate' ? 'bg-orange-100 text-orange-700' :
+                                            <span
+                                                className={`text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded ${
+                                                    allergy.severity === 'HIGH' ? 'bg-rose-600 text-white' :
+                                                    allergy.severity === 'MEDIUM' ? 'bg-orange-100 text-orange-700' :
                                                     'bg-blue-100 text-blue-700'
-                                                }`}>
-                                                {allergy.severity}
+                                                }`}
+                                            >
+                                                {allergy.severity === 'HIGH'
+                                                    ? 'High'
+                                                    : allergy.severity === 'MEDIUM'
+                                                      ? 'Medium'
+                                                      : 'Low'}
                                             </span>
                                         </div>
                                         <p className="text-xs text-slate-600 leading-normal">{allergy.remarks || 'No specific remarks noted.'}</p>

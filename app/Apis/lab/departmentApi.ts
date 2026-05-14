@@ -58,7 +58,7 @@ export interface UpdateDepartmentInput {
 export interface DepartmentQueryParams {
   pageNo?: number;
   pageSize?: number;
-  search?: string;
+  name?: string;
   status?: string;
 }
 
@@ -66,36 +66,36 @@ export interface DepartmentQueryParams {
 
 /**
  * GET ALL DEPARTMENTS - Fetch departments with pagination, search, and filtering
- * Endpoint: GET /api/v1/departments
+ * Endpoint: GET /api/v1/departments/search
  */
 export const departmentApi = {
   getAllDepartments: async (params: DepartmentQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Department>>> => {
-    const { pageNo = 0, pageSize = 10, search, status } = params;
+    const { pageNo = 0, pageSize = 10, name, status } = params;
     
     const queryParams: any = { pageNo, pageSize };
     
-    if (search && search.trim()) {
-      queryParams.search = search.trim();
+    if (name && name.trim()) {
+      queryParams.name = name.trim();
     }
     
     if (status && status !== 'All') {
       queryParams.status = status;
     }
 
-    return departmentClient.get('/api/v1/departments', { params: queryParams });
+    return departmentClient.get('/api/v1/departments/search', { params: queryParams });
   },
 
   /**
-   * GET ACTIVE DEPARTMENTS - Fetch active departments
+   * GET ACTIVE DEPARTMENTS - Fetch active departments only
    * Endpoint: GET /api/v1/departments/active
    */
-  getActiveDepartments: async (params: { pageNo?: number; pageSize?: number; search?: string } = {}): Promise<ApiResponse<PaginatedResponse<Department>>> => {
-    const { pageNo = 0, pageSize = 10, search } = params;
+  getActiveDepartments: async (params: { pageNo?: number; pageSize?: number; name?: string } = {}): Promise<ApiResponse<PaginatedResponse<Department>>> => {
+    const { pageNo = 0, pageSize = 10, name } = params;
     
     const queryParams: any = { pageNo, pageSize };
     
-    if (search && search.trim()) {
-      queryParams.search = search.trim();
+    if (name && name.trim()) {
+      queryParams.name = name.trim();
     }
 
     return departmentClient.get('/api/v1/departments/active', { params: queryParams });

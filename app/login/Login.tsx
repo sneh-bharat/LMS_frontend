@@ -120,6 +120,7 @@ export default function LoginPage() {
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder="Enter your username"
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="h-12 pl-11 border-slate-200 focus:ring-[#00ac80]/20 focus:border-[#00ac80] rounded-xl font-medium"
                                 />
                             </div>
@@ -142,12 +143,14 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="h-12 pl-11 pr-11 border-slate-200 focus:ring-[#00ac80]/20 focus:border-[#00ac80] rounded-xl font-medium"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

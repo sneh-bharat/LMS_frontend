@@ -6,6 +6,7 @@ import Topbar from './Topbar';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { usePathname } from 'next/navigation';
 import RoleGuard from '../RoleGuard';
+import Providers from '@/components/Providers';
 
 export default function RootLayoutClient({
   children,
@@ -28,63 +29,62 @@ export default function RootLayoutClient({
 
   if (isLoginPage || isDoctorRoute) {
     return (
-      <main className="min-h-screen bg-[#eceff1]">
-        {isDoctorRoute ? (
-          <div className="flex flex-col h-screen overflow-hidden">
-            <Topbar onToggleSidebar={handleToggleSidebar} />
-            <div className="flex flex-1 overflow-hidden">
-              <div className="hidden md:flex">
-                <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+      <Providers>
+        <main className="min-h-screen bg-[#eceff1]">
+          {isDoctorRoute ? (
+            <div className="flex flex-col h-screen overflow-hidden">
+              <Topbar onToggleSidebar={handleToggleSidebar} />
+              <div className="flex flex-1 overflow-hidden">
+                <div className="hidden md:flex">
+                  <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+                </div>
+
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
+                    <div className="h-full flex flex-col ">
+                      <Sidebar isOpen={true} onExtendSidebar={() => { }} />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
+                  {children}
+                </main>
               </div>
-
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
-                  <div className="h-full flex flex-col ">
-                    <Sidebar isOpen={true} onExtendSidebar={() => { }} />
-                  </div>
-                </SheetContent>
-              </Sheet>
-
-              <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
-                {children}
-              </main>
             </div>
-          </div>
-        ) : (
-          children
-        )}
-      </main>
+          ) : (
+            children
+          )}
+        </main>
+      </Providers>
     );
   }
 
   return (
-    <RoleGuard>
-      <div className="flex flex-col h-screen overflow-hidden">
-        {/* ── Top bar (passes toggle handler down) ── */}
-        <Topbar onToggleSidebar={handleToggleSidebar} />
+    <Providers>
+      <RoleGuard>
+        <div className="flex flex-col h-screen overflow-hidden">
+          <Topbar onToggleSidebar={handleToggleSidebar} />
 
-        {/* ── Sidebar + page content ── */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Desktop Sidebar (hidden on mobile) */}
-          <div className="hidden md:flex">
-            <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+          <div className="flex flex-1 overflow-hidden">
+            <div className="hidden md:flex">
+              <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+            </div>
+
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
+                <div className="h-full flex flex-col ">
+                  <Sidebar isOpen={true} onExtendSidebar={() => { }} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
+              {children}
+            </main>
           </div>
-
-          {/* Mobile Sidebar (Drawer) */}
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
-              <div className="h-full flex flex-col ">
-                <Sidebar isOpen={true} onExtendSidebar={() => { }} />
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* Page content */}
-          <main className="flex-1 overflow-y-auto p-4 bg-[#eceff1]">
-            {children}
-          </main>
         </div>
-      </div>
-    </RoleGuard>
+      </RoleGuard>
+    </Providers>
   );
 }

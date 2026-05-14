@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -28,6 +29,7 @@ import {
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import NewTest from './NewTest';
+import B2BPriceConfiguration from './b2b_price';
 import TestDetailsView from './TestDetailsView';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
@@ -112,12 +114,16 @@ function PackageActions({
   onEditSample,
   onEditParameters,
   onDelete,
+  onB2BPrice,
+  onTemplate,
 }: {
   pkg: Test;
   onView: (pkg: Test) => void;
   onEditSample: (pkg: Test) => void;
   onEditParameters: (pkg: Test) => void;
   onDelete: (testId: number) => void;
+  onB2BPrice: (pkg: Test) => void;
+  onTemplate: (pkg: Test) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -141,7 +147,7 @@ function PackageActions({
           >
             <Eye size={14} /> View Details
           </button>
-          <div className="h-[1px] bg-slate-100 my-2"></div>
+          <div className="h-px bg-slate-100 my-2"></div>
           <button
             onClick={() => {
               onEditSample(pkg);
@@ -150,6 +156,15 @@ function PackageActions({
             className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
           >
             <Package size={14} /> Edit Sample
+          </button>
+           <button
+            onClick={() => {
+              onB2BPrice(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <CreditCard size={14} /> B2B Price
           </button>
           <button
             onClick={() => {
@@ -160,7 +175,7 @@ function PackageActions({
           >
             <FlaskConical size={14} /> Edit Parameters
           </button>
-          <div className="h-[1px] bg-slate-100 my-2"></div>
+          <div className="h-px bg-slate-100 my-2"></div>
           <button
             onClick={() => {
               onDelete(pkg.id);
@@ -169,6 +184,15 @@ function PackageActions({
             className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2"
           >
             <Trash2 size={14} /> Delete Test
+          </button>
+          <button
+            onClick={() => {
+              onTemplate(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <FileText size={14} /> Template
           </button>
         </div>
       )}
@@ -186,6 +210,7 @@ interface NewTestProps {
 }
 
 export default function TestPackagePage() {
+  const router = useRouter();
   const [packages, setPackages] = useState<Test[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -205,6 +230,10 @@ export default function TestPackagePage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingTestId, setDeletingTestId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // B2B Price Configuration drawer state
+  const [isB2BDrawerOpen, setIsB2BDrawerOpen] = useState(false);
+  const [selectedTestForB2B, setSelectedTestForB2B] = useState<Test | null>(null);
 
   useEffect(() => {
     loadTests();
@@ -295,6 +324,15 @@ export default function TestPackagePage() {
     setCurrentPage(0);
   };
 
+  const handleTemplateNavigation = (pkg: Test) => {
+    const params = new URLSearchParams({
+      testId: String(pkg.id),
+      testName: pkg.testName,
+    });
+
+    router.push(`/lab/templates?${params.toString()}`);
+  };
+
   const handleNewTestSubmit = async (newPackageData: any) => {
     console.log('=== PARENT COMPONENT NOTIFICATION ===');
     console.log('Test saved successfully, reloading list...');
@@ -381,10 +419,6 @@ export default function TestPackagePage() {
   };
 
   const handleEditSingleParameter = async (pkg: Test, parameterId: number) => {
-    console.log('=== EDIT SINGLE PARAMETER CLICKED ===');
-    console.log('Test ID:', pkg.id);
-    console.log('Parameter ID:', parameterId);
-
     try {
       console.log('📡 Fetching parameters from API...');
       const response = await fetchTestParameters(pkg.id);
@@ -525,6 +559,15 @@ export default function TestPackagePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 px-6" 
+            onClick={() => router.push('/lab/templates')}
+            suppressHydrationWarning
+          >
+            <FileText size={16} /> Templates
+          </Button>
           <Button variant="outline" size="sm" className="gap-2 px-6" suppressHydrationWarning>
             <LayoutGrid size={16} /> Package View
           </Button>
@@ -702,6 +745,11 @@ export default function TestPackagePage() {
                         onEditSample={handleEditSample}
                         onEditParameters={handleEditParameters}
                         onDelete={handleDeleteFromList}
+                        onB2BPrice={(pkg) => {
+                          setSelectedTestForB2B(pkg);
+                          setIsB2BDrawerOpen(true);
+                        }}
+                        onTemplate={handleTemplateNavigation}
                       />
                     </td>
                   </tr>
@@ -764,6 +812,16 @@ export default function TestPackagePage() {
         onDelete={(id) => handleDetailsDelete(Number(id))}
         onEditSample={handleEditSample}
         onEditParameters={handleEditParameters}
+      />
+
+      {/* ═══ B2B PRICE CONFIGURATION DRAWER ═══════════════════════ */}
+      <B2BPriceConfiguration
+        isOpen={isB2BDrawerOpen}
+        onClose={() => {
+          setIsB2BDrawerOpen(false);
+          setSelectedTestForB2B(null);
+        }}
+        testName={selectedTestForB2B?.testName || 'Test'}
       />
 
       {/* ═══ DELETE CONFIRMATION DIALOG ══════════════════════════ */}

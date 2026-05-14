@@ -29,6 +29,7 @@ import {
     fetchPatientById,
     fetchPatientImage,
 } from '../Apis/Patients/Patient_Service_API';
+import { sanitizeAddressesForEdit, sanitizeAllergiesForEdit } from '../Apis/Patients/patientPayloadUtils';
 import { getBase64ImageSource } from '../functions/getBase64';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -154,7 +155,7 @@ export function EditPatient({ isOpen, onClose, patientId }: EditPatientProps) {
                     bloodGroup: patient.bloodGroup || '',
                     patientCategory: patient.patientCategory || 'REGULAR',
                     isActive: patient.isActive ?? true,
-                    addresses: (patient.addresses || []).map(addr => ({
+                    addresses: sanitizeAddressesForEdit(patient.addresses).map(addr => ({
                         id: addr.id,
                         addressLine1: addr.addressLine1 || '',
                         addressLine2: addr.addressLine2 || '',
@@ -165,13 +166,33 @@ export function EditPatient({ isOpen, onClose, patientId }: EditPatientProps) {
                         addressType: addr.addressType || 'HOME',
                         isPrimary: addr.isPrimary || false,
                     })),
-                    allergies: (patient.allergies || []).map(allergy => ({
-                        id: allergy.id,
-                        allergyName: allergy.allergyName || '',
-                        severity: allergy.severity || 'Moderate',
-                        notedBy: allergy.notedBy || 1,
-                        remarks: allergy.remarks || '',
-                    })),
+                    allergies: sanitizeAllergiesForEdit(patient.allergies).map(allergy => {
+                        const rawSev = allergy.severity as string | undefined;
+                        const u = (rawSev || '').toUpperCase();
+                        let severity: string;
+                        if (u === 'LOW' || u === 'MILD') severity = 'Mild';
+                        else if (u === 'HIGH' || u === 'SEVERE') severity = 'Severe';
+                        else if (u === 'MEDIUM' || u === 'MODERATE') severity = 'Moderate';
+                        else if (rawSev === 'Mild' || rawSev === 'Moderate' || rawSev === 'Severe') severity = rawSev;
+                        else severity = 'Moderate';
+
+                        let notedBy: number;
+                        if (typeof allergy.notedBy === 'number' && !Number.isNaN(allergy.notedBy)) {
+                            notedBy = allergy.notedBy;
+                        } else if (typeof allergy.notedBy === 'string' && /^\d+$/.test(allergy.notedBy.trim())) {
+                            notedBy = parseInt(allergy.notedBy.trim(), 10);
+                        } else {
+                            notedBy = 1;
+                        }
+
+                        return {
+                            id: allergy.id,
+                            allergyName: allergy.allergyName || '',
+                            severity,
+                            notedBy,
+                            remarks: allergy.remarks || '',
+                        };
+                    }),
                 });
             }
         } catch (error) {

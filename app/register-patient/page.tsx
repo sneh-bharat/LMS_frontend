@@ -25,13 +25,16 @@ import {
   CheckCircle2,
   LayoutGrid,
   Activity,
-  RefreshCw
+  RefreshCw,
+  Link2,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { AddPatient } from './AddPatient';
 import { EditPatient } from './EditPatient';
+
 import { PatientDetails } from './PatientDetails';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../Apis/Patients/Patient_Service_API';
@@ -615,6 +618,16 @@ export default function FindRegisterPatientPage() {
                           >
                             <Edit2 size={14} />
                           </Button>
+                          {patient.id ? (
+                            <Link
+                              href={`/patient-family-link?patientId=${patient.id}`}
+                              className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all inline-flex items-center justify-center"
+                              title="Family links by patient ID"
+                              aria-label="Family links by patient ID"
+                            >
+                              <Link2 size={14} />
+                            </Link>
+                          ) : null}
                           <Button
                             className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm transition-all"
                             title="Delete Patient"

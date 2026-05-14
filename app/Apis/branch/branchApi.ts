@@ -87,6 +87,7 @@ export interface UpdateBranchInput {
 export interface BranchQueryParams {
   pageNo?: number;
   pageSize?: number;
+  term?: string;
   search?: string;
   status?: string;
   tenantId?: number;
@@ -96,16 +97,17 @@ export interface BranchQueryParams {
 
 /**
  * GET ALL BRANCHES - Fetch branches with pagination, search, and filtering
- * Endpoint: GET /api/v1/tenants/branches/all
+ * Endpoint: GET /api/v1/tenants/{tenantId}/branches/search
  */
 export const branchApi = {
   getAllBranches: async (params: BranchQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
-    const { pageNo = 0, pageSize = 10, search, status, tenantId = 1 } = params;
+    const { pageNo = 0,  pageSize= 10, term, search, status, tenantId = 1 } = params;
+    const searchTerm = term || search;
     
     const queryParams: any = { pageNo, pageSize };
     
-    if (search && search.trim()) {
-      queryParams.search = search.trim();
+    if (searchTerm && searchTerm.trim()) {
+      queryParams.term = searchTerm.trim();
     }
     
     if (status && status !== 'All') {
@@ -115,7 +117,7 @@ export const branchApi = {
     // Ensure tenantId is always provided and valid
     const validTenantId = tenantId || 1;
     
-    return branchClient.get(`/api/v1/tenants/${validTenantId}/branches/all`, { params: queryParams });
+    return branchClient.get(`/api/v1/tenants/${validTenantId}/branches/search`, { params: queryParams });
   },
 
   /**
