@@ -427,6 +427,63 @@ export async function fetchPatientById(
   return getPatientByIdClient(patientId);
 }
 
+function normalizeMobileSearchPayload(raw: unknown): Patient | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    return (raw[0] as Patient) ?? null;
+  }
+  if (typeof raw === 'object' && raw !== null && 'content' in raw) {
+    const content = (raw as PaginatedResponse<Patient>).content;
+    return Array.isArray(content) ? content[0] ?? null : null;
+  }
+  if (typeof raw === 'object' && 'mobilePrimary' in (raw as Patient)) {
+    return raw as Patient;
+  }
+  return null;
+}
+
+/**
+ * SEARCH PATIENT BY MOBILE - GET /api/v1/patients/search/mobile?mobile=
+ */
+export async function searchPatientByMobile(
+  mobile: string
+): Promise<ApiResponse<Patient | null>> {
+  const digits = mobile.replace(/\D/g, '');
+  if (digits.length !== 10) {
+    throw new Error('Enter a valid 10-digit mobile number');
+  }
+
+  try {
+    const { data } = await patientServiceAxios.get<ApiResponse<unknown>>(
+      '/patients/search/mobile',
+      { params: { mobile: digits } }
+    );
+    const patient = normalizeMobileSearchPayload(data?.data);
+    return {
+      ...data,
+      data: patient,
+      response: Boolean(data?.response && patient),
+    };
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      return {
+        data: null,
+        message: 'No patient found for this mobile number',
+        response: false,
+        status: 'NOT_FOUND',
+        timestamp: new Date().toISOString(),
+      };
+    }
+    if (axios.isAxiosError(e) && e.response) {
+      const body =
+        typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(e.response.status, body);
+      throw new Error(message);
+    }
+    throw e instanceof Error ? e : new Error('Failed to search patient by mobile');
+  }
+}
+
 /**
  * CREATE PATIENT - Create a new patient record with FormData support
  * 

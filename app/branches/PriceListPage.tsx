@@ -1,201 +1,508 @@
 'use client';
 
-import { useState } from 'react';
-import Button from '@/components/ui/button';
-
-const PRICE_DATA = [
-  { id: 1,  type: 'self', name: 'COLONOSCOPY',                                        days: 0, mrp: 3800.00, revenue: 3800.00 },
-  { id: 2,  type: 'self', name: 'UPPER G.I ENDOSCOPY',                               days: 2, mrp: 2500.00, revenue: 2500.00 },
-  { id: 3,  type: 'self', name: 'E. E. G',                                            days: 3, mrp: 800.00,  revenue: 800.00  },
-  { id: 4,  type: 'self', name: 'EMG (R) UPPER AND LOWAR LIMB',                      days: 4, mrp: 900.00,  revenue: 900.00  },
-  { id: 5,  type: 'self', name: 'EMG And NCV BOTH LOWER LIMB',                       days: 4, mrp: 2000.00, revenue: 2000.00 },
-  { id: 6,  type: 'self', name: 'NCV 4 LIMB',                                        days: 4, mrp: 2800.00, revenue: 2800.00 },
-  { id: 7,  type: 'self', name: 'NCV BOTH LOWER LIMB',                               days: 4, mrp: 1400.00, revenue: 1400.00 },
-  { id: 8,  type: 'self', name: 'NCV BOTH UPPER LIMB',                               days: 4, mrp: 1400.00, revenue: 1400.00 },
-  { id: 9,  type: 'self', name: 'NCV SINGLE LIMB',                                   days: 4, mrp: 700.00,  revenue: 700.00  },
-  { id: 10, type: 'out',  name: 'ANA PROFILE',                                        days: 0, mrp: 2500.00, revenue: 2500.00 },
-  { id: 11, type: 'self', name: 'ANAEMIA PROFILE',                                   days: 0, mrp: 1800.00, revenue: 1800.00 },
-  { id: 12, type: 'self', name: 'BETTER PACKAGE FOR ADVANCED HEALTH CHECK UP (BHP-AHCU)', days: 0, mrp: 6450.00, revenue: 6450.00 },
-];
-
-const BRANCHES = ['HO(IP)', 'Cash', 'Credit', 'Credit Franchise', 'sv prasad hospital', 'Wallet', 'wallet flexibility'];
+import { useState, useEffect, useCallback } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader,
+  Search,
+  SearchX,
+  Building2,
+  Pencil,
+  Save,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Badge, Button, Input, Label, RightDrawer } from '@/components/ui';
+import {
+  branchApi,
+  type BranchPricePercentageInfo,
+  type BranchTestPriceItem,
+} from '@/app/Apis/branch/branchApi';
+import EditTestPriceDrawer from './EditTestPriceDrawer';
 
 interface Props {
-  /** called when user navigates back to the list */
-  onBack: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  branchId: number;
+  branchName: string;
 }
 
-export default function PriceListPage({ onBack }: Props) {
-  const [branch, setBranch]     = useState('HO(IP)');
-  const [filterA, setFilterA]   = useState('Show All');
-  const [filterB, setFilterB]   = useState('Show All');
-  const [showSelf, setShowSelf] = useState(true);
-  const [showOut, setShowOut]   = useState(true);
+const PAGE_SIZE = 20;
 
-  const visible = PRICE_DATA.filter(p =>
-    (p.type === 'self' && showSelf) || (p.type === 'out' && showOut)
-  );
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
-  // ── shared select style ───────────────────────────────────────────────────
-  const selStyle: React.CSSProperties = {
-    border: '1px solid #c8c8c8',
-    borderRadius: 4,
-    padding: '6px 24px 6px 10px',
-    fontSize: 13,
-    color: '#333',
-    background: '#fff',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    outline: 'none',
-    appearance: 'auto',
-  };
-
+function PercentagePill({ label, value }: { label: string; value: number }) {
+  const isNegative = value < 0;
+  const isPositive = value > 0;
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', gap: 0,
-      fontFamily: "'Segoe UI', system-ui, sans-serif",
-    }}>
-
-      {/* ── Top header bar ── */}
-      <div style={{
-        background: '#fff', border: '1px solid #e0e0e0',
-        borderRadius: '8px 8px 0 0', borderBottom: 'none',
-        padding: '12px 18px',
-        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-      }}>
-        {/* ► HO(IP) Price List title */}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, fontWeight: 600, fontSize: 16, color: '#222' }}>
-          {/* Back / play arrow */}
-          <button
-            onClick={onBack}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#333', display: 'flex' }}
-            title="Back to list"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-          {branch} Price List
-        </span>
-
-        {/* Branch selector */}
-        <select style={{ ...selStyle, minWidth: 120 }} value={branch}
-          onChange={e => setBranch(e.target.value)}>
-          {BRANCHES.map(b => <option key={b}>► {b}</option>)}
-        </select>
-
-        {/* Show All A */}
-        <select style={selStyle} value={filterA} onChange={e => setFilterA(e.target.value)}>
-          <option>Show All</option><option>Self Lab</option><option>Outsource</option>
-        </select>
-
-        {/* Show All B */}
-        <select style={selStyle} value={filterB} onChange={e => setFilterB(e.target.value)}>
-          <option>Show All</option><option>Active</option><option>Inactive</option>
-        </select>
-
-        {/* Print */}
-        <button style={{
-          background: '#e53935', color: '#fff', border: 'none', borderRadius: 4,
-          padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit',
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
-          </svg>
-          Print
-        </button>
-
-        {/* Excel */}
-        <button style={{
-          background: '#fff', color: '#1565c0', border: '1px solid #1565c0',
-          borderRadius: 4, padding: '7px 14px', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-          fontFamily: 'inherit',
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-          </svg>
-          Excel
-        </button>
-      </div>
-
-      {/* ── Checkbox filter row — Self Lab / Outsource ── */}
-      <div style={{
-        background: '#fff', border: '1px solid #e0e0e0',
-        borderTop: '1px solid #eee', borderBottom: 'none',
-        padding: '10px 18px',
-        display: 'flex', alignItems: 'center', gap: 18,
-      }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-          <input type="checkbox" checked={showSelf} onChange={e => setShowSelf(e.target.checked)}
-            style={{ width: 14, height: 14, cursor: 'pointer' }} />
-          Self Lab
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-          <input type="checkbox" checked={showOut} onChange={e => setShowOut(e.target.checked)}
-            style={{ width: 14, height: 14, cursor: 'pointer' }} />
-          Outsource
-        </label>
-      </div>
-
-      {/* ── Table ── */}
-      <div style={{
-        background: '#fff', border: '1px solid #e0e0e0',
-        borderRadius: '0 0 8px 8px', overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid #e0e0e0', background: '#fff' }}>
-              <th style={{ ...th, width: 56, textAlign: 'center' }}>#</th>
-              <th style={{ ...th }}>Investigation</th>
-              <th style={{ ...th, width: 80, textAlign: 'center' }}>Days</th>
-              <th style={{ ...th, width: 110, textAlign: 'right' }}>MRP</th>
-              <th style={{ ...th, width: 110, textAlign: 'right' }}>Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row, idx) => (
-              <tr key={row.id}
-                style={{ borderBottom: '1px solid #f0f0f0', background: '#fff' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#f5f9ff')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-              >
-                <td style={{ padding: '10px 14px', textAlign: 'center', color: idx + 1 >= 10 ? '#e57300' : '#1565c0', fontSize: 13 }}>
-                  {idx + 1}
-                </td>
-                <td style={{ padding: '10px 14px', color: '#222', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {/* Self / Outsource icon */}
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 16, height: 16, border: '1px solid #aaa',
-                    borderRadius: 2, fontSize: 9, color: '#666', flexShrink: 0,
-                  }}>
-                    {row.type === 'out' ? '✕' : '↗'}
-                  </span>
-                  {row.name}
-                </td>
-                <td style={{ padding: '10px 14px', textAlign: 'center', color: '#555' }}>{row.days}</td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#333', fontWeight: 500 }}>
-                  {row.mrp.toFixed(2)}
-                </td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#333', fontWeight: 500 }}>
-                  {row.revenue.toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2 min-w-[90px]">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p
+        className={`text-sm font-black ${
+          isNegative ? 'text-rose-600' : isPositive ? 'text-emerald-600' : 'text-slate-700'
+        }`}
+      >
+        {value > 0 ? '+' : ''}
+        {value}%
+      </p>
     </div>
   );
 }
 
-const th: React.CSSProperties = {
-  padding: '11px 14px',
-  textAlign: 'left',
-  fontWeight: 600,
-  fontSize: 13,
-  color: '#333',
-};
+export default function PriceListPage({ isOpen, onClose, branchId, branchName }: Props) {
+  const [prices, setPrices] = useState<BranchTestPriceItem[]>([]);
+  const [percentageInfo, setPercentageInfo] = useState<BranchPricePercentageInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [pageNo, setPageNo] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [isEditingPercentages, setIsEditingPercentages] = useState(false);
+  const [editPercentages, setEditPercentages] = useState({
+    mrpPricePercentage: 0,
+    cghsPercentage: 0,
+    b2bPricePercentage: 0,
+    ipPercentage: 0,
+  });
+  const [savingPercentages, setSavingPercentages] = useState(false);
+  const [editingPriceItem, setEditingPriceItem] = useState<BranchTestPriceItem | null>(null);
+
+  const resetState = useCallback(() => {
+    setPrices([]);
+    setPercentageInfo(null);
+    setSearch('');
+    setPageNo(0);
+    setTotalPages(0);
+    setTotalElements(0);
+    setIsEditingPercentages(false);
+    setEditingPriceItem(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetState();
+      return;
+    }
+    setPageNo(0);
+    setSearch('');
+  }, [isOpen, branchId, resetState]);
+
+  const loadPrices = useCallback(async () => {
+    if (!isOpen || !branchId) return;
+
+    setLoading(true);
+    try {
+      const response = await branchApi.getBranchTestPrices(branchId, {
+        pageNo,
+        pageSize: PAGE_SIZE,
+      });
+      setPrices(response.data.content ?? []);
+      setPercentageInfo(response.data.percentageInfo ?? null);
+      setTotalPages(response.data.totalPages ?? 0);
+      setTotalElements(response.data.totalElements ?? 0);
+    } catch (error: unknown) {
+      const err = error as { message?: string; response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to load price list');
+      setPrices([]);
+      setPercentageInfo(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [branchId, pageNo, isOpen]);
+
+  useEffect(() => {
+    loadPrices();
+  }, [loadPrices]);
+
+  const startEditingPercentages = () => {
+    if (!percentageInfo) return;
+    setEditPercentages({
+      mrpPricePercentage: percentageInfo.mrpPricePercentage,
+      cghsPercentage: percentageInfo.cghsPercentage,
+      b2bPricePercentage: percentageInfo.b2bPricePercentage,
+      ipPercentage: percentageInfo.ipPercentage,
+    });
+    setIsEditingPercentages(true);
+  };
+
+  const cancelEditingPercentages = () => {
+    setIsEditingPercentages(false);
+  };
+
+  const parsePercentage = (value: string): number => {
+    if (value === '' || value === '-') return 0;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const handleSavePercentages = async () => {
+    setSavingPercentages(true);
+    try {
+      await branchApi.createBranchPriceConfiguration({
+        importBranchId: branchId,
+        branchId,
+        mrpPricePercentage: editPercentages.mrpPricePercentage,
+        cghsPercentage: editPercentages.cghsPercentage,
+        b2bPricePercentage: editPercentages.b2bPricePercentage,
+        ipPercentage: editPercentages.ipPercentage,
+      });
+      toast.success('Price adjustments updated successfully!');
+      setIsEditingPercentages(false);
+      loadPrices();
+    } catch (error: unknown) {
+      const err = error as { message?: string; response?: { data?: { message?: string } } };
+      toast.error(
+        err?.response?.data?.message || err?.message || 'Failed to update adjustments'
+      );
+    } finally {
+      setSavingPercentages(false);
+    }
+  };
+
+  const filteredPrices = prices.filter((item) => {
+    if (!search.trim()) return true;
+    const term = search.trim().toLowerCase();
+    return (
+      item.testName.toLowerCase().includes(term) ||
+      item.testCode.toLowerCase().includes(term)
+    );
+  });
+
+  const footer = (
+    <div className="flex items-center justify-between w-full gap-3">
+      <p className="text-xs font-semibold text-slate-500 shrink-0">
+        {totalElements > 0 ? (
+          <>
+            Page {pageNo + 1} of {Math.max(totalPages, 1)} · {totalElements} tests
+          </>
+        ) : (
+          'No prices loaded'
+        )}
+      </p>
+      <div className="flex items-center gap-2">
+        {totalPages > 1 && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1"
+              disabled={pageNo === 0 || loading}
+              onClick={() => setPageNo((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft size={16} />
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1"
+              disabled={pageNo >= totalPages - 1 || loading}
+              onClick={() => setPageNo((p) => p + 1)}
+            >
+              Next
+              <ChevronRight size={16} />
+            </Button>
+          </>
+        )}
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <>
+          Price <span className="text-emerald-200">Listing</span>
+        </>
+      }
+      description={
+        <span className="inline-flex items-center gap-2">
+          <Building2 size={12} />
+          {branchName}
+        </span>
+      }
+      footer={footer}
+      maxWidth="2xl"
+    >
+      <div className="space-y-6">
+        {percentageInfo && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-4 h-[1px] bg-slate-200" />
+                Applied adjustments
+              </h4>
+              {!isEditingPercentages ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-1.5 h-8 text-xs font-bold"
+                  onClick={startEditingPercentages}
+                >
+                  <Pencil size={14} />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-8 w-8 p-0"
+                    onClick={cancelEditingPercentages}
+                    disabled={savingPercentages}
+                  >
+                    <X size={14} />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-xl gap-1.5 h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={handleSavePercentages}
+                    disabled={savingPercentages}
+                  >
+                    {savingPercentages ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {isEditingPercentages ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-4">
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1.5 block">
+                    MRP %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editPercentages.mrpPricePercentage}
+                    onChange={(e) =>
+                      setEditPercentages((p) => ({
+                        ...p,
+                        mrpPricePercentage: parsePercentage(e.target.value),
+                      }))
+                    }
+                    className="h-10 rounded-xl bg-white border-slate-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1.5 block">
+                    CGHS %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editPercentages.cghsPercentage}
+                    onChange={(e) =>
+                      setEditPercentages((p) => ({
+                        ...p,
+                        cghsPercentage: parsePercentage(e.target.value),
+                      }))
+                    }
+                    className="h-10 rounded-xl bg-white border-slate-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1.5 block">
+                    B2B %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editPercentages.b2bPricePercentage}
+                    onChange={(e) =>
+                      setEditPercentages((p) => ({
+                        ...p,
+                        b2bPricePercentage: parsePercentage(e.target.value),
+                      }))
+                    }
+                    className="h-10 rounded-xl bg-white border-slate-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1.5 block">
+                    IP %
+                  </Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editPercentages.ipPercentage}
+                    onChange={(e) =>
+                      setEditPercentages((p) => ({
+                        ...p,
+                        ipPercentage: parsePercentage(e.target.value),
+                      }))
+                    }
+                    className="h-10 rounded-xl bg-white border-slate-200"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3">
+                <PercentagePill label="MRP %" value={percentageInfo.mrpPricePercentage} />
+                <PercentagePill label="CGHS %" value={percentageInfo.cghsPercentage} />
+                <PercentagePill label="B2B %" value={percentageInfo.b2bPricePercentage} />
+                <PercentagePill label="IP %" value={percentageInfo.ipPercentage} />
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="space-y-3">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-4 h-[1px] bg-slate-200" />
+            Test prices
+          </h4>
+
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              size={18}
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter by test name or code..."
+              className="pl-10 h-11 rounded-xl bg-white border-slate-200"
+            />
+            {search && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearch('')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-slate-400"
+              >
+                <SearchX size={16} />
+              </Button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/80 overflow-hidden">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader size={28} className="animate-spin text-emerald-600" />
+                <p className="text-sm text-slate-500 font-medium">Loading prices...</p>
+              </div>
+            ) : filteredPrices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                <p className="text-sm font-semibold">No test prices found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-[min(60vh,520px)] overflow-y-auto">
+                <table className="w-full text-left min-w-[760px]">
+                  <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-100">
+                    <tr>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-12">
+                        #
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Code
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Investigation
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        MRP
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        CGHS
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        B2B
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        IP
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-16">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredPrices.map((row, index) => (
+                      <tr key={row.id} className="hover:bg-emerald-50/40 transition-colors">
+                        <td className="px-4 py-3 text-center text-xs font-bold text-slate-500">
+                          {pageNo * PAGE_SIZE + index + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {row.testCode}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-xs font-bold text-slate-900 leading-snug">{row.testName}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-slate-800 whitespace-nowrap">
+                          {formatCurrency(row.price)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-slate-700 whitespace-nowrap">
+                          {formatCurrency(row.cghsPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-slate-700 whitespace-nowrap">
+                          {formatCurrency(row.b2bPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs font-semibold text-slate-700 whitespace-nowrap">
+                          {formatCurrency(row.ipPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant={row.isActive ? 'success' : 'secondary'} size="sm">
+                            {row.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                            title="Edit test price"
+                            onClick={() => setEditingPriceItem(row)}
+                          >
+                            <Pencil size={15} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </RightDrawer>
+
+    <EditTestPriceDrawer
+      isOpen={!!editingPriceItem}
+      item={editingPriceItem}
+      branchId={branchId}
+      onClose={() => setEditingPriceItem(null)}
+      onSaved={loadPrices}
+    />
+    </>
+  );
+}

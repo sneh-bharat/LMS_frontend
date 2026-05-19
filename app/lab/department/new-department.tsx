@@ -50,9 +50,11 @@ export default function AddDepartment({
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('1');
 
+  // Load branches only when the drawer is open (branch API = lims-auth, not test-catalog)
   useEffect(() => {
+    if (!isOpen) return;
     loadBranches();
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     if (editData && isOpen) {

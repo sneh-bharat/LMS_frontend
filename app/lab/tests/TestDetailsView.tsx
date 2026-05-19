@@ -24,7 +24,12 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import type { Test } from '@/app/Apis/lab/TestApis';
-import { fetchTestParameters, fetchSampleRequirements } from '@/app/Apis/lab/TestApis';
+import {
+  fetchTestParameters,
+  fetchSampleRequirements,
+  normalizeParameterForForm,
+  unwrapParametersList,
+} from '@/app/Apis/lab/TestApis';
 import { branchApi } from '@/app/Apis/branch/branchApi';
 
 interface TestDetailsViewProps {
@@ -35,6 +40,7 @@ interface TestDetailsViewProps {
   onDelete?: (testId: number) => void;
   onEditSample?: (test: Test) => void;
   onEditParameters?: (test: Test) => void;
+  refreshKey?: number;
 }
 
 export default function TestDetailsView({
@@ -45,6 +51,7 @@ export default function TestDetailsView({
   onDelete,
   onEditSample,
   onEditParameters,
+  refreshKey = 0,
 }: TestDetailsViewProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -60,7 +67,7 @@ export default function TestDetailsView({
       fetchTestDetails();
       fetchBranchName();
     }
-  }, [isOpen, testData?.id]);
+  }, [isOpen, testData?.id, refreshKey]);
 
   const fetchBranchName = async () => {
     if (!testData?.branchId) return;
@@ -98,10 +105,12 @@ export default function TestDetailsView({
       const [parametersRes, samplesRes] = await Promise.all(promises);
 
       // Handle responses
-      const parametersData = (parametersRes as any)?.data || [];
+      const parametersData = unwrapParametersList((parametersRes as any)?.data).map(
+        normalizeParameterForForm
+      );
       const samplesData = (samplesRes as any)?.data || [];
 
-      setParameters(Array.isArray(parametersData) ? parametersData : []);
+      setParameters(parametersData);
       setSampleRequirements(Array.isArray(samplesData) ? samplesData : []);
 
 

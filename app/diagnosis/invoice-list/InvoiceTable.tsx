@@ -1,170 +1,389 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Printer, ExternalLink } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import {
+  FileText,
+  ArrowRightCircle,
+  Trash2,
+  AlertCircle,
+  Database,
+} from 'lucide-react';
+import Badge from '@/components/ui/badge';
+import Button from '@/components/ui/button';
 import { Invoice } from './types';
+
+export interface InvoiceTablePagination {
+  pageNo: number;
+  totalPages: number;
+  totalElements: number;
+  canPrev: boolean;
+  canNext: boolean;
+  isFetching?: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}
 
 interface InvoiceTableProps {
   invoices: Invoice[];
+  isLoading?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
+  hasLoadedRows?: boolean;
+  searchActive?: boolean;
+  emptyMessage?: string;
+  pagination?: InvoiceTablePagination;
+  onViewInvoice?: (invoice: Invoice) => void;
+  onDeleteInvoice?: (invoice: Invoice) => void;
+  isDeleting?: boolean;
+  selectedIds?: number[];
+  onToggleSelect?: (invoiceId: number) => void;
+  onToggleSelectAll?: () => void;
+  allPageSelected?: boolean;
+  somePageSelected?: boolean;
 }
 
-export default function InvoiceTable({ invoices }: InvoiceTableProps) {
+const COL_COUNT = 9;
+
+function statusBadgeVariant(status?: string) {
+  const s = status?.toUpperCase();
+  if (s === 'PAID' || s === 'COMPLETED' || s === 'ACTIVE') return 'success';
+  if (s === 'UNPAID') return 'destructive';
+  if (s === 'PENDING') return 'warning';
+  return 'secondary';
+}
+
+function formatCurrency(amount: number) {
+  return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatReceptionDate(value: string) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export default function InvoiceTable({
+  invoices,
+  isLoading,
+  isError,
+  errorMessage,
+  onRetry,
+  hasLoadedRows,
+  searchActive,
+  emptyMessage,
+  pagination,
+  onViewInvoice,
+  onDeleteInvoice,
+  isDeleting,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+  allPageSelected = false,
+  somePageSelected = false,
+}: InvoiceTableProps) {
   const router = useRouter();
+  const selectionEnabled = Boolean(onToggleSelect && onToggleSelectAll);
+  const selectedSet = new Set(selectedIds);
 
-  const handleBarcodeClick = (invoice: Invoice) => {
-    router.push(`/diagnosis/invoice-details?id=${invoice.invoiceBarcode}`);
+  const handleView = (invoice: Invoice) => {
+    if (onViewInvoice) {
+      onViewInvoice(invoice);
+      return;
+    }
+    router.push(`/diagnosis/invoice-details?id=${encodeURIComponent(invoice.invoiceBarcode)}`);
   };
 
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const handleEditOrder = (invoice: Invoice, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const params = new URLSearchParams({ orderId: String(invoice.id) });
+    if (invoice.branchId != null && invoice.branchId > 0) {
+      params.set('branchId', String(invoice.branchId));
+    }
+    router.push(`/diagnosis/diagnostic-booking/booking?${params.toString()}`);
   };
 
-  if (invoices.length === 0) {
+  if (isError) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-20">
-          <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-sm mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
-              <Printer size={32} />
-            </div>
-            <div>
-              <h3 className="text-slate-900 font-bold text-sm mb-1">No invoices found.</h3>
-              <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                Please try with <span className="text-emerald-600 font-bold">different search</span> terms or{' '}
-                <span className="text-rose-500 font-bold">filter criteria</span>.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
+        <AlertCircle size={18} className="shrink-0" aria-hidden />
+        <span className="font-medium">{errorMessage || 'Failed to load invoices.'}</span>
+        {onRetry ? (
+          <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={onRetry}>
+            Retry
+          </Button>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-y border-slate-200">
-            <tr>
-              <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-16">
-                #
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              {selectionEnabled ? (
+                <th className="w-12 px-4 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = somePageSelected;
+                    }}
+                    onChange={onToggleSelectAll}
+                    disabled={isDeleting || invoices.length === 0}
+                    className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                    aria-label="Select all on this page"
+                  />
+                </th>
+              ) : null}
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Invoice Code
               </th>
-              <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Invoice & Patient info
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Patient Name
               </th>
-              <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Ref Doctor
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Tests
               </th>
-              <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Collection Centre
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Reception Date
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Amount
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Status
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {invoices.map((invoice) => (
-              <tr key={invoice.id} className="group hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 text-center">
-                  <span className="text-sm font-bold text-slate-600">{invoice.id}</span>
-                </td>
-
-                <td className="px-6 py-4">
-                  <div className="space-y-2">
-                    {/* Invoice Barcode & Patient Name */}
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleBarcodeClick(invoice)}
-                        className="bg-[#FF671F] hover:bg-[#E55D1A] text-white font-bold text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer"
-                      >
-                        {invoice.invoiceBarcode}
-                      </button>
-                      <span className="text-sm font-bold text-slate-900">{invoice.patientName}</span>
-                    </div>
-
-                    {/* Patient Details */}
-                    <div className="text-xs text-slate-600 space-y-1">
-                      <p className="font-semibold">
-                        P-ID:{invoice.patientId} | {invoice.age}Y {'>'} {invoice.gender}
-                      </p>
-                      <p className="font-semibold">{invoice.mobile} {invoice.address}</p>
-                    </div>
-
-                    {/* Tests */}
-                    <div className="flex flex-wrap gap-1">
-                      {invoice.tests.map((test, idx) => (
-                        <span
-                          key={idx}
-                          className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded"
-                        >
-                          {test}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Collection Centre & Date */}
-                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-semibold">
-                      <div className="flex items-center gap-1">
-                        <Printer size={12} className="text-green-600" />
-                        <ExternalLink size={12} className="text-blue-600" />
-                        <span>{invoice.collectionCentre}</span>
-                      </div>
-                      <span>•</span>
-                      <span>Reception on {new Date(invoice.receptionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(invoice.receptionDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-6 py-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-900">{invoice.refDoctor}</p>
-                    {invoice.paymentLink && (
-                      <button className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors">
-                        {invoice.paymentLink}
-                      </button>
-                    )}
-                  </div>
-                </td>
-
-                <td className="px-6 py-4">
-                  <div className="space-y-1.5 text-right">
-                    {/* Total */}
-                    <div className="flex items-center justify-end gap-2">
-                      <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0">
-                        T
-                      </Badge>
-                      <span className="text-sm font-black text-slate-900">{formatCurrency(invoice.totalAmount)}</span>
-                    </div>
-
-                    {/* Paid */}
-                    <div className="flex items-center justify-end gap-2">
-                      <Badge className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold px-1.5 py-0">
-                        P
-                      </Badge>
-                      <span className="text-xs font-bold text-slate-700">{formatCurrency(invoice.paidAmount)}</span>
-                    </div>
-
-                    {/* Due */}
-                    <div className="flex items-center justify-end gap-2">
-                      <Badge className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-1.5 py-0">
-                        D
-                      </Badge>
-                      <span className="text-xs font-bold text-slate-700">{formatCurrency(invoice.dueAmount)}</span>
-                    </div>
-
-                    {/* Balance */}
-                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-200">
-                      <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-1.5 py-0">
-                        B
-                      </Badge>
-                      <span className="text-sm font-black text-slate-900">{formatCurrency(invoice.balanceAmount)}</span>
-                    </div>
+            {isLoading ? (
+              <tr>
+                <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+                    <span>Loading invoices…</span>
                   </div>
                 </td>
               </tr>
-            ))}
+            ) : !hasLoadedRows ? (
+              <tr>
+                <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                  No test orders found. Create a booking to get started.
+                </td>
+              </tr>
+            ) : invoices.length === 0 ? (
+              <tr>
+                <td colSpan={COL_COUNT} className="px-6 py-12 text-center text-slate-500">
+                  {emptyMessage ??
+                    (searchActive
+                      ? 'No invoices match your search or filters. Try adjusting criteria.'
+                      : 'No invoices on this page.')}
+                </td>
+              </tr>
+            ) : (
+              invoices.map((invoice) => {
+                const testsLabel =
+                  invoice.tests.length > 0 ? invoice.tests.join(', ') : 'No tests listed';
+                const displayStatus = invoice.paymentStatus || invoice.orderStatus || '—';
+                const isSelected = selectedSet.has(invoice.id);
+
+                return (
+                  <tr
+                    key={invoice.id}
+                    className={`hover:bg-slate-50 transition-colors group cursor-pointer ${
+                      isSelected ? 'bg-emerald-50/60' : ''
+                    }`}
+                    onClick={() => handleView(invoice)}
+                  >
+                    {selectionEnabled ? (
+                      <td
+                        className="w-12 px-4 py-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleSelect?.(invoice.id)}
+                          disabled={isDeleting}
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                          aria-label={`Select ${invoice.invoiceBarcode}`}
+                        />
+                      </td>
+                    ) : null}
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleView(invoice);
+                        }}
+                        className="text-xs font-bold text-slate-600 font-mono hover:text-emerald-600 transition-colors text-left"
+                      >
+                        {invoice.invoiceBarcode}
+                      </button>
+                    </td>
+
+                    <td className="px-6 py-4" onClick={(e) => handleEditOrder(invoice, e)}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
+                          <FileText size={20} aria-hidden />
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleEditOrder(invoice, e)}
+                            className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm mb-0.5 text-left hover:underline"
+                          >
+                            {invoice.patientName}
+                          </button>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {[
+                              invoice.patientCode,
+                              invoice.mobile !== '—' ? invoice.mobile : null,
+                              invoice.age > 0 ? `${invoice.age}Y` : null,
+                              invoice.gender !== 'Other' ? invoice.gender : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4 max-w-[220px]">
+                      <span className="text-sm text-slate-600 line-clamp-2" title={testsLabel}>
+                        {testsLabel}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold text-slate-900 line-clamp-1">
+                          {invoice.collectionCentre}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium line-clamp-1">
+                          Dr. {invoice.refDoctor}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-slate-900 font-mono whitespace-nowrap">
+                        {formatReceptionDate(invoice.receptionDate)}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold text-slate-900 tracking-tight font-mono">
+                          {formatCurrency(invoice.totalAmount)}
+                        </span>
+                        {(invoice.dueAmount ?? 0) > 0 ? (
+                          <span className="text-[10px] font-bold text-rose-600 font-mono">
+                            Due {formatCurrency(invoice.dueAmount)}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 font-mono">
+                            Paid {formatCurrency(invoice.paidAmount)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <Badge variant={statusBadgeVariant(displayStatus)} className="text-[10px] font-bold">
+                        {displayStatus}
+                      </Badge>
+                      {invoice.priority ? (
+                        <Badge variant="secondary" className="mt-1 text-[9px] font-bold block w-fit">
+                          {invoice.priority}
+                        </Badge>
+                      ) : null}
+                    </td>
+
+                    <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Button
+                          type="button"
+                          className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                          title="View details"
+                          aria-label="View booking details"
+                          onClick={() => handleView(invoice)}
+                        >
+                          <ArrowRightCircle size={14} />
+                        </Button>
+                        {onDeleteInvoice ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Delete booking"
+                            aria-label="Delete booking"
+                            disabled={isDeleting}
+                            onClick={() => onDeleteInvoice(invoice)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
+
+      {pagination ? (
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
+            <span>
+              Page {pagination.pageNo + 1} of {Math.max(pagination.totalPages, 1)}
+              <span className="text-slate-400 mx-2">·</span>
+              {pagination.totalElements} total orders
+            </span>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-bold border-slate-200"
+              disabled={!pagination.canPrev || pagination.isFetching}
+              onClick={pagination.onPrev}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-bold border-slate-200"
+              disabled={!pagination.canNext || pagination.isFetching}
+              onClick={pagination.onNext}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

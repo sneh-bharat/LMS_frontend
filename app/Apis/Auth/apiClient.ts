@@ -1,19 +1,16 @@
 import axios from 'axios';
+import { getAuthServiceBaseUrl } from './authServiceBaseUrl';
 
 /**
- * Professional Axios Instance
- * Centralized configuration for API calls with interceptors for auth and errors.
+ * Auth API client (`NEXT_PUBLIC_API_AUTH` / lims-auth).
  */
 const apiClient = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_AUTH,
+    baseURL: getAuthServiceBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
     },
 });
-
-// Debug: Print the base URL
-console.log('API Base URL:', process.env.NEXT_PUBLIC_API_AUTH);
-console.log('Full Login URL:', `${process.env.NEXT_PUBLIC_API_AUTH}/api/v1/auth/login`);
 
 
 // Request Interceptor: Attach tokens if available

@@ -31,12 +31,16 @@ import Badge from '@/components/ui/badge';
 import NewTest from './NewTest';
 import B2BPriceConfiguration from './b2b_price';
 import TestDetailsView from './TestDetailsView';
+import DepartmentFilter, { ALL_DEPARTMENTS_VALUE } from './department_filter';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
   fetchTests,
   fetchActiveTests,
+  fetchTestsByDepartment,
   searchTestsByName,
   fetchTestParameters,
+  normalizeParameterForForm,
+  unwrapParametersList,
   createTest,
   updateTest,
   deleteTest,
@@ -214,11 +218,13 @@ export default function TestPackagePage() {
   const [packages, setPackages] = useState<Test[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [departmentFilter, setDepartmentFilter] = useState(ALL_DEPARTMENTS_VALUE);
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Test | null>(null);
   const [activeTab, setActiveTab] = useState<'test' | 'sample' | 'parameters' | 'pricing'>('test');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsRefreshKey, setDetailsRefreshKey] = useState(0);
   const [selectedPackage, setSelectedPackage] = useState<Test | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -237,7 +243,7 @@ export default function TestPackagePage() {
 
   useEffect(() => {
     loadTests();
-  }, [currentPage, statusFilter]);
+  }, [currentPage, statusFilter, departmentFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -247,10 +253,14 @@ export default function TestPackagePage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reload tests when search, currentPage, or statusFilter changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [departmentFilter]);
+
+  // Reload tests when search, currentPage, statusFilter, or departmentFilter changes
   useEffect(() => {
     loadTests();
-  }, [search, currentPage, statusFilter]);
+  }, [search, currentPage, statusFilter, departmentFilter]);
 
   const loadTests = async () => {
     setLoading(true);
@@ -258,10 +268,19 @@ export default function TestPackagePage() {
       const status = statusFilter === 'All' ? undefined : statusFilter === 'Active' ? 'true' : 'false';
       console.log('Converted status for API:', status);
       const trimmedSearch = search.trim();
+      const selectedDepartmentId = departmentFilter
+        ? Number(departmentFilter)
+        : undefined;
 
       let testsArray: Test[] = [];
       let responseTotalPages = 0;
       let responseTotalElements = 0;
+
+      const applyStatusFilter = (tests: Test[]) => {
+        if (statusFilter === 'All') return tests;
+        if (statusFilter === 'Active') return tests.filter((test) => Boolean(test.isActive));
+        return tests.filter((test) => !test.isActive);
+      };
 
       if (trimmedSearch) {
         console.log('🔍 Calling searchTestsByName with:', { name: trimmedSearch, currentPage, pageSize });
@@ -270,11 +289,13 @@ export default function TestPackagePage() {
         const searchResults = searchResponse?.data?.content || [];
         console.log('✅ Search results count:', searchResults.length);
 
-        testsArray = searchResults.filter((test) => {
-          if (statusFilter === 'All') return true;
-          if (statusFilter === 'Active') return Boolean(test.isActive);
-          return !test.isActive;
-        });
+        testsArray = applyStatusFilter(searchResults);
+
+        if (selectedDepartmentId) {
+          testsArray = testsArray.filter(
+            (test) => test.departmentId === selectedDepartmentId
+          );
+        }
         
         console.log('🔎 Filtered results count:', testsArray.length);
         responseTotalElements = searchResponse?.data?.totalElements || testsArray.length;
@@ -285,6 +306,20 @@ export default function TestPackagePage() {
           totalElements: responseTotalElements,
           currentPage: searchResponse?.data?.pageNo || 0
         });
+      } else if (selectedDepartmentId) {
+        console.log('📡 Calling fetchTestsByDepartment with:', {
+          departmentId: selectedDepartmentId,
+          currentPage,
+          pageSize,
+        });
+        const response = await fetchTestsByDepartment(
+          selectedDepartmentId,
+          currentPage,
+          pageSize
+        );
+        testsArray = applyStatusFilter(response.data?.content || []);
+        responseTotalPages = response.data?.totalPages || 0;
+        responseTotalElements = response.data?.totalElements || 0;
       } else {
         const response =
           statusFilter === 'Active'
@@ -333,11 +368,11 @@ export default function TestPackagePage() {
     router.push(`/lab/templates?${params.toString()}`);
   };
 
-  const handleNewTestSubmit = async (newPackageData: any) => {
+  const handleNewTestSubmit = async () => {
     console.log('=== PARENT COMPONENT NOTIFICATION ===');
     console.log('Test saved successfully, reloading list...');
-    // Just reload the tests - the API call is already done in NewTest component
     loadTests();
+    setDetailsRefreshKey((key) => key + 1);
   };
 
   const handleEditSample = async (pkg: Test) => {
@@ -394,12 +429,9 @@ export default function TestPackagePage() {
     try {
       console.log('📡 Fetching parameters from API...');
       const response = await fetchTestParameters(pkg.id);
-      const parameterPayload = response.data;
-      const normalizedParameters = Array.isArray(parameterPayload)
-        ? parameterPayload
-        : parameterPayload
-          ? [parameterPayload]
-          : [];
+      const normalizedParameters = unwrapParametersList(response.data).map(
+        normalizeParameterForForm
+      );
 
       const parameterEditData = {
         ...pkg,
@@ -422,12 +454,9 @@ export default function TestPackagePage() {
     try {
       console.log('📡 Fetching parameters from API...');
       const response = await fetchTestParameters(pkg.id);
-      const parameterPayload = response.data;
-      const normalizedParameters = Array.isArray(parameterPayload)
-        ? parameterPayload
-        : parameterPayload
-          ? [parameterPayload]
-          : [];
+      const normalizedParameters = unwrapParametersList(response.data).map(
+        normalizeParameterForForm
+      );
 
       // Find the specific parameter to edit
       const parameterToEdit = normalizedParameters.find((p: any) => p.id === parameterId);
@@ -603,6 +632,10 @@ export default function TestPackagePage() {
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
+          <DepartmentFilter
+            value={departmentFilter}
+            onChange={setDepartmentFilter}
+          />
           <div className="relative flex-1 lg:w-40 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
@@ -798,7 +831,7 @@ export default function TestPackagePage() {
       <NewTest
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={(data) => handleNewTestSubmit(data)}
+        onSubmit={() => handleNewTestSubmit()}
         editData={editingPackage}
         isEditMode={!!editingPackage}
         activeTab={activeTab}
@@ -809,6 +842,7 @@ export default function TestPackagePage() {
         isOpen={detailsOpen}
         onClose={handleCloseDetails}
         testData={selectedPackage}
+        refreshKey={detailsRefreshKey}
         onDelete={(id) => handleDetailsDelete(Number(id))}
         onEditSample={handleEditSample}
         onEditParameters={handleEditParameters}
@@ -821,6 +855,7 @@ export default function TestPackagePage() {
           setIsB2BDrawerOpen(false);
           setSelectedTestForB2B(null);
         }}
+        testId={selectedTestForB2B?.id}
         testName={selectedTestForB2B?.testName || 'Test'}
       />
 

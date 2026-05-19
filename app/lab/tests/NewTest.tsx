@@ -183,6 +183,14 @@ const TAB_CONFIG = {
   }
 };
 
+function getTodayDateString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function NewTest({
   isOpen,
   onClose,
@@ -206,7 +214,7 @@ export default function NewTest({
     unit: '',
     price: '',
     cghsPrice: '',
-    effectiveFrom: new Date().toISOString().split('T')[0],
+    effectiveFrom: getTodayDateString(),
     effectiveTo: null,
     parameters: [],
     sampleRequirements: [],
@@ -219,6 +227,12 @@ export default function NewTest({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<TestCategory[]>(CATEGORIES_PLACEHOLDER);
   const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+
+  const todayDate = getTodayDateString();
+  const effectiveToMinDate =
+    formData.effectiveFrom && formData.effectiveFrom > todayDate
+      ? formData.effectiveFrom
+      : todayDate;
 
   // Load dropdowns (departments and categories)
   useEffect(() => {
@@ -312,7 +326,7 @@ export default function NewTest({
         unit: editData.unit || '',
         price: editData.price?.toString() || '',
         cghsPrice: editData.cghsPrice?.toString() || '',
-        effectiveFrom: editData.effectiveFrom || new Date().toISOString().split('T')[0],
+        effectiveFrom: editData.effectiveFrom || getTodayDateString(),
         effectiveTo: editData.effectiveTo || null,
         parameters: editData.parameters || [],
         sampleRequirements: (editData.sampleRequirements || []).map((req) => ({
@@ -338,7 +352,37 @@ export default function NewTest({
         ...prev,
         [name]: value.toString()
       }));
-    } else if (name === 'method' || name === 'unit' || name === 'price' || name === 'cghsPrice' || name === 'effectiveFrom' || name === 'effectiveTo' || name === 'testNameShort' || name === 'testDescription' || name === 'tatMinutes') {
+    } else if (name === 'effectiveFrom' || name === 'effectiveTo') {
+      const today = getTodayDateString();
+
+      if (value && value < today) {
+        setErrors((prev) => ({
+          ...prev,
+          [name]: 'Date cannot be in the past',
+        }));
+        return;
+      }
+
+      if (name === 'effectiveTo' && value && formData.effectiveFrom && value < formData.effectiveFrom) {
+        setErrors((prev) => ({
+          ...prev,
+          effectiveTo: 'Effective To must be on or after Effective From',
+        }));
+        return;
+      }
+
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value || null };
+        if (
+          name === 'effectiveFrom' &&
+          next.effectiveTo &&
+          next.effectiveTo < (value || today)
+        ) {
+          next.effectiveTo = value || today;
+        }
+        return next;
+      });
+    } else if (name === 'method' || name === 'unit' || name === 'price' || name === 'cghsPrice' || name === 'testNameShort' || name === 'testDescription' || name === 'tatMinutes') {
       // Flat structure fields
       setFormData(prev => ({
         ...prev,
@@ -431,7 +475,20 @@ export default function NewTest({
       if (formData.price === '' || Number(formData.price) <= 0)
         newErrors['price'] = 'Valid price is required';
       if (!formData.method.trim()) newErrors['method'] = 'Method is required';
-      if (!formData.effectiveFrom) newErrors['effectiveFrom'] = 'Effective date is required';
+      if (!formData.effectiveFrom) {
+        newErrors['effectiveFrom'] = 'Effective date is required';
+      } else if (formData.effectiveFrom < todayDate) {
+        newErrors['effectiveFrom'] = 'Effective From cannot be in the past';
+      }
+      if (formData.effectiveTo && formData.effectiveTo < todayDate) {
+        newErrors['effectiveTo'] = 'Effective To cannot be in the past';
+      } else if (
+        formData.effectiveTo &&
+        formData.effectiveFrom &&
+        formData.effectiveTo < formData.effectiveFrom
+      ) {
+        newErrors['effectiveTo'] = 'Effective To must be on or after Effective From';
+      }
     }
     // These are only relevant when editing those specific sections
     if (activeTab === 'test') {
@@ -511,7 +568,7 @@ export default function NewTest({
         if (isSingleParameterEdit && formData.parameters.length === 1) {
           // SINGLE PARAMETER UPDATE - Use the specific endpoint
           const param = formData.parameters[0];
-          console.log('📡 Updating single parameter via PUT /api/v1/tests/{testId}/parameters/{parameterId}');
+          console.log('📡 Updating single parameter via PUT /api/v1/tests/parameters/{parameterId}');
           console.log('Parameter ID to update:', parameterIdToEdit);
           console.log('Branch ID:', editData.branchId);
 
@@ -529,7 +586,7 @@ export default function NewTest({
           console.log('Parameter data to update:', JSON.stringify(parameterData, null, 2));
 
           try {
-            await updateTestParameter(editData.id, parameterIdToEdit, parameterData, editData.branchId);
+            await updateTestParameter(parameterIdToEdit, parameterData, editData.branchId);
             console.log('✅ Parameter updated successfully');
             onSubmit(formData as any);
             setFormData(initialFormData);
@@ -558,7 +615,7 @@ export default function NewTest({
 
             if (param.id && param.id > 0) {
               console.log('📡 Updating existing parameter (ID:', param.id, ')');
-              await updateTestParameter(editData.id, param.id, parameterData, editData.branchId);
+              await updateTestParameter(param.id, parameterData, editData.branchId);
             } else {
               console.log('📡 Creating new parameter');
               await createTestParameter(editData.id, parameterData, editData.branchId);
@@ -903,7 +960,17 @@ export default function NewTest({
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
-                <Input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleInputChange} />
+                <Input
+                  type="date"
+                  name="effectiveFrom"
+                  value={formData.effectiveFrom}
+                  min={todayDate}
+                  onChange={handleInputChange}
+                  className={errors.effectiveFrom ? 'border-rose-300 ring-rose-50' : ''}
+                />
+                {errors.effectiveFrom && (
+                  <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.effectiveFrom}</p>
+                )}
               </div>
             </div>
           </div>
@@ -946,13 +1013,33 @@ export default function NewTest({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
-                  <Input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleInputChange} />
+                  <Input
+                  type="date"
+                  name="effectiveFrom"
+                  value={formData.effectiveFrom}
+                  min={todayDate}
+                  onChange={handleInputChange}
+                  className={errors.effectiveFrom ? 'border-rose-300 ring-rose-50' : ''}
+                />
+                {errors.effectiveFrom && (
+                  <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.effectiveFrom}</p>
+                )}
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective To</Label>
-                <Input type="date" name="effectiveTo" value={formData.effectiveTo || ''} onChange={handleInputChange} />
+                <Input
+                  type="date"
+                  name="effectiveTo"
+                  value={formData.effectiveTo || ''}
+                  min={effectiveToMinDate}
+                  onChange={handleInputChange}
+                  className={errors.effectiveTo ? 'border-rose-300 ring-rose-50' : ''}
+                />
+                {errors.effectiveTo && (
+                  <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.effectiveTo}</p>
+                )}
               </div>
             </div>
           </div>

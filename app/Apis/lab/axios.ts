@@ -1,20 +1,18 @@
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 
 /**
- * Department API Client - Axios Instance
- * Centralized HTTP client with authentication interceptors for department APIs
- * 
- * NOTE: The response interceptor unwraps response.data, so all methods return
- * the response data directly, not wrapped in AxiosResponse.
+ * Lab API Client - Axios Instance
+ * Centralized HTTP client with authentication interceptors for lab / test-catalog APIs
  */
-const departmentClient = axios.create({
+const labClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_Test,
     headers: {
         'Content-Type': 'application/json',
     },
-}) as AxiosInstance;
+});
 
-departmentClient.interceptors.request.use(
+// Request Interceptor: Attach token from localStorage
+labClient.interceptors.request.use(
     (config) => {
         if (typeof window !== 'undefined') {
             const token = localStorage.getItem('token');
@@ -28,7 +26,7 @@ departmentClient.interceptors.request.use(
 );
 
 // Response Interceptor: Global error handling
-departmentClient.interceptors.response.use(
+labClient.interceptors.response.use(
     (response) => response.data,
     (error) => {
         // Handle 401 Unauthorized globally (redirect to login)
@@ -45,4 +43,4 @@ departmentClient.interceptors.response.use(
     }
 );
 
-export default departmentClient;
+export default labClient;

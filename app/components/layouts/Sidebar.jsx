@@ -59,7 +59,7 @@ const NAV = [
         children: [
 
             { label: 'Online Booking Request', href: '/OnlineBooking' },
-            { label: 'Diagnostic Booking', href: '/diagnosis/Diagnosticbooking' },
+            { label: 'Diagnostic Booking', href: '/diagnosis/diagnostic-booking' },
             { label: 'Radiology Booking', href: '#' },
             { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
             { label: 'Find Register Patient', href: '/register-patient' },
@@ -75,7 +75,7 @@ const NAV = [
         children: [
 
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Estimations', href: 'diagnosis/invoice-details' },
+            { label: 'Estimations', href: '/diagnosis/invoice-details' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Investigations', href: '/investigation' },
             { label: 'Sample Tracking', href: '/SampleTracking' },

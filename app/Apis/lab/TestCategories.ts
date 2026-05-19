@@ -8,7 +8,7 @@
  * - DELETE /test-categories/{id}      - Delete category
  */
 
-import departmentClient from './axios';
+import labClient from '@/app/Apis/lab/axios';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export interface UpdateCategoryInput {
 export async function fetchTestCategoryByCode(
   categoryCode: string
 ): Promise<ApiResponse<TestCategory>> {
-  const response = await departmentClient.get<ApiResponse<TestCategory>>(
+  const response = await labClient.get<ApiResponse<TestCategory>>(
     `/api/v1/test-categories/code/${categoryCode}`
   );
   return response.data;
@@ -95,7 +95,7 @@ export async function searchTestCategoriesByName(
     params.append('sort', sort);
   }
 
-  const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+  const response = await labClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
     `/api/v1/test-categories/search?${params}`
   );
   return response.data;
@@ -124,7 +124,7 @@ export async function fetchActiveTestCategories(
     params.append('status', statusFilter);
   }
 
-  const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+  const response = await labClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
     `/api/v1/test-categories/active?${params}`
   );
   return response.data;
@@ -150,7 +150,7 @@ export async function fetchTestCategories(
 
   // Axios interceptor unwraps AxiosResponse.data at runtime
   // So response is already ApiResponse at runtime
-  const response: any = await departmentClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
+  const response: any = await labClient.get<ApiResponse<PaginatedResponse<TestCategory>>>(
     `/api/v1/test-categories?${params}`
   );
   
@@ -168,7 +168,7 @@ export async function fetchTestCategories(
  * Endpoint: GET /api/v1/test-categories/{categoryId}
  */
 export async function fetchTestCategoryById(id: number): Promise<ApiResponse<TestCategory>> {
-  const response = await departmentClient.get<ApiResponse<TestCategory>>(
+  const response = await labClient.get<ApiResponse<TestCategory>>(
     `/api/v1/test-categories/${id}`
   );
   return response.data;
@@ -191,7 +191,7 @@ export async function createTestCategory(
     isActive: input.isActive !== undefined ? input.isActive : true,
   };
 
-  const response = await departmentClient.post<ApiResponse<TestCategory>>(
+  const response = await labClient.post<ApiResponse<TestCategory>>(
     '/api/v1/test-categories',
     requestBody
   );
@@ -215,7 +215,7 @@ export async function updateTestCategory(
     isActive: input.isActive !== undefined ? input.isActive : true,
   };
 
-  const response = await departmentClient.put<ApiResponse<TestCategory>>(
+  const response = await labClient.put<ApiResponse<TestCategory>>(
     `/api/v1/test-categories/${id}`,
     requestBody
   );
@@ -227,7 +227,7 @@ export async function updateTestCategory(
  * Endpoint: DELETE /api/v1/test-categories/{id}
  */
 export async function deleteTestCategory(id: number): Promise<ApiResponse<void>> {
-  const response = await departmentClient.delete<ApiResponse<void>>(
+  const response = await labClient.delete<ApiResponse<void>>(
     `/api/v1/test-categories/${id}`
   );
   return response.data;
@@ -241,7 +241,7 @@ export async function toggleCategoryStatus(
   id: number,
   isActive: boolean
 ): Promise<ApiResponse<TestCategory>> {
-  const response = await departmentClient.patch<ApiResponse<TestCategory>>(
+  const response = await labClient.patch<ApiResponse<TestCategory>>(
     `/api/v1/test-categories/${id}/status`,
     { isActive }
   );

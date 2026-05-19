@@ -9,7 +9,7 @@
  * - Server-side filtering support
  */
 
-import departmentClient from './axios';
+import labClient from '@/app/Apis/lab/axios';
 
 // ─── Logger Utility ──────────────────────────────────────────────────────────
 
@@ -202,7 +202,7 @@ export async function fetchTestPackages(
     const url = `/api/v1/test-packages?${params}`;
     logger.debug('Fetching test packages', { pageNo, pageSize, search, category });
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<TestPackage>>>(url) as any;
+    const response = await labClient.get<ApiResponse<PaginatedResponse<TestPackage>>>(url) as any;
     
     logger.debug('Successfully fetched test packages', {
       count: response.data?.content?.length,
@@ -231,7 +231,7 @@ export async function fetchTestPackageById(
     logger.debug('Fetching test package details', { packageId, url });
 
     // Axios interceptor unwraps response.data, so 'response' is already the unwrapped data
-    const response: ApiResponse<any> = await departmentClient.get<ApiResponse<any>>(url) as any;
+    const response: ApiResponse<any> = await labClient.get<ApiResponse<any>>(url) as any;
     
     logger.debug('Raw response from API', { response });
 
@@ -328,7 +328,7 @@ export async function createTestPackage(
       testCount: input.tests.length,
     });
 
-    const response = await departmentClient.post<ApiResponse<TestPackage>>(url, input) as any;
+    const response = await labClient.post<ApiResponse<TestPackage>>(url, input) as any;
     
     logger.debug('Successfully created test package', { 
       id: response.data?.id,
@@ -381,7 +381,7 @@ export async function updateTestPackage(
       tests: input.tests,
     });
 
-    const response: ApiResponse<TestPackage> = await departmentClient.put<ApiResponse<TestPackage>>(url, input) as any;
+    const response: ApiResponse<TestPackage> = await labClient.put<ApiResponse<TestPackage>>(url, input) as any;
     
     // Check if the response indicates an error
     if (response.response === false) {
@@ -418,7 +418,7 @@ export async function deleteTestPackage(
     const url = `/api/v1/test-packages/${packageId}`;
     logger.debug('Deleting test package', { packageId });
 
-    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    const response = await labClient.delete<ApiResponse<void>>(url) as any;
     
     logger.debug('Successfully deleted test package', { packageId });
 
