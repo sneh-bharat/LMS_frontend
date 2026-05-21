@@ -24,9 +24,9 @@ function formatB2bType(branchType: string) {
 
 export function BranchOptionLabel({ branch }: { branch: Pick<Branch, 'branchName' | 'branchType'> }) {
   return (
-    <span className="flex items-center gap-2">
-      <span className="font-semibold text-slate-900">{branch.branchName}</span>
-      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+    <span className="flex items-center justify-between w-full gap-4">
+      <span className="font-semibold text-slate-900 group-hover:text-white group-focus:text-white transition-colors truncate">{branch.branchName}</span>
+      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 group-hover:bg-emerald-600 group-hover:text-white group-focus:bg-emerald-600 group-focus:text-white px-2 py-0.5 rounded-md border border-emerald-200 transition-all shrink-0 whitespace-nowrap">
         {formatB2bType(branch.branchType)}
       </span>
     </span>
@@ -121,9 +121,9 @@ export default function SelectBranch({
               )}
             </span>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="min-w-[320px]">
             {branches.map((b) => (
-              <SelectItem key={b.id} value={String(b.id)}>
+              <SelectItem key={b.id} value={String(b.id)} className="group">
                 <BranchOptionLabel branch={b} />
               </SelectItem>
             ))}

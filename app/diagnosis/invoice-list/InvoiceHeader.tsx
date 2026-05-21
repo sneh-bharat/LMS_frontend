@@ -8,7 +8,16 @@ import {
   RefreshCw,
   ChevronDown,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Button from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   SEARCH_OPTIONS,
   SEARCH_TYPE_PLACEHOLDER,
@@ -77,156 +86,173 @@ export default function InvoiceFilters({
         : 'Search by order number…';
 
   return (
-    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
-      <div className="relative flex-1 group w-full min-w-0">
-        <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-          size={18}
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
-          aria-label="Search invoices"
-          disabled={isLoading}
-        />
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
-        <div className="relative flex-1 sm:min-w-[160px] group">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-          <select
+    <div className="w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white  backdrop-blur-xl p-4 shadow-sm border-t-white/20">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Row 1, Item 1: Search Type */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+            Search Type
+          </label>
+          <Select
             value={searchBy}
-            onChange={(e) => {
-              const value = e.target.value;
-              onSearchByChange(
-                value === SEARCH_TYPE_PLACEHOLDER
-                  ? SEARCH_TYPE_PLACEHOLDER
-                  : (value as InvoiceSearchType)
-              );
-            }}
-            className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-            aria-label="Type of search"
-            disabled={isLoading}
+            onValueChange={(value) => onSearchByChange(
+              value === SEARCH_TYPE_PLACEHOLDER
+                ? SEARCH_TYPE_PLACEHOLDER
+                : (value as InvoiceSearchType)
+            )}
           >
-            <option value={SEARCH_TYPE_PLACEHOLDER}>Type</option>
-            {SEARCH_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SEARCH_TYPE_PLACEHOLDER} disabled>Select Type</SelectItem>
+              {SEARCH_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="relative flex-1 sm:min-w-[140px] group">
-          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-          <select
-            value={selectedBranchId ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              onBranchChange(value === '' ? null : Number.parseInt(value, 10));
-            }}
-            className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-            aria-label="Branch filter"
-            disabled={isLoading || isLoadingBranches}
-          >
-            <option value="">{SELECT_BRANCH_LABEL}</option>
-            {branchOptions.map((branch) => (
-              <option key={branch.branchId} value={String(branch.branchId)}>
-                {branch.branchName}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+        {/* Row 1, Item 2: Search Input */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+            Search Value
+          </label>
+          <div className="relative group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
+              size={16}
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="pl-11 h-11 rounded-xl border-slate-200 bg-white/80 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500 font-bold shadow-none"
+              disabled={isLoading}
+            />
+          </div>
         </div>
 
-        <div className="relative flex-1 sm:min-w-[140px] group">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-          <select
+        {/* Row 1, Item 3: Branch */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+            Branch
+          </label>
+          <Select
+            value={selectedBranchId?.toString() ?? ""}
+            onValueChange={(value) => onBranchChange(value === "" || value === null ? null : Number.parseInt(value, 10))}
+          >
+            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
+              <SelectValue placeholder={SELECT_BRANCH_LABEL} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{SELECT_BRANCH_LABEL}</SelectItem>
+              {branchOptions.map((branch) => (
+                <SelectItem key={branch.branchId} value={branch.branchId.toString()}>
+                  {branch.branchName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Row 2, Item 1: Status */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+            Payment Status
+          </label>
+          <Select
             value={status}
-            onChange={(e) => onStatusChange(e.target.value as InvoiceStatusFilter)}
-            className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-            aria-label="Invoice status"
-            disabled={isLoading}
+            onValueChange={(value) => onStatusChange(value as InvoiceStatusFilter)}
           >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
+              <SelectValue placeholder="Select Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="relative flex-1 sm:min-w-[150px] group">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-          <select
+        {/* Row 2, Item 2: Processing Type */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+            Order Status
+          </label>
+          <Select
             value={processingType}
-            onChange={(e) => onProcessingTypeChange(e.target.value as InvoiceProcessingTypeFilter)}
-            className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-            aria-label="Processing type"
-            disabled={isLoading}
+            onValueChange={(value) => onProcessingTypeChange(value as InvoiceProcessingTypeFilter)}
           >
-            {PROCESSING_TYPE_FILTER_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
+              <SelectValue placeholder="Select Processing Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROCESSING_TYPE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div
-          className={`flex items-center gap-2 h-10 px-2 border rounded-lg bg-slate-50 shrink-0 ${
-            dateRangeInvalid ? 'border-rose-300 bg-rose-50/50' : 'border-slate-200'
-          }`}
-          title="Filter orders by date range"
-        >
-          <CalendarIcon size={14} className="text-slate-400 shrink-0" aria-hidden />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-            className="bg-transparent text-[10px] font-bold text-slate-700 uppercase tracking-wider border-0 p-0 min-w-0 w-[7.5rem] focus:outline-none focus:ring-0"
-            aria-label="Start date"
-            disabled={isLoading}
-            max={endDate || undefined}
-          />
-          <span className="text-slate-300 text-[10px] font-bold">–</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
-            className="bg-transparent text-[10px] font-bold text-slate-700 uppercase tracking-wider border-0 p-0 min-w-0 w-[7.5rem] focus:outline-none focus:ring-0"
-            aria-label="End date"
-            disabled={isLoading}
-            min={startDate || undefined}
-          />
+        {/* Row 2, Item 3: Date Range & Refresh */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between ml-1">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Reception Date Range
+            </label>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading || isRefreshing}
+                className="text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                title="Refresh list"
+              >
+                <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              </button>
+            )}
+          </div>
+          <div className={cn(
+            "flex items-center gap-2 h-11 px-3 border rounded-xl bg-white/80 shadow-none overflow-hidden transition-all focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500",
+            dateRangeInvalid ? "border-rose-400 bg-rose-50/30" : "border-slate-200"
+          )}>
+            <CalendarIcon size={16} className="text-slate-400 shrink-0" aria-hidden />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+              className="bg-transparent text-[11px] font-black text-slate-700 uppercase tracking-wider border-0 p-0 min-w-0 w-full focus:outline-none focus:ring-0"
+              aria-label="Start date"
+              disabled={isLoading}
+              max={endDate || undefined}
+            />
+            <span className="text-slate-300 font-bold">/</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+              className="bg-transparent text-[11px] font-black text-slate-700 uppercase tracking-wider border-0 p-0 min-w-0 w-full focus:outline-none focus:ring-0"
+              aria-label="End date"
+              disabled={isLoading}
+              min={startDate || undefined}
+            />
+          </div>
         </div>
-
-        {onRefresh ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-lg p-2.5 border-slate-200 shrink-0"
-            onClick={onRefresh}
-            disabled={isLoading || isRefreshing}
-            title="Refresh list"
-          >
-            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
-          </Button>
-        ) : null}
       </div>
 
       {flashApiMessage ? (
-        <span className="text-xs font-medium text-emerald-700 lg:ml-auto shrink-0 animate-in fade-in duration-300">
+        <div className="mt-4 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-300">
           {flashApiMessage}
-        </span>
+        </div>
       ) : null}
     </div>
   );

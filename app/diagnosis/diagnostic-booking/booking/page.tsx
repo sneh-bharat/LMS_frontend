@@ -46,7 +46,7 @@ import {
   Table
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import type { Branch } from '@/app/Apis/branch/branchApi';  
+import type { Branch } from '@/app/Apis/branch/branchApi';
 import SelectBranch from '../select-branch';
 import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import PatientSearchSelect from '../PatientSearchSelect';
@@ -436,55 +436,55 @@ function AddInvestigationsModal({
               : 'No active tests configured for this branch.'}
           </p>
         ) : (
-        <div className="space-y-2">
-          {displayedTests.map((inv) => (
-            <div
-              key={inv.id}
-              onClick={() => toggle(inv.id)}
-              className={cn(
-                "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group",
-                selected.includes(inv.id)
-                  ? "border-emerald-500 bg-emerald-50/50"
-                  : "border-gray-200 bg-white hover:border-emerald-200 hover:bg-slate-50"
-              )}
-            >
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
-                  selected.includes(inv.id) ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600"
-                )}>
-                  {selected.includes(inv.id) ? <CheckCircle2 size={24} /> : <FlaskConical size={20} />}
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-slate-900">{inv.name}</div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{inv.category}</div>
-                </div>
-              </div>
-              <div className="text-sm font-black text-slate-900">₹{inv.mrp}</div>
-            </div>
-          ))}
-          {hasMore ? (
-            <div className="pt-2 flex justify-center">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-xl font-bold border-gray-300"
-                disabled={loadingMore}
-                onClick={handleLoadMore}
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin mr-2" />
-                    Loading…
-                  </>
-                ) : (
-                  'Load more tests'
+          <div className="space-y-2">
+            {displayedTests.map((inv) => (
+              <div
+                key={inv.id}
+                onClick={() => toggle(inv.id)}
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group",
+                  selected.includes(inv.id)
+                    ? "border-emerald-500 bg-emerald-50/50"
+                    : "border-gray-200 bg-white hover:border-emerald-200 hover:bg-slate-50"
                 )}
-              </Button>
-            </div>
-          ) : null}
-        </div>
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
+                    selected.includes(inv.id) ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600"
+                  )}>
+                    {selected.includes(inv.id) ? <CheckCircle2 size={24} /> : <FlaskConical size={20} />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold text-slate-900 leading-snug">{inv.name}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{inv.category}</div>
+                  </div>
+                </div>
+                <div className="text-sm font-black text-slate-900">₹{inv.mrp}</div>
+              </div>
+            ))}
+            {hasMore ? (
+              <div className="pt-2 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl font-bold border-gray-300"
+                  disabled={loadingMore}
+                  onClick={handleLoadMore}
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin mr-2" />
+                      Loading…
+                    </>
+                  ) : (
+                    'Load more tests'
+                  )}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
     </RightDrawer>
@@ -524,20 +524,20 @@ function DiagnosticBookingContent() {
   const selectedBranch: Branch | null =
     effectiveBranchId > 0
       ? {
-          id: effectiveBranchId,
-          branchName: branchName || `Branch #${effectiveBranchId}`,
-          branchCode: searchParams.get('branchCode') || '',
-          branchType: searchParams.get('branchType') || '',
-          address: null,
-          city: null,
-          state: null,
-          country: null,
-          postalCode: null,
-          contactEmail: null,
-          contactPhone: null,
-          isActive: true,
-          tenantId: 1,
-        }
+        id: effectiveBranchId,
+        branchName: branchName || `Branch #${effectiveBranchId}`,
+        branchCode: searchParams.get('branchCode') || '',
+        branchType: searchParams.get('branchType') || '',
+        address: null,
+        city: null,
+        state: null,
+        country: null,
+        postalCode: null,
+        contactEmail: null,
+        contactPhone: null,
+        isActive: true,
+        tenantId: 1,
+      }
       : null;
 
   useEffect(() => {
@@ -1345,7 +1345,7 @@ function DiagnosticBookingContent() {
                               <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 border border-gray-200">
                                 <FlaskConical size={16} />
                               </div>
-                              <div className="text-sm font-bold text-slate-900">{inv.name}</div>
+                              <div className="text-sm font-bold text-slate-900 leading-snug">{inv.name}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -1455,7 +1455,7 @@ function DiagnosticBookingContent() {
                     <Select value={form.discountType} onValueChange={set('discountType')}>
                       <SelectTrigger className="border-gray-300 bg-white">
                         <SelectValue placeholder="Type" />
-                      </SelectTrigger> 
+                      </SelectTrigger>
                       <SelectContent>
                         {DISC_TYPES.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
@@ -1486,8 +1486,8 @@ function DiagnosticBookingContent() {
                             collectionDate,
                             expectedReportDate:
                               f.expectedReportDate &&
-                              collectionDate &&
-                              f.expectedReportDate < collectionDate
+                                collectionDate &&
+                                f.expectedReportDate < collectionDate
                                 ? collectionDate
                                 : f.expectedReportDate,
                           }));
