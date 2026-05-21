@@ -31,6 +31,8 @@ export interface Branch {
   contactEmail: string | null;
   contactPhone: string | null;
   isActive: boolean;
+  /** API status e.g. `ACTIVE`, `INACTIVE` */
+  status?: string;
   tenantId: number;
 }
 
@@ -108,6 +110,13 @@ export interface BranchQueryParams {
   tenantId?: number;
 }
 
+/** Listing page: GET `/tenants/{tenantId}/branches/all?page=&size=` */
+export interface BranchListAllParams {
+  page?: number;
+  size?: number;
+  tenantId?: number;
+}
+
 export interface BranchPriceConfigInput {
   importBranchId: number;
   branchId: number;
@@ -171,10 +180,48 @@ export interface UpdateTestPriceInput {
 // ─── API Service Functions ──────────────────────────────────────────────────
 
 /**
- * GET ALL BRANCHES - Fetch branches with pagination, search, and filtering
- * Endpoint: GET /api/v1/tenants/{tenantId}/branches/search
+ * GET ALL BRANCHES (listing) — single call for Branches & B2B page.
+ * Endpoint: GET /api/v1/tenants/{tenantId}/branches/all?page=0&size=10
  */
+function normalizeBranchListPage(
+  raw: PaginatedResponse<Branch> & { page?: number; size?: number }
+): PaginatedResponse<Branch> {
+  const pageNo = raw.pageNo ?? raw.page ?? 0;
+  const pageSize = raw.pageSize ?? raw.size ?? 10;
+  return {
+    ...raw,
+    content: raw.content ?? [],
+    pageNo,
+    pageSize,
+    totalElements: raw.totalElements ?? raw.content?.length ?? 0,
+    totalPages: raw.totalPages ?? 1,
+    first: raw.first ?? pageNo === 0,
+    last: raw.last ?? true,
+  };
+}
+
 export const branchApi = {
+  listBranchesAll: async (
+    params: BranchListAllParams = {}
+  ): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
+    const { page = 0, size = 10, tenantId } = params;
+    const validTenantId = resolveTenantId(tenantId);
+
+    const response = (await branchClient.get(
+      authApiPath(`/tenants/${validTenantId}/branches/all`),
+      { params: { page, size } }
+    )) as ApiResponse<PaginatedResponse<Branch> & { page?: number; size?: number }>;
+
+    if (response.data) {
+      response.data = normalizeBranchListPage(response.data);
+    }
+    return response;
+  },
+
+  /**
+   * GET branches with search/filter (other screens — not the Branches listing page).
+   * Endpoint: GET /api/v1/tenants/{tenantId}/branches/search
+   */
   getAllBranches: async (params: BranchQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Branch>>> => {
     const { pageNo = 0, pageSize = 10, term, search, status, tenantId } = params;
     const searchTerm = term || search;
@@ -321,6 +368,17 @@ export const branchApi = {
   /**
    * CHECK BRANCH HAS TEST PRICES - Whether /test-prices/branch/{branchId} has any records
    */
+  // hasBranchTestPrices: async (branchId: number): Promise<boolean> => {
+  //   try {
+  //     const response = await labClient.get(
+  //       testCatalogApiPath(`/test-prices/branch/${branchId}`),
+  //       { params: { pageNo: 0, pageSize: 1 } }
+  //     );
+  //     return (response.data?.totalElements ?? 0) > 0;
+  //   } catch {
+  //     return false;
+  //   }
+  // },
   hasBranchTestPrices: async (branchId: number): Promise<boolean> => {
     try {
       const response = await labClient.get(

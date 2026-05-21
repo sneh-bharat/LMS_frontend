@@ -346,7 +346,8 @@ export interface FetchTestsOptions {
 export async function fetchTestsAscending(
   pageNo: number = 0,
   pageSize: number = 10,
-  search?: string
+  search?: string,
+  options?: Pick<FetchTestsOptions, 'branchId'>
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
     const params = new URLSearchParams({
@@ -355,6 +356,9 @@ export async function fetchTestsAscending(
     });
 
     if (search?.trim()) params.append('search', search.trim());
+    if (options?.branchId != null && options.branchId > 0) {
+      params.append('branchId', String(options.branchId));
+    }
 
     const url = `/api/v1/tests/ascending?${params.toString()}`;
     console.log('📡 Fetching tests (ascending) from:', url);
@@ -472,13 +476,27 @@ export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> 
   try {
     const url = `/api/v1/tests/${testId}`;
     console.log('📡 Fetching test from:', url);
-    
+
     const response = await labClient.get<ApiResponse<Test>>(url);
     console.log('✅ Test loaded successfully');
     return response.data;
   } catch (error) {
     console.error('Error fetching test:', error);
     throw error;
+  }
+}
+
+/**
+ * Best-effort test lookup for list enrichment. Returns null when the test is missing
+ * (e.g. booking order references an id not in the lab catalog) instead of throwing.
+ */
+export async function fetchTestByIdOptional(testId: number): Promise<Test | null> {
+  try {
+    const res = (await labClient.get(`/api/v1/tests/${testId}`)) as ApiResponse<Test>;
+    if (res?.response === false || !res?.data) return null;
+    return res.data;
+  } catch {
+    return null;
   }
 }
 

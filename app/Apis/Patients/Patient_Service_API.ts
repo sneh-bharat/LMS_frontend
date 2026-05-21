@@ -474,6 +474,46 @@ export async function searchPatientByMobile(
         timestamp: new Date().toISOString(),
       };
     }
+    if (axios.isAxiosError(e) && e.response?.status === 409) {
+      try {
+        const listRes = await fetchPatients(0, 20, digits, 'All');
+        const matches =
+          listRes.data?.content?.filter(
+            (p) => p.mobilePrimary?.replace(/\D/g, '') === digits
+          ) ?? [];
+        if (matches.length === 1) {
+          return {
+            data: matches[0],
+            message: 'Patient found',
+            response: true,
+            status: '200 OK',
+            timestamp: new Date().toISOString(),
+          };
+        }
+        if (matches.length > 1) {
+          return {
+            data: null,
+            message:
+              'Multiple patients use this mobile number. Search by patient name or UHID instead.',
+            response: false,
+            status: '409 CONFLICT',
+            timestamp: new Date().toISOString(),
+          };
+        }
+      } catch {
+        /* fall through to generic conflict message */
+      }
+      const body =
+        typeof e.response.data === 'string'
+          ? e.response.data
+          : JSON.stringify(e.response.data ?? {});
+      const { message } = AxiosPatientErrorHandler.handle(409, body);
+      throw new Error(
+        message && message !== 'Conflict'
+          ? message
+          : 'Multiple patients may share this mobile number. Search by name or UHID.'
+      );
+    }
     if (axios.isAxiosError(e) && e.response) {
       const body =
         typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});

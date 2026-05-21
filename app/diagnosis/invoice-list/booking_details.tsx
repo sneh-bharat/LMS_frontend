@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   FileText,
@@ -26,6 +26,7 @@ import { formatPatientFullName } from '@/app/Apis/Patients/patientDisplayUtils';
 import { testOrderToDiseases } from '@/app/Apis/booking/mapTestOrderEdit';
 import { orderPriorityLabel } from '@/app/Apis/booking/orderPriority';
 import { useTestOrderDetail } from '@/app/Apis/booking/useTestOrders';
+import { useTestsByIds } from '@/app/Apis/lab/useTestsByIds';
 
 export interface BookingDetailsProps {
   isOpen: boolean;
@@ -100,6 +101,11 @@ export function BookingDetails({
   const orderId = isOpen && order?.id ? order.id : null;
   const { data: detailResponse, isLoading: orderLoading } = useTestOrderDetail(orderId);
   const displayOrder = detailResponse?.data ?? order;
+  const testIds = useMemo(
+    () => (displayOrder?.orderItems ?? []).map((item) => item.testId),
+    [displayOrder?.orderItems]
+  );
+  const { testsById } = useTestsByIds(isOpen ? testIds : []);
 
   const [patientName, setPatientName] = useState(patientNameProp ?? '—');
   const [patientCode, setPatientCode] = useState(patientCodeProp ?? '');
@@ -347,9 +353,14 @@ export function BookingDetails({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {displayOrder.orderItems.map((item) => (
+                  {displayOrder.orderItems.map((item) => {
+                    const testLabel =
+                      item.testName?.trim() ||
+                      testsById.get(item.testId)?.testName ||
+                      `Test #${item.testId}`;
+                    return (
                     <tr key={item.id} className="hover:bg-slate-50/80">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">#{item.testId}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{testLabel}</td>
                       <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.testPrice)}</td>
                       <td className="px-4 py-3 text-right">{item.discountPercentage}%</td>
                       <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.netPrice)}</td>
@@ -359,7 +370,8 @@ export function BookingDetails({
                         </Badge>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

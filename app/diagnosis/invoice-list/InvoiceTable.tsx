@@ -5,8 +5,15 @@ import {
   FileText,
   ArrowRightCircle,
   Trash2,
+  Ban,
+  ClipboardList,
   AlertCircle,
   Database,
+  Activity,
+  CreditCard,
+  Wallet,
+  Receipt,
+  FlaskConical,
 } from 'lucide-react';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
@@ -35,7 +42,15 @@ interface InvoiceTableProps {
   pagination?: InvoiceTablePagination;
   onViewInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoice: Invoice) => void;
+  onCancelInvoice?: (invoice: Invoice) => void;
+  onViewCancellationDetails?: (invoice: Invoice) => void;
+  onTrackOrderLifecycle?: (invoice: Invoice) => void;
+  onViewPaymentSummary?: (invoice: Invoice) => void;
+  onViewTransactions?: (invoice: Invoice) => void;
+  onProcessPayment?: (invoice: Invoice) => void;
+  onRegisterSample?: (invoice: Invoice) => void;
   isDeleting?: boolean;
+  isProcessingPayment?: boolean;
   selectedIds?: number[];
   onToggleSelect?: (invoiceId: number) => void;
   onToggleSelectAll?: () => void;
@@ -82,7 +97,15 @@ export default function InvoiceTable({
   pagination,
   onViewInvoice,
   onDeleteInvoice,
+  onCancelInvoice,
+  onViewCancellationDetails,
+  onTrackOrderLifecycle,
+  onViewPaymentSummary,
+  onViewTransactions,
+  onProcessPayment,
+  onRegisterSample,
   isDeleting,
+  isProcessingPayment,
   selectedIds = [],
   onToggleSelect,
   onToggleSelectAll,
@@ -202,6 +225,13 @@ export default function InvoiceTable({
                   invoice.tests.length > 0 ? invoice.tests.join(', ') : 'No tests listed';
                 const displayStatus = invoice.paymentStatus || invoice.orderStatus || '—';
                 const isSelected = selectedSet.has(invoice.id);
+                const isCancelled =
+                  invoice.orderStatus?.toUpperCase() === 'CANCELLED';
+                const canCollectPayment =
+                  !isCancelled &&
+                  ((invoice.dueAmount ?? 0) > 0 ||
+                    invoice.paymentStatus?.toUpperCase() === 'UNPAID' ||
+                    invoice.paymentStatus?.toUpperCase() === 'PARTIAL');
 
                 return (
                   <tr
@@ -328,6 +358,89 @@ export default function InvoiceTable({
                         >
                           <ArrowRightCircle size={14} />
                         </Button>
+                        {onCancelInvoice && !isCancelled ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Cancel order"
+                            aria-label="Cancel order"
+                            disabled={isDeleting}
+                            onClick={() => onCancelInvoice(invoice)}
+                          >
+                            <Ban size={14} />
+                          </Button>
+                        ) : null}
+                        {onViewCancellationDetails && isCancelled ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto rounded-lg border border-[#CF142B]/20 bg-[#CF142B]/5 text-[#CF142B] hover:bg-[#CF142B]/10 hover:border-[#CF142B]/40 hover:shadow-sm transition-all"
+                            title="View cancellation details"
+                            aria-label="View cancellation details"
+                            onClick={() => onViewCancellationDetails(invoice)}
+                          >
+                            <ClipboardList size={14} />
+                          </Button>
+                        ) : null}
+                        {onRegisterSample && !isCancelled ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Register sample"
+                            aria-label="Register sample for this order"
+                            disabled={isDeleting}
+                            onClick={() => onRegisterSample(invoice)}
+                          >
+                            <FlaskConical size={14} />
+                          </Button>
+                        ) : null}
+                        {onProcessPayment && canCollectPayment ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Process payment"
+                            aria-label="Process payment"
+                            disabled={isDeleting || isProcessingPayment}
+                            onClick={() => onProcessPayment(invoice)}
+                          >
+                            <CreditCard size={14} />
+                          </Button>
+                        ) : null}
+                        {onViewTransactions ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="View payment transactions"
+                            aria-label="View payment transactions"
+                            disabled={isDeleting}
+                            onClick={() => onViewTransactions(invoice)}
+                          >
+                            <Receipt size={14} />
+                          </Button>
+                        ) : null}
+                        {onViewPaymentSummary ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-white hover:shadow-sm transition-all"
+                            title="View payment summary"
+                            aria-label="View payment summary"
+                            disabled={isDeleting}
+                            onClick={() => onViewPaymentSummary(invoice)}
+                          >
+                            <Wallet size={14} />
+                          </Button>
+                        ) : null}
+                        {onTrackOrderLifecycle ? (
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="Track order lifecycle"
+                            aria-label="Track order lifecycle"
+                            disabled={isDeleting}
+                            onClick={() => onTrackOrderLifecycle(invoice)}
+                          >
+                            <Activity size={14} />
+                          </Button>
+                        ) : null}
                         {onDeleteInvoice ? (
                           <Button
                             type="button"

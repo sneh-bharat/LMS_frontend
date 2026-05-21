@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus,
   User,
-  Phone,
   Mail,
   MapPin,
   Globe,
@@ -49,7 +48,8 @@ import {
 import { cn } from '@/lib/utils';
 import type { Branch } from '@/app/Apis/branch/branchApi';  
 import SelectBranch from '../select-branch';
-import { searchPatientByMobile } from '@/app/Apis/Patients/Patient_Service_API';
+import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
+import PatientSearchSelect from '../PatientSearchSelect';
 import { mapPatientToBookingForm } from '../patientFormUtils';
 import PreExistingDynamics from '../PreExistingDynamics';
 import AddReferringDoctorModal from './AddReferringDoctorModal';
@@ -94,6 +94,7 @@ import {
   isoDateOffset,
   todayIsoDate,
 } from './bookingFormDefaults';
+import PatientLastVisit from './patient_last_visit';
 
 // ─── Types & Constants ───────────────────────────────────────────────────────
 interface Investigation {
@@ -113,7 +114,11 @@ function testToInvestigation(test: Test): Investigation {
 }
 
 function filterTestsForBranch(tests: Test[], branchId: number): Test[] {
-  return tests.filter((t) => t.branchId === branchId && t.isActive);
+  const activeTests = tests.filter((t) => t.isActive);
+  const branchMatched = activeTests.filter((t) => t.branchId === branchId);
+  // Some environments return mixed/mismatched branch IDs even when branchId is sent.
+  // Keep branch-specific results when available, otherwise show active results from payload.
+  return branchMatched.length > 0 ? branchMatched : activeTests;
 }
 
 function referringDoctorMeta(doctor: ReferringDoctor) {
@@ -200,6 +205,26 @@ function readOnlyInputProps(isEditMode: boolean) {
   return isEditMode ? { disabled: true, readOnly: true } : {};
 }
 
+function formatBookingSubmitError(err: unknown): string {
+  const message = err instanceof Error ? err.message : 'Failed to create test booking';
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('409') ||
+    lower.includes('conflict') ||
+    lower.includes('duplicate') ||
+    lower.includes('already exists')
+  ) {
+    if (message.length > 24 && !message.startsWith('Request failed with status')) {
+      return message;
+    }
+    return (
+      'Booking conflict (409): this patient may already have an active order with the same tests or date. ' +
+      'Check the invoice list, or adjust collection date / tests and try again.'
+    );
+  }
+  return message;
+}
+
 const TITLES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby', 'M/s'];
 const GENDERS = ['Male', 'Female', 'Other'];
 const PAY_MODES = ['Cash', 'Card', 'UPI', 'Online', 'Credit'];
@@ -263,7 +288,9 @@ function AddInvestigationsModal({
 
       try {
         const trimmed = query.trim();
-        const response = await fetchTestsAscending(page, ADD_TESTS_PAGE_SIZE, trimmed || undefined);
+        const response = await fetchTestsAscending(page, ADD_TESTS_PAGE_SIZE, trimmed || undefined, {
+          branchId,
+        });
         const pageData = extractPaginatedTestsPage(response);
         const content = extractPaginatedTests(response);
         const mapped = sortInvestigationsByName(
@@ -480,14 +507,11 @@ function DiagnosticBookingContent() {
   const [addInvOpen, setAddInvOpen] = useState(false);
   const [addReferringDoctorOpen, setAddReferringDoctorOpen] = useState(false);
   const [referringDoctors, setReferringDoctors] = useState<ReferringDoctor[]>([]);
-  const [mobileLookupLoading, setMobileLookupLoading] = useState(false);
   const [mobileLookupMessage, setMobileLookupMessage] = useState<string | null>(null);
   const [apiDynamicsOptions, setApiDynamicsOptions] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const lastLookedUpMobile = useRef<string>('');
-  const mobileDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const createTestOrderMutation = useCreateTestOrder();
+  const isSubmittingBookingRef = useRef(false);
   const { data: orderDetail, isLoading: orderLoading, isError: orderError, error: orderLoadError } =
     useTestOrderDetail(isEditMode ? orderId : null);
   const updateMedicalMutation = useUpdateTestOrderMedical();
@@ -654,92 +678,76 @@ function DiagnosticBookingContent() {
     setForm(f => ({ ...f, [key]: value }));
   };
 
-  const lookupPatientByMobile = useCallback(async (rawMobile: string) => {
-    const digits = rawMobile.replace(/\D/g, '');
-    if (digits.length !== 10) {
-      setMobileLookupMessage(null);
-      return;
-    }
-    if (digits === lastLookedUpMobile.current) return;
+  const applyPatientRecord = useCallback(async (patient: Patient, mobileOverride?: string) => {
+    const digits = (mobileOverride ?? patient.mobilePrimary ?? '').replace(/\D/g, '');
+    const allergyNames =
+      patient.allergies?.map((a) => a.allergyName).filter(Boolean) ?? [];
+    setApiDynamicsOptions(allergyNames);
+    const mapped = mapPatientToBookingForm(patient, digits);
+    setForm((f) => ({ ...f, ...mapped }));
 
-    setMobileLookupLoading(true);
-    setMobileLookupMessage(null);
-    try {
-      const res = await searchPatientByMobile(digits);
-      if (res.data) {
-        lastLookedUpMobile.current = digits;
-        const allergyNames =
-          res.data.allergies?.map((a) => a.allergyName).filter(Boolean) ?? [];
-        setApiDynamicsOptions(allergyNames);
-        const mapped = mapPatientToBookingForm(res.data, digits);
-        setForm((f) => ({ ...f, ...mapped }));
-
-        if (mapped.referringDoctorId != null && mapped.referringDoctorId > 0) {
-          try {
-            const docRes = await fetchReferringDoctorById(mapped.referringDoctorId);
-            if (docRes?.data) {
-              setReferringDoctors([docRes.data]);
-            }
-          } catch {
-            setReferringDoctors([]);
-          }
-        } else {
-          setReferringDoctors([]);
+    if (mapped.referringDoctorId != null && mapped.referringDoctorId > 0) {
+      try {
+        const docRes = await fetchReferringDoctorById(mapped.referringDoctorId);
+        if (docRes?.data) {
+          setReferringDoctors([docRes.data]);
         }
-
-        setMobileLookupMessage(
-          res.data.patientCode
-            ? `Patient found: ${res.data.patientCode}`
-            : 'Patient details loaded'
-        );
-      } else {
-        lastLookedUpMobile.current = digits;
-        setMobileLookupMessage('No patient found for this mobile number');
+      } catch {
+        setReferringDoctors([]);
       }
-    } catch (err) {
-      setMobileLookupMessage(
-        err instanceof Error ? err.message : 'Failed to search patient'
-      );
-    } finally {
-      setMobileLookupLoading(false);
-    }
-  }, []);
-
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setForm((f) => ({
-      ...f,
-      mobile: value,
-      patientId: undefined,
-      referringDoctorId: null,
-      referredDoctor: '',
-    }));
-
-    const digits = value.replace(/\D/g, '');
-    if (digits.length < 10) {
-      lastLookedUpMobile.current = '';
-      setMobileLookupMessage(null);
-      setApiDynamicsOptions([]);
+    } else {
       setReferringDoctors([]);
     }
 
-    if (mobileDebounceRef.current) {
-      clearTimeout(mobileDebounceRef.current);
-    }
-    if (digits.length === 10) {
-      mobileDebounceRef.current = setTimeout(() => {
-        lookupPatientByMobile(value);
-      }, 500);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (mobileDebounceRef.current) {
-        clearTimeout(mobileDebounceRef.current);
-      }
-    };
+    return mapped;
   }, []);
+
+  const clearPatientRecord = useCallback(() => {
+    setMobileLookupMessage(null);
+    setApiDynamicsOptions([]);
+    setReferringDoctors([]);
+    setForm((f) => ({
+      ...f,
+      patientId: undefined,
+      mobile: '',
+      title: BLANK.title,
+      patientName: '',
+      age: '',
+      gender: BLANK.gender,
+      address: '',
+      email: '',
+      drugAllergy: '',
+      diseases: [],
+      referringDoctorId: null,
+      referredDoctor: '',
+    }));
+  }, []);
+
+  const handlePatientSearchSelect = useCallback(
+    async (patient: Patient) => {
+      if (!patient.id) return;
+      setMobileLookupMessage(null);
+      try {
+        const hasProfile =
+          Boolean(patient.firstName && patient.patientCode && patient.mobilePrimary) &&
+          (patient.addresses != null || patient.allergies != null);
+        const full = hasProfile
+          ? patient
+          : (await fetchPatientById(patient.id)).data ?? patient;
+        await applyPatientRecord(full);
+        setMobileLookupMessage(
+          full.patientCode
+            ? `Patient found: ${full.patientCode}`
+            : 'Patient details loaded'
+        );
+      } catch (err) {
+        setMobileLookupMessage(
+          err instanceof Error ? err.message : 'Failed to load patient details'
+        );
+      }
+    },
+    [applyPatientRecord]
+  );
 
   const removeInvestigation = (id: number) => setInvestigations(prev => prev.filter(i => i.id !== id));
 
@@ -818,10 +826,20 @@ function DiagnosticBookingContent() {
   };
 
   const handleConfirmBooking = async () => {
+    if (isSubmittingBookingRef.current || createTestOrderMutation.isPending) {
+      return;
+    }
+
     setSubmitError(null);
 
+    if (!effectiveBranchId || effectiveBranchId < 1) {
+      const msg = 'Select a branch before confirming the booking.';
+      setSubmitError(msg);
+      toast.error(msg);
+      return;
+    }
     if (!form.patientId || form.patientId < 1) {
-      const msg = 'Load the patient by mobile number before confirming the booking.';
+      const msg = 'Search and select a patient before confirming the booking.';
       setSubmitError(msg);
       toast.error(msg);
       return;
@@ -838,11 +856,12 @@ function DiagnosticBookingContent() {
         ? referringDoctors[referringDoctors.length - 1].id
         : form.referringDoctorId;
 
+    isSubmittingBookingRef.current = true;
     try {
       const payload = mapBookingToTestOrderPayload({
         form,
         investigations,
-        branchId,
+        branchId: effectiveBranchId,
         testsSubtotal,
         referringDoctorId: selectedReferringDoctorId,
       });
@@ -858,9 +877,11 @@ function DiagnosticBookingContent() {
       toast.success(result.message || `${orderLabel} created successfully`);
       router.push('/diagnosis/invoice-list');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create test booking';
+      const message = formatBookingSubmitError(err);
       setSubmitError(message);
       toast.error(message);
+    } finally {
+      isSubmittingBookingRef.current = false;
     }
   };
 
@@ -981,8 +1002,8 @@ function DiagnosticBookingContent() {
         <div className="xl:col-span-8 space-y-8">
 
           {/* Section 1: Identity & Sync */}
-          <Card className="p-6 border-gray-300 overflow-hidden relative shadow-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+          <Card className="p-6 border-gray-300 overflow-visible relative shadow-sm z-10">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 rounded-l-xl pointer-events-none" />
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
@@ -997,44 +1018,16 @@ function DiagnosticBookingContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Number</Label>
-                <div className="relative group">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
-                  <Input
-                    value={form.mobile}
-                    onChange={isEditMode ? undefined : handleMobileChange}
-                    onBlur={isEditMode ? undefined : () => lookupPatientByMobile(form.mobile)}
-                    placeholder="9876543210"
-                    inputMode="numeric"
-                    maxLength={10}
-                    className={cn('pl-10 pr-10 border-gray-300', isEditMode && 'bg-slate-50')}
-                    {...readOnlyInputProps(isEditMode)}
-                  />
-                  {mobileLookupLoading ? (
-                    <Loader2
-                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-emerald-600"
-                      size={16}
-                      aria-hidden
-                    />
-                  ) : null}
-                </div>
-                {mobileLookupMessage ? (
-                  <p
-                    className={cn(
-                      'text-xs font-semibold pl-1',
-                      mobileLookupMessage.includes('found') && !mobileLookupMessage.includes('No')
-                        ? 'text-emerald-600'
-                        : mobileLookupMessage.includes('No patient')
-                          ? 'text-amber-600'
-                          : 'text-rose-600'
-                    )}
-                  >
-                    {mobileLookupMessage}
-                  </p>
-                ) : null}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <PatientSearchSelect
+                patientId={form.patientId}
+                onPatientSelect={(patient) => void handlePatientSearchSelect(patient)}
+                onClear={clearPatientRecord}
+                disabled={isEditMode}
+                dynamicFieldLabel
+                lookupMessage={mobileLookupMessage}
+                required
+              />
               <div className="space-y-2">
                 <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">Digital ID (Email)</Label>
                 <div className="relative group">
@@ -1050,6 +1043,10 @@ function DiagnosticBookingContent() {
               </div>
             </div>
           </Card>
+
+          {form.patientId != null && form.patientId > 0 ? (
+            <PatientLastVisit patientId={form.patientId} />
+          ) : null}
 
           {/* Section 2: Bio Information */}
           <Card className="p-0 border-gray-300 overflow-hidden relative shadow-sm">
@@ -1311,7 +1308,16 @@ function DiagnosticBookingContent() {
                 ) : null}
               </div>
               {!isEditMode ? (
-                <Button onClick={() => setAddInvOpen(true)} className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10 shrink-0">
+                <Button
+                  onClick={() => {
+                    if (!effectiveBranchId || effectiveBranchId < 1) {
+                      toast.error('Select a branch before adding tests.');
+                      return;
+                    }
+                    setAddInvOpen(true);
+                  }}
+                  className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10 shrink-0"
+                >
                   <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Test
                 </Button>
               ) : null}

@@ -7,10 +7,28 @@ import {
 import type { TestOrder } from './testOrderApi';
 import type { Invoice } from '@/app/diagnosis/invoice-list/types';
 
-export function mapTestOrderToInvoice(order: TestOrder, patient?: Patient | null): Invoice {
+function resolveTestLabel(
+  testId: number,
+  testNameFromItem?: string | null,
+  testNameFromCatalog?: string | null
+): string {
+  const fromItem = testNameFromItem?.trim();
+  if (fromItem) return fromItem;
+  const fromCatalog = testNameFromCatalog?.trim();
+  if (fromCatalog) return fromCatalog;
+  return `Test #${testId}`;
+}
+
+export function mapTestOrderToInvoice(
+  order: TestOrder,
+  patient?: Patient | null,
+  testsById?: Map<number, { testName: string }>
+): Invoice {
   const tests =
     order.orderItems?.length > 0
-      ? order.orderItems.map((item) => `Test #${item.testId}`)
+      ? order.orderItems.map((item) =>
+          resolveTestLabel(item.testId, item.testName, testsById?.get(item.testId)?.testName)
+        )
       : ['No tests'];
 
   const refDoctor =

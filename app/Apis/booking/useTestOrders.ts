@@ -35,6 +35,7 @@ import {
   type UpdateTestOrderFinancialPayload,
   type UpdateTestOrderMedicalPayload,
 } from './testOrderApi';
+import { fetchPatientLastVisit } from './patientLastVisitApi';
 
 export const testOrderQueryKeys = {
   all: ['test-orders'] as const,
@@ -48,6 +49,8 @@ export const testOrderQueryKeys = {
       p.branchId ?? 'all',
     ] as const,
   detail: (orderId: number) => [...testOrderQueryKeys.all, 'detail', orderId] as const,
+  patientLastVisit: (patientId: number) =>
+    [...testOrderQueryKeys.all, 'patient-last-visit', patientId] as const,
   orderNumber: (orderNumber: string) =>
     [...testOrderQueryKeys.all, 'order-number', orderNumber] as const,
   patient: (patientId: number, pageNo: number, pageSize: number) =>
@@ -120,6 +123,19 @@ export function useTestOrderDetail(orderId: number | null) {
     queryFn: () => fetchTestOrderById(orderId!),
     enabled: orderId != null && orderId > 0,
     staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/test-orders/patient/{patientId}/last-visit` */
+export function usePatientLastVisit(patientId: number | null | undefined, enabled = true) {
+  const id = patientId != null && patientId > 0 ? patientId : null;
+  return useQuery({
+    queryKey: id != null ? testOrderQueryKeys.patientLastVisit(id) : ['test-orders', 'patient-last-visit', 'idle'],
+    queryFn: () => fetchPatientLastVisit(id!),
+    enabled: enabled && id != null,
+    staleTime: 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
   });

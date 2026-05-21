@@ -31,48 +31,59 @@ import { branchApi, type Branch, type CreateBranchInput } from '@/app/Apis/branc
 
 // Removed static BRANCHES array - now using real API data
 
+function isBranchActive(branch: Branch): boolean {
+  const status = branch.status?.trim().toUpperCase();
+  if (status) return status === 'ACTIVE';
+  return Boolean(branch.isActive);
+}
+
+function branchStatusLabel(branch: Branch): string {
+  if (branch.status?.trim()) return branch.status.trim().toUpperCase();
+  return branch.isActive ? 'ACTIVE' : 'INACTIVE';
+}
+
 type BranchPriceActionsProps = {
-  hasTestPrices?: boolean;
   onConfigure: () => void;
   onListing: () => void;
   variant: 'grid' | 'list';
 };
 
-function BranchPriceActions({
-  hasTestPrices,
-  onConfigure,
-  onListing,
-  variant,
-}: BranchPriceActionsProps) {
-  if (hasTestPrices === undefined) return null;
-
+/** Price actions — no extra API on page load; opens configure or listing drawer. */
+function BranchPriceActions({ onConfigure, onListing, variant }: BranchPriceActionsProps) {
   if (variant === 'grid') {
-    if (hasTestPrices) {
-      return (
+    return (
+      <>
+        <Button
+          variant="outline"
+          className="rounded-2xl p-3 h-10 w-10 aspect-square text-green-700 border-green-200 hover:bg-green-50 hover:border-green-300"
+          onClick={onConfigure}
+          title="Configure prices"
+        >
+          <CreditCard size={18} />
+        </Button>
         <Button
           variant="outline"
           className="rounded-2xl p-3 h-10 w-10 aspect-square text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
           onClick={onListing}
-          title="Price Listing"
+          title="Price listing"
         >
           <ListOrdered size={18} />
         </Button>
-      );
-    }
-    return (
-      <Button
-        variant="outline"
-        className="rounded-2xl p-3 h-10 w-10 aspect-square text-green-700 border-green-200 hover:bg-green-50 hover:border-green-300"
-        onClick={onConfigure}
-        title="Price"
-      >
-        <CreditCard size={18} />
-      </Button>
+      </>
     );
   }
 
-  if (hasTestPrices) {
-    return (
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-xl font-black text-[10px] uppercase tracking-widest text-green-700 border-green-200 hover:bg-green-50"
+        onClick={onConfigure}
+      >
+        <CreditCard size={14} className="mr-1" />
+        Price
+      </Button>
       <Button
         variant="outline"
         size="sm"
@@ -82,19 +93,7 @@ function BranchPriceActions({
         <ListOrdered size={14} className="mr-1" />
         Listing
       </Button>
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="rounded-xl font-black text-[10px] uppercase tracking-widest text-green-700 border-green-200 hover:bg-green-50"
-      onClick={onConfigure}
-    >
-      <CreditCard size={14} className="mr-1" />
-      Price
-    </Button>
+    </>
   );
 }
 
@@ -116,8 +115,9 @@ export default function BranchesPage() {
     postalCode: string;
     contactEmail: string;
     contactPhone: string;
+    status?: string;
   } | null>(null);
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchRows, setBranchRows] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -133,71 +133,62 @@ export default function BranchesPage() {
     id: number;
     name: string;
   } | null>(null);
-  const [branchPriceStatus, setBranchPriceStatus] = useState<Record<number, boolean>>({});
 
-  const loadBranchPriceStatus = useCallback(async (branchList: Branch[]) => {
-    if (branchList.length === 0) {
-      setBranchPriceStatus({});
-      return;
-    }
-
-    const entries = await Promise.all(
-      branchList.map(async (branch) => {
-        const hasPrices = await branchApi.hasBranchTestPrices(branch.id);
-        return [branch.id, hasPrices] as const;
-      })
-    );
-
-    setBranchPriceStatus(Object.fromEntries(entries));
-  }, []);
-
-  useEffect(() => {
-    loadBranches();
-  }, [currentPage, statusFilter]);
-
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      handleAutoSearch();
-    }, 500);
-
-    return () => clearTimeout(debounceTimer);
+  const filterBranchesClient = useCallback((list: Branch[]) => {
+    const term = search.trim().toLowerCase();
+    return list.filter((branch) => {
+      const haystack = [
+        branch.branchName,
+        branch.branchCode,
+        branch.city,
+        branch.state,
+        branch.contactEmail,
+        branch.contactPhone,
+        branch.address,
+        branch.status,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
   }, [search]);
 
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     setLoading(true);
-    setBranchPriceStatus({});
     try {
-      const response = await branchApi.getAllBranches({
-        pageNo: currentPage,
-        pageSize: pageSize,
-        term: search || undefined,
-        status: statusFilter
+      const response = await branchApi.listBranchesAll({
+        page: currentPage,
+        size: pageSize,
       });
-      
-      const list = response.data.content;
-      setBranches(list);
+
+      setBranchRows(response.data.content ?? []);
       setTotalPages(response.data.totalPages);
       setTotalElements(response.data.totalElements);
-      loadBranchPriceStatus(list);
     } catch (error) {
       console.error('Failed to load branches:', error);
+      setBranchRows([]);
+      toast.error('Failed to load branches. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, pageSize]);
+
+  const branches = React.useMemo(
+    () => filterBranchesClient(branchRows),
+    [branchRows, filterBranchesClient]
+  );
+
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
   };
 
-  const handleAutoSearch = () => {
-    setCurrentPage(0);
-    loadBranches();
-  };
-
   const handleSearch = () => {
     setCurrentPage(0);
-    loadBranches();
   };
 
   const handleViewDetails = (branchId: number) => {
@@ -217,6 +208,7 @@ export default function BranchesPage() {
       postalCode: branch.postalCode || '',
       contactEmail: branch.contactEmail || '',
       contactPhone: branch.contactPhone || '',
+      status: branch.status || '',
     });
     setShowAddModal(true);
   };
@@ -332,9 +324,11 @@ export default function BranchesPage() {
                     <Building2 size={32} />
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <Badge variant={branch.isActive ? 'success' : 'secondary'} size="md">
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${branch.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                      {branch.isActive ? 'Active' : 'Inactive'}
+                    <Badge variant={isBranchActive(branch) ? 'success' : 'secondary'} size="md">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isBranchActive(branch) ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                      />
+                      {branchStatusLabel(branch)}
                     </Badge>
                   </div>
                 </div>
@@ -342,12 +336,6 @@ export default function BranchesPage() {
                 {/* Info */}
                 <div className="space-y-6 relative z-10 mb-8 border-b border-slate-50 pb-8">
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant={branch.isActive ? 'success' : 'secondary'} size="sm">
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${branch.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                        {branch.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
                     <h3 className="text-xl font-black text-slate-900 leading-tight mb-2 group-hover:text-green-700 transition-colors">
                       {branch.branchName}
                     </h3>
@@ -402,7 +390,6 @@ export default function BranchesPage() {
                       <ChevronRight size={20} />
                     </Button>
                     <BranchPriceActions
-                      hasTestPrices={branchPriceStatus[branch.id]}
                       variant="grid"
                       onConfigure={() =>
                         setPriceConfigBranch({ id: branch.id, name: branch.branchName })
@@ -467,9 +454,11 @@ export default function BranchesPage() {
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-2">
-                        <Badge variant={branch.isActive ? 'success' : 'secondary'}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${branch.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                          {branch.isActive ? 'Active' : 'Inactive'}
+                        <Badge variant={isBranchActive(branch) ? 'success' : 'secondary'}>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isBranchActive(branch) ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                          />
+                          {branchStatusLabel(branch)}
                         </Badge>
                         <Badge variant="outline" className="px-2 py-1 text-[10px] capitalize">
                           {branch.branchType.toLowerCase().replace(/_/g, ' ')}
@@ -492,7 +481,6 @@ export default function BranchesPage() {
                           Details
                         </Button>
                         <BranchPriceActions
-                          hasTestPrices={branchPriceStatus[branch.id]}
                           variant="list"
                           onConfigure={() =>
                             setPriceConfigBranch({ id: branch.id, name: branch.branchName })
@@ -543,10 +531,7 @@ export default function BranchesPage() {
       {priceConfigBranch && (
         <PriceConfiguration
           isOpen
-          onClose={() => {
-            setPriceConfigBranch(null);
-            loadBranchPriceStatus(branches);
-          }}
+          onClose={() => setPriceConfigBranch(null)}
           branchId={priceConfigBranch.id}
           branchName={priceConfigBranch.name}
         />

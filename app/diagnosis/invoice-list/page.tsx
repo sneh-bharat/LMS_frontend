@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
@@ -13,6 +14,11 @@ import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import InvoiceFilters from './InvoiceHeader';
 import InvoiceTable from './InvoiceTable';
 import { BookingDetails } from './booking_details';
+import CancelOrder, { type CancelOrderFormValues } from './cancel-order';
+import ProcessPayment, { type ProcessPaymentFormValues } from './payment';
+import { TransactionDetails } from './transaction';
+import { CancelDetails } from './cancel-details';
+import AddNewReceipt from './AddNewReceipt';
 import type { Invoice } from './types';
 import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
 import {
@@ -25,9 +31,12 @@ import {
   useTestOrdersByProcessingType,
   useTestOrdersByStatus,
   useTestOrdersList,
+  useTestOrderDetail,
 } from '@/app/Apis/booking/useTestOrders';
+import { useCancelTestOrder, useProcessOrderPayment } from '@/app/Apis/booking/useOrderLifecycle';
 import { mapTestOrderToInvoice } from '@/app/Apis/booking/mapTestOrderToInvoice';
 import { usePatientsByIds } from '@/app/Apis/Patients/usePatientsByIds';
+import { useTestsByIds } from '@/app/Apis/lab/useTestsByIds';
 import {
   DEFAULT_PROCESSING_TYPE_FILTER,
   DEFAULT_SEARCH_BY,
@@ -57,6 +66,12 @@ function parsePatientIdFromSearch(value: string): number | null {
 }
 
 export default function InvoiceListPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const payOrderIdFromUrl = useMemo(() => {
+    const param = Number(searchParams.get('payOrderId') || 0);
+    return Number.isFinite(param) && param > 0 ? param : null;
+  }, [searchParams]);
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState<InvoiceSearchBy>(DEFAULT_SEARCH_BY);
@@ -71,14 +86,29 @@ export default function InvoiceListPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<TestOrder | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const [cancelDetailsOpen, setCancelDetailsOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<TestOrder | null>(null);
+  const [orderToPay, setOrderToPay] = useState<TestOrder | null>(null);
+  const [orderForTransactions, setOrderForTransactions] = useState<TestOrder | null>(null);
+  const [orderForCancelDetails, setOrderForCancelDetails] = useState<TestOrder | null>(null);
   const [deleteMode, setDeleteMode] = useState<DeleteMode>('single');
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [sampleDrawerOpen, setSampleDrawerOpen] = useState(false);
+  const [sampleOrderId, setSampleOrderId] = useState<number | null>(null);
 
   const deleteTestOrderMutation = useDeleteTestOrder();
   const bulkDeleteTestOrdersMutation = useBulkDeleteTestOrders();
+  const cancelTestOrderMutation = useCancelTestOrder();
+  const processPaymentMutation = useProcessOrderPayment();
+  const { data: payOrderDetail } = useTestOrderDetail(payOrderIdFromUrl);
   const isDeletePending =
     deleteTestOrderMutation.isPending || bulkDeleteTestOrdersMutation.isPending;
+  const isCancelling = cancelTestOrderMutation.isPending;
+  const isProcessingPayment = processPaymentMutation.isPending;
 
   const [debouncedOrderNumber, setDebouncedOrderNumber] = useState('');
   const [debouncedPatientSearch, setDebouncedPatientSearch] = useState('');
@@ -124,6 +154,13 @@ export default function InvoiceListPage() {
   useEffect(() => {
     setSelectedIds([]);
   }, [pageNo]);
+
+  useEffect(() => {
+    if (!payOrderIdFromUrl || !payOrderDetail?.data) return;
+    setOrderToPay(payOrderDetail.data);
+    setPaymentOpen(true);
+    router.replace('/diagnosis/invoice-list', { scroll: false });
+  }, [payOrderIdFromUrl, payOrderDetail?.data, router]);
 
   useEffect(() => {
     if (!isOrderNumberSearch) {
@@ -372,11 +409,19 @@ export default function InvoiceListPage() {
     page?.content,
   ]);
   const patientIds = useMemo(() => orders.map((o) => o.patientId), [orders]);
+  const testIds = useMemo(
+    () => orders.flatMap((o) => (o.orderItems ?? []).map((item) => item.testId)),
+    [orders]
+  );
   const { patientsById, isFetching: isFetchingPatients } = usePatientsByIds(patientIds);
+  const { testsById, isFetching: isFetchingTests } = useTestsByIds(testIds);
 
   const invoices = useMemo(
-    () => orders.map((order) => mapTestOrderToInvoice(order, patientsById.get(order.patientId))),
-    [orders, patientsById]
+    () =>
+      orders.map((order) =>
+        mapTestOrderToInvoice(order, patientsById.get(order.patientId), testsById)
+      ),
+    [orders, patientsById, testsById]
   );
 
   const filtered = useMemo(() => {
@@ -471,6 +516,146 @@ export default function InvoiceListPage() {
     setDeleteMode('single');
     setInvoiceToDelete(invoice);
     setDeleteDialogOpen(true);
+  };
+
+  const handleCancelInvoice = (invoice: Invoice) => {
+    const order = orders.find((o) => o.id === invoice.id) ?? null;
+    if (!order) {
+      toast.error('Could not load order for cancellation.');
+      return;
+    }
+    setOrderToCancel(order);
+    setCancelOpen(true);
+  };
+
+  const handleViewCancellationDetails = (invoice: Invoice) => {
+    const order = orders.find((o) => o.id === invoice.id) ?? null;
+    if (!order) {
+      toast.error('Could not load order for cancellation details.');
+      return;
+    }
+    setOrderForCancelDetails(order);
+    setCancelDetailsOpen(true);
+  };
+
+  const handleTrackOrderLifecycle = (invoice: Invoice) => {
+    router.push(`/diagnosis/tracking-order?orderId=${encodeURIComponent(String(invoice.id))}`);
+  };
+
+  const handleViewPaymentSummary = (invoice: Invoice) => {
+    router.push(`/diagnosis/payment-summary?orderId=${encodeURIComponent(String(invoice.id))}`);
+  };
+
+  const handleViewTransactions = (invoice: Invoice) => {
+    const order = orders.find((o) => o.id === invoice.id) ?? null;
+    if (!order) {
+      toast.error('Could not load order for payment transactions.');
+      return;
+    }
+    setOrderForTransactions(order);
+    setTransactionsOpen(true);
+  };
+
+  const handleProcessPayment = (invoice: Invoice) => {
+    const order = orders.find((o) => o.id === invoice.id) ?? null;
+    if (!order) {
+      toast.error('Could not load order for payment.');
+      return;
+    }
+    setOrderToPay(order);
+    setPaymentOpen(true);
+  };
+
+  const handleRegisterSample = (invoice: Invoice) => {
+    if (!invoice.id || invoice.id < 1) {
+      toast.error('Invalid order ID for sample registration.');
+      return;
+    }
+    setSampleOrderId(invoice.id);
+    setSampleDrawerOpen(true);
+  };
+
+  const closeSampleDrawer = () => {
+    setSampleDrawerOpen(false);
+    setSampleOrderId(null);
+  };
+
+  const closeCancelDrawer = () => {
+    if (isCancelling) return;
+    setCancelOpen(false);
+    setOrderToCancel(null);
+  };
+
+  const handleConfirmCancel = async (values: CancelOrderFormValues) => {
+    if (!orderToCancel?.id) return;
+    if (!values.cancellationReason) {
+      throw new Error('Cancellation reason is required.');
+    }
+
+    const refundRaw = values.refundAmount.trim();
+    const refundAmount = refundRaw ? Number(refundRaw) : 0;
+    if (!Number.isFinite(refundAmount) || refundAmount < 0) {
+      throw new Error('Refund amount must be a valid number (0 or greater).');
+    }
+
+    const response = await cancelTestOrderMutation.mutateAsync({
+      orderId: orderToCancel.id,
+      payload: {
+        cancellationReason: values.cancellationReason,
+        cancellationNotes: values.cancellationNotes || undefined,
+        refundAmount,
+      },
+    });
+
+    if (response.response === false) {
+      throw new Error(response.message || 'Failed to cancel order.');
+    }
+
+    toast.success(
+      response.message?.trim() ||
+        `Order ${orderToCancel.orderNumber} cancelled successfully.`
+    );
+
+    if (selectedOrder?.id === orderToCancel.id) {
+      setDetailsOpen(false);
+      setSelectedOrder(null);
+    }
+    setCancelOpen(false);
+    setOrderToCancel(null);
+  };
+
+  const closePaymentDrawer = () => {
+    if (isProcessingPayment) return;
+    setPaymentOpen(false);
+    setOrderToPay(null);
+  };
+
+  const handleConfirmPayment = async (values: ProcessPaymentFormValues) => {
+    if (!orderToPay?.id) return;
+
+    const amount = Number(values.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Payment amount must be greater than zero.');
+    }
+
+    const response = await processPaymentMutation.mutateAsync({
+      orderId: orderToPay.id,
+      amount,
+      paymentMode: values.paymentMode,
+      remarks: values.remarks || undefined,
+    });
+
+    if (response.response === false) {
+      throw new Error(response.message || 'Failed to process payment.');
+    }
+
+    toast.success(
+      response.message?.trim() ||
+        `Payment recorded for order ${orderToPay.orderNumber}.`
+    );
+
+    setPaymentOpen(false);
+    setOrderToPay(null);
   };
 
   const handleBulkDeleteClick = () => {
@@ -630,7 +815,7 @@ export default function InvoiceListPage() {
 
       <InvoiceTable
         invoices={filtered}
-        isLoading={isLoading || isFetchingPatients}
+        isLoading={isLoading || isFetchingPatients || isFetchingTests}
         isError={isError}
         errorMessage={error?.message}
         onRetry={() => refetch()}
@@ -662,7 +847,15 @@ export default function InvoiceListPage() {
         }
         onViewInvoice={handleViewInvoice}
         onDeleteInvoice={handleDeleteInvoice}
+        onCancelInvoice={handleCancelInvoice}
+        onViewCancellationDetails={handleViewCancellationDetails}
+        onTrackOrderLifecycle={handleTrackOrderLifecycle}
+        onViewPaymentSummary={handleViewPaymentSummary}
+        onViewTransactions={handleViewTransactions}
+        onProcessPayment={handleProcessPayment}
+        onRegisterSample={handleRegisterSample}
         isDeleting={isDeletePending}
+        isProcessingPayment={isProcessingPayment}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onToggleSelectAll={handleToggleSelectAll}
@@ -689,6 +882,47 @@ export default function InvoiceListPage() {
         order={selectedOrder}
         patientName={selectedInvoice?.patientName}
         patientCode={selectedInvoice?.patientCode}
+      />
+
+      <CancelOrder
+        isOpen={cancelOpen}
+        onClose={closeCancelDrawer}
+        order={orderToCancel}
+        isSubmitting={isCancelling}
+        onSubmit={handleConfirmCancel}
+      />
+
+      <ProcessPayment
+        isOpen={paymentOpen}
+        onClose={closePaymentDrawer}
+        order={orderToPay}
+        isSubmitting={isProcessingPayment}
+        onSubmit={handleConfirmPayment}
+      />
+
+      <TransactionDetails
+        isOpen={transactionsOpen}
+        onClose={() => {
+          setTransactionsOpen(false);
+          setOrderForTransactions(null);
+        }}
+        order={orderForTransactions}
+      />
+
+      <CancelDetails
+        isOpen={cancelDetailsOpen}
+        onClose={() => {
+          setCancelDetailsOpen(false);
+          setOrderForCancelDetails(null);
+        }}
+        order={orderForCancelDetails}
+      />
+
+      <AddNewReceipt
+        isOpen={sampleDrawerOpen}
+        onClose={closeSampleDrawer}
+        initialOrderId={sampleOrderId}
+        onRegistered={() => refetch()}
       />
 
       <DeleteAlertDialog

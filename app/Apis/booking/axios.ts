@@ -71,6 +71,15 @@ function extractApiErrorMessage(error: unknown): string {
     }
   }
 
+  if (axiosError.response?.status === 409) {
+    return (
+      (typeof data === 'object' && data && (data as Record<string, unknown>).message
+        ? String((data as Record<string, unknown>).message)
+        : null) ||
+      'Conflict: this action could not be completed (duplicate or conflicting record).'
+    );
+  }
+
   if (axiosError.response?.status) {
     return `Request failed with status code ${axiosError.response.status}`;
   }

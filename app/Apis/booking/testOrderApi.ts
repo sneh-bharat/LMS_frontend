@@ -23,6 +23,8 @@ export interface TestOrderListItem {
   resultValue?: string | null;
   sampleId?: number | null;
   testId: number;
+  /** Present when booking service embeds test summary on order items. */
+  testName?: string | null;
   testPrice: number;
   unit?: string | null;
 }
