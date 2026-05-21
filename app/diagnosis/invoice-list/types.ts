@@ -3,6 +3,7 @@ export interface Invoice {
   invoiceBarcode: string;
   patientName: string;
   patientId: number;
+  patientCode?: string;
   age: number;
   gender: 'Male' | 'Female' | 'Other';
   mobile: string;
@@ -16,6 +17,11 @@ export interface Invoice {
   balanceAmount: number;
   receptionDate: string;
   paymentLink?: string;
+  orderStatus?: string;
+  priority?: string;
+  paymentStatus?: string;
+  srfId?: string;
+  branchId?: number;
 }
 
 export interface InvoiceFilter {

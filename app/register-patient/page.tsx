@@ -27,6 +27,7 @@ import {
   Activity,
   RefreshCw,
   Link2,
+  Receipt,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -36,7 +37,9 @@ import { AddPatient } from './AddPatient';
 import { EditPatient } from './EditPatient';
 
 import { PatientDetails } from './PatientDetails';
+import { PatientInvoices } from './patient-invoice';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import { formatPatientFullName } from '../Apis/Patients/patientDisplayUtils';
 import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
@@ -127,6 +130,8 @@ export default function FindRegisterPatientPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isInvoicesOpen, setIsInvoicesOpen] = useState(false);
+  const [invoicePatient, setInvoicePatient] = useState<Patient | null>(null);
   const [selectedPatientForDetails, setSelectedPatientForDetails] = useState<Patient | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -312,6 +317,16 @@ export default function FindRegisterPatientPage() {
     loadPatients(state.pagination.pageNo, 10, '', 'All');
   }, [loadPatients, state.pagination.pageNo]);
 
+  const openPatientInvoices = useCallback((patient: Patient) => {
+    setInvoicePatient(patient);
+    setIsInvoicesOpen(true);
+  }, []);
+
+  const closePatientInvoices = useCallback(() => {
+    setIsInvoicesOpen(false);
+    setInvoicePatient(null);
+  }, []);
+
   // ─── Handle View Details ────────────────────────────────────────────────
   const handleViewDetails = async (patientId: number) => {
     try {
@@ -380,10 +395,27 @@ export default function FindRegisterPatientPage() {
         isOpen={isDetailsOpen}
         onClose={() => {
           setIsDetailsOpen(false);
+          setIsInvoicesOpen(false);
+          setInvoicePatient(null);
           setSelectedPatientForDetails(null);
         }}
         patient={selectedPatientForDetails}
         onDelete={handleDeletePatient}
+        onViewInvoices={() => {
+          if (selectedPatientForDetails) {
+            openPatientInvoices(selectedPatientForDetails);
+          }
+        }}
+      />
+
+      <PatientInvoices
+        isOpen={isInvoicesOpen}
+        onClose={closePatientInvoices}
+        patientId={invoicePatient?.id ?? null}
+        patientName={
+          invoicePatient ? formatPatientFullName(invoicePatient) : undefined
+        }
+        patientCode={invoicePatient?.patientCode}
       />
 
       {/* ═══ ALERTS ═════════════════════════════════════════════════════════ */}
@@ -617,6 +649,14 @@ export default function FindRegisterPatientPage() {
                             onClick={() => handleEditPatient(patient)}
                           >
                             <Edit2 size={14} />
+                          </Button>
+                          <Button
+                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-white hover:shadow-sm transition-all"
+                            title="View Invoices"
+                            aria-label="View patient invoices"
+                            onClick={() => openPatientInvoices(patient)}
+                          >
+                            <Receipt size={14} />
                           </Button>
                           {patient.id ? (
                             <Link

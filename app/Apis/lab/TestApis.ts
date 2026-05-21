@@ -1,6 +1,6 @@
 
 
-import departmentClient from './axios';
+import labClient from '@/app/Apis/lab/axios';
 
 
 export interface ReferenceRange {
@@ -254,17 +254,134 @@ export interface ParameterResponse {
   updatedAt?: string;
 }
 
+/** Unwrap list from API (array, paginated content, or single object). */
+export function unwrapParametersList(payload: unknown): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.content)) return record.content;
+    if (Array.isArray(record.data)) return record.data;
+  }
+  return payload ? [payload] : [];
+}
+
+export function normalizeReferenceRange(range: any): ReferenceRange {
+  return {
+    id: range?.id,
+    gender: range?.gender ?? 'ALL',
+    ageMin: Number(range?.ageMin ?? range?.age_min ?? 0),
+    ageMax: Number(range?.ageMax ?? range?.age_max ?? 100),
+    minValue: range?.minValue ?? range?.min_value ?? '',
+    maxValue: range?.maxValue ?? range?.max_value ?? '',
+    unit: range?.unit ?? '',
+  };
+}
+
+/** Map API parameter shape to form state (reference ranges included). */
+export function normalizeParameterForForm(param: any) {
+  const ranges = param?.referenceRanges ?? param?.reference_ranges ?? [];
+  return {
+    id: param?.id,
+    parameterCode: param?.parameterCode ?? param?.parameter_code ?? '',
+    parameterName: param?.parameterName ?? param?.parameter_name ?? '',
+    displayOrder: param?.displayOrder ?? param?.sortOrder ?? param?.sort_order ?? 0,
+    unit: param?.unit ?? '',
+    decimalPlaces: param?.decimalPlaces ?? param?.decimal_places ?? 0,
+    criticalLow: param?.criticalLow ?? param?.critical_low ?? 0,
+    criticalHigh: param?.criticalHigh ?? param?.critical_high ?? 0,
+    resultType: param?.resultType ?? param?.result_type ?? 'NUMERIC',
+    isCalculated: Boolean(param?.isCalculated ?? param?.is_calculated),
+    calculationFormula: param?.calculationFormula ?? param?.calculation_formula,
+    referenceRanges: Array.isArray(ranges) ? ranges.map(normalizeReferenceRange) : [],
+  };
+}
+
+function mapReferenceRangesForPayload(
+  ranges: CreateParameterInput['referenceRanges'],
+  defaultUnit?: string
+) {
+  if (!Array.isArray(ranges) || ranges.length === 0) return undefined;
+
+  const mapped = ranges
+    .map((range) => {
+      const minValue = Number(range.minValue);
+      const maxValue = Number(range.maxValue);
+      const ageMin = Number(range.ageMin);
+      const ageMax = Number(range.ageMax);
+      if (
+        !Number.isFinite(minValue) ||
+        !Number.isFinite(maxValue) ||
+        !Number.isFinite(ageMin) ||
+        !Number.isFinite(ageMax)
+      ) {
+        return null;
+      }
+      return {
+        gender: range.gender,
+        ageMin,
+        ageMax,
+        minValue,
+        maxValue,
+        unit: range.unit || defaultUnit || '',
+      };
+    })
+    .filter((range): range is NonNullable<typeof range> => range !== null);
+
+  return mapped.length > 0 ? mapped : undefined;
+}
+
 // ─── API Functions ──────────────────────────────────────────────────────────
+
+export interface FetchTestsOptions {
+  sortBy?: string;
+  /** e.g. `asc`, `ASC`, `ascending` */
+  sortDirection?: string;
+  branchId?: number;
+}
+
+/**
+ * GET tests for booking catalog — paginated, name ascending.
+ * Endpoint: GET /api/v1/tests?pageNo=0&pageSize=10&ascending
+ */
+export async function fetchTestsAscending(
+  pageNo: number = 0,
+  pageSize: number = 10,
+  search?: string,
+  options?: Pick<FetchTestsOptions, 'branchId'>
+): Promise<ApiResponse<PaginatedResponse<Test>>> {
+  try {
+    const params = new URLSearchParams({
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
+    });
+
+    if (search?.trim()) params.append('search', search.trim());
+    if (options?.branchId != null && options.branchId > 0) {
+      params.append('branchId', String(options.branchId));
+    }
+
+    const url = `/api/v1/tests/ascending?${params.toString()}`;
+    console.log('📡 Fetching tests (ascending) from:', url);
+
+    const response = (await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url)) as any;
+    return response;
+  } catch (error) {
+    console.error('Error fetching tests (ascending):', error);
+    throw error;
+  }
+}
 
 /**
  * GET ALL TESTS - Fetch all tests with pagination and filters
  * Endpoint: GET /api/v1/tests?pageNo=0&pageSize=10
+ * Optional: `search`, `status`, `sortBy`, `sortDirection`, `branchId`.
  */
 export async function fetchTests(
   pageNo: number = 0,
   pageSize: number = 10,
   search?: string,
-  status?: string
+  status?: string,
+  options?: FetchTestsOptions
 ): Promise<ApiResponse<PaginatedResponse<Test>>> {
   try {
     const params = new URLSearchParams({
@@ -274,11 +391,16 @@ export async function fetchTests(
 
     if (search) params.append('search', search);
     if (status) params.append('status', status);
+    if (options?.sortBy) params.append('sortBy', options.sortBy);
+    if (options?.sortDirection) params.append('sortDirection', options.sortDirection);
+    if (options?.branchId != null && options.branchId > 0) {
+      params.append('branchId', String(options.branchId));
+    }
 
     const url = `/api/v1/tests?${params.toString()}`;
     console.log('📡 Fetching tests from:', url);
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
+    const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
     console.log('✅ Tests loaded successfully');
     console.log('Tests count:', response?.content?.length || 0);
     
@@ -287,6 +409,34 @@ export async function fetchTests(
     console.error('=== FETCH TESTS ERROR ===');
     console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
     console.error('Error message:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+/**
+ * GET TESTS BY DEPARTMENT
+ * Endpoint: GET /api/v1/tests/department/{departmentId}?pageNo=0&pageSize=10
+ */
+export async function fetchTestsByDepartment(
+  departmentId: number,
+  pageNo: number = 0,
+  pageSize: number = 10
+): Promise<ApiResponse<PaginatedResponse<Test>>> {
+  try {
+    const params = new URLSearchParams({
+      pageNo: pageNo.toString(),
+      pageSize: pageSize.toString(),
+    });
+
+    const url = `/api/v1/tests/department/${departmentId}?${params.toString()}`;
+    console.log('📡 Fetching tests by department from:', url);
+
+    const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
+    console.log('✅ Tests by department loaded successfully');
+
+    return response;
+  } catch (error) {
+    console.error('Error fetching tests by department:', error);
     throw error;
   }
 }
@@ -308,7 +458,7 @@ export async function fetchActiveTests(
     const url = `/api/v1/tests/active?${params.toString()}`;
     console.log('📡 Fetching active tests from:', url);
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
+    const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
     console.log('✅ Active tests loaded successfully');
     
     return response;
@@ -326,13 +476,27 @@ export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> 
   try {
     const url = `/api/v1/tests/${testId}`;
     console.log('📡 Fetching test from:', url);
-    
-    const response = await departmentClient.get<ApiResponse<Test>>(url);
+
+    const response = await labClient.get<ApiResponse<Test>>(url);
     console.log('✅ Test loaded successfully');
     return response.data;
   } catch (error) {
     console.error('Error fetching test:', error);
     throw error;
+  }
+}
+
+/**
+ * Best-effort test lookup for list enrichment. Returns null when the test is missing
+ * (e.g. booking order references an id not in the lab catalog) instead of throwing.
+ */
+export async function fetchTestByIdOptional(testId: number): Promise<Test | null> {
+  try {
+    const res = (await labClient.get(`/api/v1/tests/${testId}`)) as ApiResponse<Test>;
+    if (res?.response === false || !res?.data) return null;
+    return res.data;
+  } catch {
+    return null;
   }
 }
 
@@ -346,7 +510,7 @@ export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Tes
     const url = `/api/v1/tests/code/${encodedCode}`;
     console.log('📡 Fetching test by code from:', url);
 
-    const response = await departmentClient.get<ApiResponse<Test>>(url);
+    const response = await labClient.get<ApiResponse<Test>>(url);
     console.log('✅ Test by code loaded successfully');
     
     return response.data;
@@ -385,7 +549,7 @@ export async function searchTestsByName(
     const url = `/api/v1/tests/search?${params.toString()}`;
     console.log('📡 Searching tests by name from:', url);
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
+    const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
     console.log('✅ Search results loaded successfully');
     
     return response;
@@ -406,7 +570,7 @@ export async function createTest(
     const url = `/api/v1/tests`;
     console.log('📡 Creating test...');
 
-    const response = await departmentClient.post<ApiResponse<Test>>(url, input) as any;
+    const response = await labClient.post<ApiResponse<Test>>(url, input) as any;
     console.log('✅ Test created successfully');
     
     return response;
@@ -428,7 +592,7 @@ export async function updateTest(
     const url = `/api/v1/tests/${testId}`;
     console.log('📡 Updating test...');
 
-    const response = await departmentClient.put<ApiResponse<Test>>(url, input) as any;
+    const response = await labClient.put<ApiResponse<Test>>(url, input) as any;
     console.log('✅ Test updated successfully');
     
     return response;
@@ -447,7 +611,7 @@ export async function deleteTest(testId: number): Promise<ApiResponse<void>> {
     const url = `/api/v1/tests/${testId}`;
     console.log('📡 Deleting test...');
 
-    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    const response = await labClient.delete<ApiResponse<void>>(url) as any;
     console.log('✅ Test deleted successfully');
     
     return response;
@@ -469,7 +633,7 @@ export async function toggleTestStatus(
     const url = `/api/v1/tests/${testId}/status`;
     console.log('📡 Toggling status...');
     
-    const response = await departmentClient.patch<ApiResponse<Test>>(url, { isActive }) as any;
+    const response = await labClient.patch<ApiResponse<Test>>(url, { isActive }) as any;
     console.log('✅ Status toggled successfully');
     
     return response;
@@ -492,7 +656,7 @@ export async function fetchSampleRequirements(
     const url = `/api/v1/tests/${testId}/sample-requirements`;
     console.log('📡 Fetching sample requirements from:', url);
     
-    const response = await departmentClient.get<ApiResponse<any>>(url) as any;
+    const response = await labClient.get<ApiResponse<any>>(url) as any;
     console.log('✅ Sample requirements loaded successfully');
     return response;
   } catch (error: any) {
@@ -522,7 +686,7 @@ export async function createSampleRequirement(
     const url = `/api/v1/tests/${testId}/sample-requirements`;
     console.log('📡 Creating sample requirement...');
 
-    const response = await departmentClient.post<ApiResponse<SampleRequirementResponse>>(url, input) as any;
+    const response = await labClient.post<ApiResponse<SampleRequirementResponse>>(url, input) as any;
     console.log('✅ Sample requirement created successfully');
     return response;
   } catch (error) {
@@ -544,7 +708,7 @@ export async function updateSampleRequirement(
     const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
     console.log('📡 Updating sample requirement...');
 
-    const response = await departmentClient.put<ApiResponse<SampleRequirementResponse>>(url, input) as any;
+    const response = await labClient.put<ApiResponse<SampleRequirementResponse>>(url, input) as any;
     console.log('✅ Sample requirement updated successfully');
     return response;
   } catch (error) {
@@ -565,7 +729,7 @@ export async function deleteSampleRequirement(
     const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
     console.log('📡 Deleting sample requirement...');
 
-    const response = await departmentClient.delete<ApiResponse<void>>(url) as any;
+    const response = await labClient.delete<ApiResponse<void>>(url) as any;
     console.log('✅ Sample requirement deleted successfully');
     return response;
   } catch (error) {
@@ -598,7 +762,7 @@ export async function fetchAllParameters(
     const url = `/api/v1/tests/parameters?${params.toString()}`;
     console.log('📡 Fetching all parameters from:', url);
 
-    const response = await departmentClient.get<ApiResponse<PaginatedResponse<ParameterResponse>>>(url) as any;
+    const response = await labClient.get<ApiResponse<PaginatedResponse<ParameterResponse>>>(url) as any;
     console.log('✅ All parameters loaded successfully');
     return response;
   } catch (error) {
@@ -616,9 +780,10 @@ export async function fetchTestParameters(testId: number): Promise<ApiResponse<P
     const url = `/api/v1/tests/${testId}/parameters`;
     console.log('📡 Fetching test parameters from:', url);
 
-    const response = await departmentClient.get<ApiResponse<ParameterResponse[]>>(url) as any;
+    const response = await labClient.get<ApiResponse<ParameterResponse[]>>(url) as any;
+    const list = unwrapParametersList(response?.data);
     console.log('✅ Test parameters loaded successfully');
-    return response;
+    return { ...response, data: list };
   } catch (error: any) {
     if (error.response?.status === 404) {
       return {
@@ -676,29 +841,18 @@ export async function createTestParameter(
     if (typeof input.sortOrder === 'number' && Number.isFinite(input.sortOrder)) {
       payload.sortOrder = input.sortOrder;
     }
-    if (Array.isArray(input.referenceRanges) && input.referenceRanges.length > 0) {
-      payload.referenceRanges = input.referenceRanges
-        .map((range) => ({
-          gender: range.gender,
-          ageMin: range.ageMin,
-          ageMax: range.ageMax,
-          minValue: range.minValue,
-          maxValue: range.maxValue,
-          unit: range.unit,
-        }))
-        .filter(
-          (range) =>
-            typeof range.ageMin === 'number' &&
-            typeof range.ageMax === 'number' &&
-            typeof range.minValue === 'number' &&
-            typeof range.maxValue === 'number'
-        );
+    const referenceRanges = mapReferenceRangesForPayload(
+      input.referenceRanges,
+      input.unit?.trim()
+    );
+    if (referenceRanges) {
+      payload.referenceRanges = referenceRanges;
     }
 
     console.log('📤 Create payload:', JSON.stringify(payload, null, 2));
     console.log('🚀 Making POST request to:', url);
 
-    const response = await departmentClient.post<ApiResponse<ParameterResponse>>(url, payload) as any;
+    const response = await labClient.post<ApiResponse<ParameterResponse>>(url, payload) as any;
     console.log('✅ Test parameter created successfully');
     console.log('📥 Response:', response);
     return response;
@@ -710,18 +864,17 @@ export async function createTestParameter(
 
 /**
  * UPDATE TEST PARAMETER
- * Endpoint: PUT /api/v1/tests/{testId}/parameters/{parameterId}
- * 
+ * Endpoint: PUT /api/v1/tests/parameters/{parameterId}
+ *
  * Note: branchId is required for ADMIN/SUPER_ADMIN roles
  */
 export async function updateTestParameter(
-  testId: number,
   parameterId: number,
   input: CreateParameterInput,
   branchId: number
 ): Promise<ApiResponse<ParameterResponse>> {
   try {
-    const url = `/api/v1/tests/${testId}/parameters/${parameterId}`;
+    const url = `/api/v1/tests/parameters/${parameterId}`;
    
 
     // Validate required IDs
@@ -751,11 +904,22 @@ export async function updateTestParameter(
     if (input.isCalculated && input.calculationFormula?.trim()) {
       payload.calculationFormula = input.calculationFormula.trim();
     }
+    if (typeof input.sortOrder === 'number' && Number.isFinite(input.sortOrder)) {
+      payload.sortOrder = input.sortOrder;
+    }
+
+    const referenceRanges = mapReferenceRangesForPayload(
+      input.referenceRanges,
+      input.unit?.trim()
+    );
+    if (referenceRanges) {
+      payload.referenceRanges = referenceRanges;
+    }
 
     console.log('📤 Update payload:', JSON.stringify(payload, null, 2));
     console.log('🚀 Making PUT request to:', url);
     
-    const response = await departmentClient.put<ApiResponse<ParameterResponse>>(url, payload) as any;
+    const response = await labClient.put<ApiResponse<ParameterResponse>>(url, payload) as any;
     
     console.log('✅ Test parameter updated successfully');
     console.log('📥 Response:', response);

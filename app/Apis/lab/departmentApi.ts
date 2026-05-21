@@ -1,4 +1,4 @@
-import departmentClient from './axios';  // ✅ Same folder
+import labClient from '@/app/Apis/lab/axios';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface Department {
@@ -65,40 +65,64 @@ export interface DepartmentQueryParams {
 // ─── API Service Functions ──────────────────────────────────────────────────
 
 /**
- * GET ALL DEPARTMENTS - Fetch departments with pagination, search, and filtering
- * Endpoint: GET /api/v1/departments/search
+ * GET ALL DEPARTMENTS - paginated list
+ * Endpoint: GET /api/v1/departments?pageNo=0&pageSize=10
+ *
+ * SEARCH BY NAME - when `name` is set
+ * Endpoint: GET /api/v1/departments/search?name=Hematology&pageNo=0&pageSize=10
  */
 export const departmentApi = {
   getAllDepartments: async (params: DepartmentQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Department>>> => {
     const { pageNo = 0, pageSize = 10, name, status } = params;
-    
-    const queryParams: any = { pageNo, pageSize };
-    
-    if (name && name.trim()) {
-      queryParams.name = name.trim();
-    }
-    
+
+    const queryParams: Record<string, string | number> = { pageNo, pageSize };
+
     if (status && status !== 'All') {
       queryParams.status = status;
     }
 
-    return departmentClient.get('/api/v1/departments/search', { params: queryParams });
+    const searchName = name?.trim();
+    if (searchName) {
+      queryParams.name = searchName;
+      return labClient.get('/api/v1/departments/search', { params: queryParams });
+    }
+
+    return labClient.get('/api/v1/departments', { params: queryParams });
+  },
+
+  /** Search departments by name (explicit helper) */
+  searchDepartmentsByName: async (
+    name: string,
+    params: { pageNo?: number; pageSize?: number; status?: string } = {}
+  ): Promise<ApiResponse<PaginatedResponse<Department>>> => {
+    const { pageNo = 0, pageSize = 10, status } = params;
+    const queryParams: Record<string, string | number> = {
+      pageNo,
+      pageSize,
+      name: name.trim(),
+    };
+    if (status && status !== 'All') {
+      queryParams.status = status;
+    }
+    return labClient.get('/api/v1/departments/search', { params: queryParams });
   },
 
   /**
-   * GET ACTIVE DEPARTMENTS - Fetch active departments only
-   * Endpoint: GET /api/v1/departments/active
+   * GET ACTIVE DEPARTMENTS
+   * Endpoint: GET /api/v1/departments/active?pageNo=0&pageSize=10
+   * Search: GET /api/v1/departments/search?name=...&pageNo=0&pageSize=10
    */
   getActiveDepartments: async (params: { pageNo?: number; pageSize?: number; name?: string } = {}): Promise<ApiResponse<PaginatedResponse<Department>>> => {
     const { pageNo = 0, pageSize = 10, name } = params;
-    
-    const queryParams: any = { pageNo, pageSize };
-    
-    if (name && name.trim()) {
-      queryParams.name = name.trim();
+
+    const searchName = name?.trim();
+    if (searchName) {
+      return labClient.get('/api/v1/departments/search', {
+        params: { pageNo, pageSize, name: searchName, status: 'active' },
+      });
     }
 
-    return departmentClient.get('/api/v1/departments/active', { params: queryParams });
+    return labClient.get('/api/v1/departments/active', { params: { pageNo, pageSize } });
   },
 
   /**
@@ -106,7 +130,7 @@ export const departmentApi = {
    * Endpoint: GET /api/v1/departments/{id}
    */
   getDepartmentById: async (id: number): Promise<ApiResponse<Department>> => {
-    return departmentClient.get(`/api/v1/departments/${id}`);
+    return labClient.get(`/api/v1/departments/${id}`);
   },
 
   /**
@@ -126,7 +150,7 @@ export const departmentApi = {
       tenantId: input.tenantId || 2,
     };
 
-    return departmentClient.post('/api/v1/departments', requestBody);
+    return labClient.post('/api/v1/departments', requestBody);
   },
 
   /**
@@ -145,11 +169,7 @@ export const departmentApi = {
       branchId: input.branchId || 1,
     };
 
-    console.log('Update Department - Input:', input);
-    console.log('Update Department - Request Body:', requestBody);
-    console.log('Update Department - Branch ID:', requestBody.branchId);
-
-    return departmentClient.put(`/api/v1/departments/${id}`, requestBody);
+    return labClient.put(`/api/v1/departments/${id}`, requestBody);
   },
 
   /**
@@ -157,7 +177,7 @@ export const departmentApi = {
    * Endpoint: DELETE /api/v1/departments/{id}
    */
   deleteDepartment: async (id: number): Promise<ApiResponse<void>> => {
-    return departmentClient.delete(`/api/v1/departments/${id}`);
+    return labClient.delete(`/api/v1/departments/${id}`);
   },
 
   /**
@@ -165,6 +185,6 @@ export const departmentApi = {
    * Endpoint: PATCH /api/v1/departments/{id}/status
    */
   toggleDepartmentStatus: async (id: number, isActive: boolean): Promise<ApiResponse<Department>> => {
-    return departmentClient.patch(`/api/v1/departments/${id}/status`, { isActive });
+    return labClient.patch(`/api/v1/departments/${id}/status`, { isActive });
   },
 };

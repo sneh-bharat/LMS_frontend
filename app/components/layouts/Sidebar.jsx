@@ -59,8 +59,8 @@ const NAV = [
         children: [
 
             { label: 'Online Booking Request', href: '/OnlineBooking' },
-            { label: 'Diagnostic Booking', href: '/diagnosis/Diagnosticbooking' },
-            { label: 'Radiology Booking', href: '#' },
+            { label: 'Diagnostic Booking', href: '/diagnosis/diagnostic-booking' },
+            { label: 'Tracking Order', href: '/diagnosis/tracking-order' },
             { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
             { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Appointments', href: '/Appointments' },
@@ -75,9 +75,7 @@ const NAV = [
         children: [
 
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Estimations', href: 'diagnosis/invoice-details' },
             { label: 'Referrers', href: '/referrer' },
-            { label: 'Investigations', href: '/investigation' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Bulk Report Download', href: '/reports/bulk-download' },
         ],
@@ -101,8 +99,7 @@ const NAV = [
         children: [
             { label: 'Test Packages', href: '/lab/test-packages' },
             { label: 'Units', href: '/lab/units' },
-            { label: 'Invoice', href: '/lab/invoice' },
-            { label: 'Create Tests', href: '/lab/tests' },
+            { label: 'Tests', href: '/lab/tests' },
             { label: 'Test Categories', href: '/lab/categories' },
             { label: 'Test Department', href: '/lab/department' },
             { label: 'Reflex Rule', href: '/lab/reflex-rule' },

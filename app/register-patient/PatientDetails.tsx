@@ -20,16 +20,17 @@ import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { getBase64ImageSource } from '../functions/getBase64';
 import Button from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Receipt } from 'lucide-react';
 
 interface PatientDetailsProps {
     isOpen: boolean;
     onClose: () => void;
     patient: Patient | null;
     onDelete?: (patientId: number) => void;
+    onViewInvoices?: () => void;
 }
 
-export function PatientDetails({ isOpen, onClose, patient, onDelete }: PatientDetailsProps) {
+export function PatientDetails({ isOpen, onClose, patient, onDelete, onViewInvoices }: PatientDetailsProps) {
     const [patientImage, setPatientImage] = useState<string | null>(null);
     const [imageLoading, setImageLoading] = useState(false);
 
@@ -72,7 +73,16 @@ export function PatientDetails({ isOpen, onClose, patient, onDelete }: PatientDe
             }
             description={`UHID: ${patient.patientCode || 'N/A'}`}
             footer={
-                <div className="flex justify-start w-full">
+                <div className="flex flex-wrap gap-3 w-full">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onViewInvoices?.()}
+                        className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 flex items-center gap-2"
+                    >
+                        <Receipt size={16} />
+                        View Invoices
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={() => patient?.id && onDelete?.(patient.id)}
@@ -243,3 +253,4 @@ export function PatientDetails({ isOpen, onClose, patient, onDelete }: PatientDe
         </RightDrawer>
     );
 }
+

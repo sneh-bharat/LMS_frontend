@@ -37,6 +37,28 @@ export interface FetchReferringDoctorsParams {
   branchId?: number;
 }
 
+export interface SearchReferringDoctorsParams {
+  searchKey: string;
+}
+
+/** Search returns `data` as a doctor array (not paginated `content`). */
+export interface ReferringDoctorsSearchApiResponse {
+  data: ReferringDoctor[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/** List uses paginated `data.content`; search uses `data[]`. */
+export function extractReferringDoctorsList(
+  data: ReferringDoctorsPage | ReferringDoctor[] | undefined
+): ReferringDoctor[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return data.content ?? [];
+}
+
 /** POST `/api/v1/referring-doctors` request body (matches backend contract). */
 export interface CreateReferringDoctorPayload {
   doctorName: string;
@@ -72,22 +94,32 @@ export interface UpdateReferringDoctorPayload {
 }
 
 /**
- * GET `/api/v1/referring-doctors?pageNo=&pageSize=&branchId=`
+ * GET `/api/v1/referring-doctors?pageNo=0&pageSize=10&branchId=`
+ * Base: `NEXT_PUBLIC_API_URL1` (lims-patient)
  */
 export async function fetchReferringDoctors(
   params: FetchReferringDoctorsParams
 ): Promise<ReferringDoctorsApiResponse> {
-  const search = new URLSearchParams({
-    pageNo: String(params.pageNo),
-    pageSize: String(params.pageSize),
-  });
-  if (params.branchId != null && Number.isFinite(params.branchId)) {
-    search.set('branchId', String(params.branchId));
+  const { pageNo, pageSize, branchId } = params;
+  const queryParams: Record<string, string | number> = { pageNo, pageSize };
+  if (branchId != null && Number.isFinite(branchId)) {
+    queryParams.branchId = branchId;
   }
-  const data = (await referringDoctorAxios.get(
-    `/referring-doctors?${search.toString()}`
-  )) as ReferringDoctorsApiResponse;
-  return data;
+  return referringDoctorAxios.get('/api/v1/referring-doctors', {
+    params: queryParams,
+  }) as Promise<ReferringDoctorsApiResponse>;
+}
+
+/**
+ * GET `/api/v1/referring-doctors/search?searchKey=Sarah Smith`
+ * Base: `NEXT_PUBLIC_API_URL1` (lims-patient)
+ */
+export async function searchReferringDoctors(
+  params: SearchReferringDoctorsParams
+): Promise<ReferringDoctorsSearchApiResponse> {
+  return referringDoctorAxios.get('/api/v1/referring-doctors/search', {
+    params: { searchKey: params.searchKey.trim() },
+  }) as Promise<ReferringDoctorsSearchApiResponse>;
 }
 
 /**
@@ -96,12 +128,12 @@ export async function fetchReferringDoctors(
 export async function createReferringDoctor(
   payload: CreateReferringDoctorPayload
 ): Promise<unknown> {
-  return referringDoctorAxios.post('/referring-doctors', payload);
+  return referringDoctorAxios.post('/api/v1/referring-doctors', payload);
 }
 
 /** GET `/api/v1/referring-doctors/:id` */
 export async function fetchReferringDoctorById(id: number): Promise<ReferringDoctorDetailResponse> {
-  return referringDoctorAxios.get(`/referring-doctors/${id}`) as Promise<ReferringDoctorDetailResponse>;
+  return referringDoctorAxios.get(`/api/v1/referring-doctors/${id}`) as Promise<ReferringDoctorDetailResponse>;
 }
 
 /** PUT `/api/v1/referring-doctors/:id` — switch to `patch` if your backend uses PATCH. */
@@ -109,10 +141,10 @@ export async function updateReferringDoctor(
   id: number,
   payload: UpdateReferringDoctorPayload
 ): Promise<unknown> {
-  return referringDoctorAxios.put(`/referring-doctors/${id}`, payload);
+  return referringDoctorAxios.put(`/api/v1/referring-doctors/${id}`, payload);
 }
 
 /** DELETE `/api/v1/referring-doctors/:id` */
 export async function deleteReferringDoctor(id: number): Promise<unknown> {
-  return referringDoctorAxios.delete(`/referring-doctors/${id}`);
+  return referringDoctorAxios.delete(`/api/v1/referring-doctors/${id}`);
 }

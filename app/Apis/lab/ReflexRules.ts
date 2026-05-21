@@ -5,7 +5,7 @@
  * Reflex Rules: "If Test A gives a certain result, automatically order or perform Test B"
  */
 
-import departmentClient from './axios';
+import labClient from '@/app/Apis/lab/axios';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ export async function fetchReflexRules(
       params.isActive = statusFilter === 'Active' ? 'true' : 'false';
     }
 
-    const response = await departmentClient.get('/api/v1/reflex-rules', { params });
+    const response = await labClient.get('/api/v1/reflex-rules', { params });
     return response as any;
   } catch (error) {
     console.error('Failed to fetch reflex rules:', error);
@@ -139,7 +139,7 @@ export async function fetchReflexRuleById(
   id: number
 ): Promise<ApiResponse<ReflexRule>> {
   try {
-    const response = await departmentClient.get(`/api/v1/reflex-rules/${id}`);
+    const response = await labClient.get(`/api/v1/reflex-rules/${id}`);
     return response as any;
   } catch (error) {
     console.error('Failed to fetch reflex rule:', error);
@@ -154,7 +154,7 @@ export async function createReflexRule(
   input: CreateReflexRuleInput
 ): Promise<ApiResponse<ReflexRule>> {
   try {
-    const response = await departmentClient.post('/api/v1/reflex-rules', input);
+    const response = await labClient.post('/api/v1/reflex-rules', input);
     return response as any;
   } catch (error) {
     console.error('Failed to create reflex rule:', error);
@@ -204,7 +204,7 @@ export async function updateReflexRule(
       payload: input,
     });
 
-    const response = await departmentClient.put<ApiResponse<ReflexRule>>(url, input) as any;
+    const response = await labClient.put<ApiResponse<ReflexRule>>(url, input) as any;
     
     console.debug('Successfully updated reflex rule', { 
       ruleId,
@@ -229,7 +229,7 @@ export async function deleteReflexRule(
   id: number
 ): Promise<ApiResponse<void>> {
   try {
-    const response = await departmentClient.delete(`/api/v1/reflex-rules/${id}`);
+    const response = await labClient.delete(`/api/v1/reflex-rules/${id}`);
     return response as any;
   } catch (error) {
     console.error('Failed to delete reflex rule:', error);
@@ -245,7 +245,7 @@ export async function toggleReflexRuleStatus(
   isActive: boolean
 ): Promise<ApiResponse<ReflexRule>> {
   try {
-    const response = await departmentClient.patch(`/api/v1/reflex-rules/${id}/status`, { isActive });
+    const response = await labClient.patch(`/api/v1/reflex-rules/${id}/status`, { isActive });
     return response as any;
   } catch (error) {
     console.error('Failed to toggle reflex rule status:', error);

@@ -49,6 +49,12 @@ export default function LoginPage() {
                 localStorage.setItem('token', token);
                 localStorage.setItem('refreshToken', refreshToken);
                 localStorage.setItem('role', loginDetails.role);
+                if (loginDetails.fullName) {
+                    localStorage.setItem('fullName', loginDetails.fullName);
+                }
+                if (loginDetails.tenantId != null) {
+                    localStorage.setItem('tenantId', String(loginDetails.tenantId));
+                }
 
                 toast.success(result.message || 'Login successful');
                 router.push('/dashboard');

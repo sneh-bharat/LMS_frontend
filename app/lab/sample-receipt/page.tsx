@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   Plus,
@@ -14,68 +14,21 @@ import {
   XCircle,
   AlertCircle,
   Package,
-  ChevronDown
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Database,
 } from 'lucide-react';
-import AddNewReceipt, {
-  ReceiptFormData,
-  ReceiptInitialData,
-  DEPARTMENTS,
-} from './AddNewReceipt';
+import { useSamplesList } from '@/app/Apis/booking/useSamples';
+import { mapSampleToReceipt, type SampleReceiptRow } from '@/app/Apis/booking/sample';
+import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 
 // ─── Types ──────────────────────────────────────────────────────────────
-type Receipt = {
-  sampleId: string;
-  patient: string;
-  tests: string[];
-  sampleType: "Blood" | "Urine" | "Swab" | "Stool" | "Other";
-  collectedAt: string;
-  status: "pending" | "accepted" | "rejected";
-  condition?: "good" | "haemolysed" | "clotted" | "insufficient" | "leaked";
-  receivedDate?: string;
-  receivedTime?: string;
-  receivedBy?: string;
-  temperatureOnArrival?: string;
-  acceptanceDecision?: string;
-  rejectionReason?: string;
-  departmentRouting?: string;
-  storageLocation?: string;
-  aliquotingRequired?: boolean;
-  numberOfAliquots?: number;
-  remarks?: string;
-};
+type Receipt = SampleReceiptRow;
 
-const SAMPLE_RECEIPTS: Receipt[] = [
-  {
-    sampleId: "LAB-20260401-00001",
-    patient: "John Doe",
-    tests: ["CBC", "LFT"],
-    sampleType: "Blood",
-    collectedAt: "2026-04-01 09:30 AM",
-    status: "pending",
-    condition: undefined,
-  },
-  {
-    sampleId: "LAB-20260401-00002",
-    patient: "Sara Smith",
-    tests: ["Urine Test"],
-    sampleType: "Urine",
-    collectedAt: "2026-04-01 10:00 AM",
-    status: "accepted",
-    condition: "good",
-  },
-  {
-    sampleId: "LAB-20260401-00003",
-    patient: "Mike Johnson",
-    tests: ["COVID-19 RT-PCR"],
-    sampleType: "Swab",
-    collectedAt: "2026-04-01 08:45 AM",
-    status: "rejected",
-    condition: "haemolysed",
-  },
-];
-
+const PAGE_SIZE = 10;
 const STATUS_OPTIONS = ['All', 'Pending', 'Accepted', 'Rejected'];
 const SAMPLE_TYPES = ['All', 'Blood', 'Urine', 'Swab', 'Stool', 'Other'];
 
@@ -116,12 +69,40 @@ function ConditionBadge({ condition }: { condition?: Receipt['condition'] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SampleReceiptPage() {
-  const [receipts, setReceipts] = useState<Receipt[]>(SAMPLE_RECEIPTS);
+  const [pageNo, setPageNo] = useState(0);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Receipt | null>(null);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  const {
+    data: samplesRes,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useSamplesList({
+    pageNo,
+    pageSize: PAGE_SIZE,
+    sortBy: 'createdAt',
+  });
+
+  const samplesPage = samplesRes?.data;
+  const apiReceipts = useMemo(
+    () => (samplesPage?.content ?? []).map(mapSampleToReceipt),
+    [samplesPage?.content]
+  );
+
+  useEffect(() => {
+    setReceipts(apiReceipts);
+  }, [apiReceipts]);
+
+  const totalElements = samplesPage?.totalElements ?? 0;
+  const totalPages = samplesPage?.totalPages ?? 0;
+  const canPrev = pageNo > 0;
+  const canNext = samplesPage?.last != null ? !samplesPage.last : pageNo + 1 < totalPages;
 
   const filtered = receipts.filter(r =>
     (deptFilter === 'All' || r.sampleType === deptFilter) &&
@@ -130,72 +111,8 @@ export default function SampleReceiptPage() {
      r.sampleId.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleSave = (formData: ReceiptFormData) => {
-    if (editTarget) {
-      // Edit mode: update existing receipt
-      setReceipts(prev =>
-        prev.map(r =>
-          r.sampleId === editTarget.sampleId
-            ? {
-                ...r,
-                patient: formData.patientName,
-                tests: formData.tests,
-                sampleType: formData.sampleType as Receipt['sampleType'],
-                collectedAt: formData.collectedAt,
-                receivedDate: formData.receivedDate,
-                receivedTime: formData.receivedTime,
-                receivedBy: formData.receivedBy,
-                temperatureOnArrival: formData.temperatureOnArrival,
-                acceptanceDecision: formData.acceptanceDecision,
-                rejectionReason: formData.rejectionReason,
-                departmentRouting: formData.departmentRouting,
-                storageLocation: formData.storageLocation,
-                aliquotingRequired: formData.aliquotingRequired,
-                numberOfAliquots: formData.numberOfAliquots,
-                remarks: formData.remarks,
-                status: formData.acceptanceDecision === 'Accepted' ? 'accepted' : 
-                        formData.acceptanceDecision === 'Rejected' ? 'rejected' : 'pending',
-                condition: formData.acceptanceDecision === 'Accepted' ? 'good' : 
-                          formData.acceptanceDecision === 'Rejected' ? (formData.rejectionReason as any) : undefined,
-              }
-            : r
-        )
-      );
-    } else {
-      // Add mode: create new receipt
-      const newReceipt: Receipt = {
-        sampleId: formData.sampleId || `LAB-${Date.now()}`,
-        patient: formData.patientName,
-        tests: formData.tests,
-        sampleType: formData.sampleType as Receipt['sampleType'],
-        collectedAt: formData.collectedAt,
-        receivedDate: formData.receivedDate,
-        receivedTime: formData.receivedTime,
-        receivedBy: formData.receivedBy,
-        temperatureOnArrival: formData.temperatureOnArrival,
-        acceptanceDecision: formData.acceptanceDecision,
-        rejectionReason: formData.rejectionReason,
-        departmentRouting: formData.departmentRouting,
-        storageLocation: formData.storageLocation,
-        aliquotingRequired: formData.aliquotingRequired,
-        numberOfAliquots: formData.numberOfAliquots,
-        remarks: formData.remarks,
-        status: formData.acceptanceDecision === 'Accepted' ? 'accepted' : 
-                formData.acceptanceDecision === 'Rejected' ? 'rejected' : 'pending',
-        condition: formData.acceptanceDecision === 'Accepted' ? 'good' : 
-                  formData.acceptanceDecision === 'Rejected' ? (formData.rejectionReason as any) : undefined,
-      };
-
-      setReceipts(prev => [...prev, newReceipt]);
-    }
-
-    setModalOpen(false);
-    setEditTarget(null);
-  };
-
-  const handleEdit = (receipt: Receipt) => {
-    setEditTarget(receipt);
-    setModalOpen(true);
+  const handleEdit = () => {
+    toast.info('Sample edit is not available yet. Use Register Sample to add a new record.');
   };
 
   const handleAccept = (receiptId: string) => {
@@ -222,38 +139,14 @@ export default function SampleReceiptPage() {
     setReceipts(prev => prev.filter(r => r.sampleId !== receiptId));
   };
 
-  const handleOpenModal = () => {
-    setEditTarget(null);
-    setModalOpen(true);
-  };
+  const handleOpenModal = () => setModalOpen(true);
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setEditTarget(null);
-  };
-
-  // Convert Receipt to ReceiptInitialData for the form
-  const getInitialData = (): ReceiptInitialData | null => {
-    if (!editTarget) return null;
-    return {
-      sampleId: editTarget.sampleId,
-      patientName: editTarget.patient,
-      tests: editTarget.tests,
-      sampleType: editTarget.sampleType,
-      collectedAt: editTarget.collectedAt,
-      department: editTarget.departmentRouting,
-    };
-  };
+  const handleCloseModal = () => setModalOpen(false);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* ── Modals ── */}
-      <AddNewReceipt
-        isOpen={modalOpen}
-        onClose={handleCloseModal}
-        onSave={handleSave}
-        initial={getInitialData()}
-      />
+    
 
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -270,20 +163,13 @@ export default function SampleReceiptPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="px-4 py-1.5">
-            {receipts.length} Samples
-          </Badge>
-          <Button
-            size="sm"
-            onClick={handleOpenModal}
-            variant="gradient"
-            className="gap-2 shadow-sm"
-            suppressHydrationWarning
+        <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2.5 shadow-sm">
+          <Badge
+            variant="secondary"
+            className="px-4 py-1.5 bg-white text-emerald-800 border border-emerald-200 font-bold"
           >
-            <Plus size={16} />
-            Add Sample
-          </Button>
+            {totalElements} Samples
+          </Badge>
         </div>
       </div>
 
@@ -326,6 +212,18 @@ export default function SampleReceiptPage() {
         </div>
       </div>
 
+      {isError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
+          <AlertCircle size={18} className="shrink-0" aria-hidden />
+          <span className="font-medium">
+            {error instanceof Error ? error.message : 'Failed to load samples.'}
+          </span>
+          <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
       {/* ── Receipts Table ── */}
       <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
         <table className="w-full text-left">
@@ -342,7 +240,16 @@ export default function SampleReceiptPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-16 text-center text-slate-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 size={20} className="animate-spin text-emerald-600" />
+                    <span className="text-sm font-semibold">Loading samples…</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
@@ -375,11 +282,15 @@ export default function SampleReceiptPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {receipt.tests.map((test, i) => (
-                      <Badge key={i} variant="primary" className="text-[9px] px-2 py-0.5">
-                        {test}
-                      </Badge>
-                    ))}
+                    {receipt.tests.length > 0 ? (
+                      receipt.tests.map((test, i) => (
+                        <Badge key={i} variant="primary" className="text-[9px] px-2 py-0.5">
+                          {test}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -422,9 +333,9 @@ export default function SampleReceiptPage() {
                       </>
                     )}
                     <button
-                      onClick={() => handleEdit(receipt)}
+                      onClick={handleEdit}
                       className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                      title="Edit Sample"
+                      title="Edit Sample (coming soon)"
                       suppressHydrationWarning
                     >
                       <Edit3 size={14} />
@@ -449,13 +360,48 @@ export default function SampleReceiptPage() {
             ))}
           </tbody>
         </table>
+
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
+            <span>
+              Page {pageNo + 1} of {Math.max(totalPages, 1)}
+              <span className="text-slate-400 mx-2">·</span>
+              {totalElements} total samples
+            </span>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-bold border-slate-200"
+              disabled={!canPrev || isFetching}
+              onClick={() => setPageNo((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-bold border-slate-200"
+              disabled={!canNext || isFetching}
+              onClick={() => setPageNo((p) => p + 1)}
+            >
+              Next
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* ── Footer Stats ── */}
       <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
         <div className="grid grid-cols-4 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-slate-900">{receipts.length}</div>
+            <div className="text-2xl font-bold text-slate-900">{totalElements}</div>
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Samples</div>
           </div>
           <div className="text-center">

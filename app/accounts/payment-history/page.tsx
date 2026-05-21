@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus,
   Search,
   Filter,
-  ArrowUpRight,
   ArrowDownLeft,
   ArrowRightLeft,
   Clock,
@@ -15,12 +13,30 @@ import {
   Calendar,
   Building2,
   TrendingUp,
-  TrendingDown,
-  Activity
+  Activity,
+  Loader2,
+  IndianRupee,
+  RefreshCcw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import Table from '@/components/ui/table';
+import {
+  useAllPayments,
+  usePaymentSearch,
+  usePaymentStatistics,
+  usePaymentsByMode,
+  usePaymentTransactionsByInvoice,
+} from '@/app/Apis/booking/usePayments';
+import {
+  looksLikeInvoiceNumber,
+  mapInvoiceTransactionsToRecords,
+  type PaymentSearchRecord,
+  type PaymentTransactionsByInvoiceData,
+} from '@/app/Apis/booking/payment-history';
+import { usePatientsByIds } from '@/app/Apis/Patients/usePatientsByIds';
+import { formatPatientFullName } from '@/app/Apis/Patients/patientDisplayUtils';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 
@@ -30,7 +46,7 @@ export interface PaymentHistory {
   // Patient Info
   patientId: number;
   patientName: string;
-  mobileNumber: string;
+  patientCode: string;
 
   // Invoice Info
   invoiceId: string;
@@ -57,55 +73,75 @@ export interface PaymentHistory {
   remarks?: string;
 }
 
-export const SAMPLE_PAYMENT_HISTORY: PaymentHistory[] = [
-  {
-    id: 1,
-    patientId: 101,
-    patientName: 'Rahul Sharma',
-    mobileNumber: '9876543210',
-    invoiceId: 'INV-1001',
-    visitType: 'Diagnostic',
-    amount: 1500,
-    paymentMode: 'UPI',
-    transactionId: 'UPI123456',
-    discount: 100,
-    tax: 50,
-    netAmount: 1450,
-    paymentDate: '2026-03-25T10:00:00Z',
-    createdAt: '2026-03-25T10:00:00Z',
-    status: 'Paid',
-    remarks: 'Blood test payment',
-  },
-  {
-    id: 2,
-    patientId: 102,
-    patientName: 'Priya Das',
-    mobileNumber: '9123456780',
-    invoiceId: 'INV-1002',
-    visitType: 'OPD',
-    amount: 500,
-    paymentMode: 'Cash',
-    netAmount: 500,
-    paymentDate: '2026-03-25T11:30:00Z',
-    createdAt: '2026-03-25T11:30:00Z',
-    status: 'Paid',
-  },
-  {
-    id: 3,
-    patientId: 103,
-    patientName: 'Amit Khan',
-    mobileNumber: '9988776655',
-    invoiceId: 'INV-1003',
-    visitType: 'Diagnostic',
-    amount: 2000,
-    paymentMode: 'Card',
-    transactionId: 'CARD78910',
-    netAmount: 2000,
-    paymentDate: '2026-03-25T12:45:00Z',
-    createdAt: '2026-03-25T12:45:00Z',
-    status: 'Pending',
-  },
-];
+const PAGE_SIZE = 10;
+
+function normalizePaymentStatus(status: string | null | undefined): PaymentHistory['status'] {
+  const s = status?.toUpperCase() ?? '';
+  if (s === 'SUCCESS' || s === 'COMPLETED' || s === 'PAID') return 'Paid';
+  if (s === 'PENDING') return 'Pending';
+  if (s === 'FAILED' || s === 'REJECTED') return 'Failed';
+  if (s === 'REFUNDED' || s === 'REFUND') return 'Refunded';
+  return 'Paid';
+}
+
+function mapPaymentRecordToHistory(
+  record: PaymentSearchRecord,
+  context?: { patientId?: number; patientName?: string; invoiceNumber?: string }
+): PaymentHistory {
+  const paymentDate = record.paymentDate ?? record.paymentDateTime ?? '';
+  const paymentMode = (record.paymentMode?.trim() || 'Cash') as PaymentHistory['paymentMode'];
+  const displayAmount =
+    record.isRefund && record.refundAmount != null && record.refundAmount > 0
+      ? record.refundAmount
+      : record.amount;
+  return {
+    id: record.id,
+    patientId: context?.patientId ?? record.orderId ?? 0,
+    patientName:
+      context?.patientName ?? record.patientName ?? record.collectedBy ?? '—',
+    patientCode: record.patientCode ?? '—',
+    invoiceId:
+      context?.invoiceNumber ??
+      record.invoiceNumber ??
+      record.orderNumber ??
+      record.receiptNumber ??
+      (record.orderId ? `ORD-${record.orderId}` : '—'),
+    visitType:
+      record.visitType === 'OPD' || record.visitType === 'Diagnostic'
+        ? record.visitType
+        : 'Diagnostic',
+    amount: displayAmount,
+    paymentMode,
+    transactionId: record.transactionId ?? record.referenceNumber ?? undefined,
+    discount: record.discount ?? undefined,
+    tax: record.tax ?? undefined,
+    netAmount: record.netAmount ?? record.amount,
+    paymentDate,
+    createdAt: paymentDate,
+    status: record.isRefund
+      ? 'Refunded'
+      : normalizePaymentStatus(record.paymentStatus),
+    remarks:
+      record.remarks ??
+      record.refundReason ??
+      record.paymentDescription ??
+      undefined,
+  };
+}
+
+function mapInvoiceDetailToHistory(
+  data: PaymentTransactionsByInvoiceData,
+  patientName?: string
+): PaymentHistory[] {
+  const context = {
+    patientId: data.patientId,
+    patientName,
+    invoiceNumber: data.invoiceNumber,
+  };
+  return mapInvoiceTransactionsToRecords(data).map((record) =>
+    mapPaymentRecordToHistory(record, context)
+  );
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -127,6 +163,18 @@ function getPaymentModeColor(mode: string): string {
     case 'Bank Transfer': return 'text-indigo-600';
     default: return 'text-slate-600';
   }
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function defaultStatisticsRange() {
+  const year = new Date().getFullYear();
+  return {
+    startDate: `${year}-01-01`,
+    endDate: todayIsoDate(),
+  };
 }
 
 function formatCurrency(amount: number): string {
@@ -165,24 +213,179 @@ function getPaymentModeIcon(mode: string) {
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function PaymentHistoryPage() {
-  const [history, setHistory] = useState<PaymentHistory[]>(SAMPLE_PAYMENT_HISTORY);
+  const defaultRange = useMemo(() => defaultStatisticsRange(), []);
   const [search, setSearch] = useState('');
   const [visitTypeFilter, setVisitTypeFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
+  const [pageNo, setPageNo] = useState(0);
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const filteredHistory = history.filter(record => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const useModeApi = paymentModeFilter !== 'All';
+  const invoiceSearchTerm =
+    !useModeApi && debouncedSearch && looksLikeInvoiceNumber(debouncedSearch)
+      ? debouncedSearch
+      : null;
+  const useInvoiceApi = Boolean(invoiceSearchTerm);
+  const useSearchApi =
+    !useModeApi && !useInvoiceApi && Boolean(debouncedSearch);
+
+  const modeParams = useModeApi
+    ? { paymentMode: paymentModeFilter, pageNo, pageSize: PAGE_SIZE }
+    : null;
+
+  const allParams =
+    !useModeApi && !useSearchApi && !useInvoiceApi
+      ? { pageNo, pageSize: PAGE_SIZE }
+      : null;
+
+  const searchParams = useSearchApi
+    ? { searchTerm: debouncedSearch, pageNo, pageSize: PAGE_SIZE }
+    : null;
+
+  useEffect(() => {
+    setPageNo(0);
+  }, [paymentModeFilter, debouncedSearch]);
+
+  const {
+    data: allRes,
+    isLoading: isAllLoading,
+    isFetching: isAllFetching,
+    isError: isAllError,
+    error: allError,
+  } = useAllPayments(allParams);
+
+  const {
+    data: searchRes,
+    isLoading: isSearchLoading,
+    isFetching: isSearchFetching,
+    isError: isSearchError,
+    error: searchError,
+  } = usePaymentSearch(searchParams);
+
+  const {
+    data: modeRes,
+    isLoading: isModeLoading,
+    isFetching: isModeFetching,
+    isError: isModeError,
+    error: modeError,
+  } = usePaymentsByMode(modeParams);
+
+  const {
+    data: invoiceRes,
+    isLoading: isInvoiceLoading,
+    isFetching: isInvoiceFetching,
+    isError: isInvoiceError,
+    error: invoiceError,
+  } = usePaymentTransactionsByInvoice(invoiceSearchTerm);
+
+  const invoiceDetail = invoiceRes?.data ?? null;
+  const invoicePatientIds = useMemo(
+    () => (invoiceDetail?.patientId ? [invoiceDetail.patientId] : []),
+    [invoiceDetail?.patientId]
+  );
+  const { patientsById, isFetching: isFetchingInvoicePatient } =
+    usePatientsByIds(invoicePatientIds);
+
+  const invoicePatientName = useMemo(() => {
+    if (!invoiceDetail?.patientId) return undefined;
+    const patient = patientsById.get(invoiceDetail.patientId);
+    return patient ? formatPatientFullName(patient) : undefined;
+  }, [invoiceDetail?.patientId, patientsById]);
+
+  const listRes = useModeApi
+    ? modeRes
+    : useInvoiceApi
+      ? null
+      : useSearchApi
+        ? searchRes
+        : allRes;
+  const listPage =
+    listRes?.data && !Array.isArray(listRes.data) ? listRes.data : null;
+
+  const apiHistory = useMemo(() => {
+    if (useInvoiceApi && invoiceDetail) {
+      return mapInvoiceDetailToHistory(invoiceDetail, invoicePatientName);
+    }
+    return (listPage?.content ?? []).map((record) => mapPaymentRecordToHistory(record));
+  }, [useInvoiceApi, invoiceDetail, invoicePatientName, listPage?.content]);
+
+  const isListLoading = useModeApi
+    ? isModeLoading
+    : useInvoiceApi
+      ? isInvoiceLoading
+      : useSearchApi
+        ? isSearchLoading
+        : isAllLoading;
+  const isListFetching = useModeApi
+    ? isModeFetching
+    : useInvoiceApi
+      ? isInvoiceFetching || isFetchingInvoicePatient
+      : useSearchApi
+        ? isSearchFetching
+        : isAllFetching;
+  const isListError = useModeApi
+    ? isModeError
+    : useInvoiceApi
+      ? isInvoiceError
+      : useSearchApi
+        ? isSearchError
+        : isAllError;
+  const listError = useModeApi
+    ? modeError
+    : useInvoiceApi
+      ? invoiceError
+      : useSearchApi
+        ? searchError
+        : allError;
+
+  const dateRangeInvalid = Boolean(startDate && endDate) && startDate > endDate;
+  const statisticsParams =
+    startDate && endDate && !dateRangeInvalid ? { startDate, endDate } : null;
+
+  const {
+    data: statisticsRes,
+    isLoading: isStatisticsLoading,
+    isFetching: isStatisticsFetching,
+    isError: isStatisticsError,
+    error: statisticsError,
+    refetch: refetchStatistics,
+  } = usePaymentStatistics(statisticsParams);
+
+  const statistics = statisticsRes?.data ?? null;
+
+  const filteredHistory = apiHistory.filter((record) => {
     const matchesSearch =
+      !search.trim() ||
+      useSearchApi ||
+      useInvoiceApi ||
       record.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      record.mobileNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      record.invoiceId?.toLowerCase().includes(search.toLowerCase());
-    
+      record.patientCode?.toLowerCase().includes(search.toLowerCase()) ||
+      record.invoiceId?.toLowerCase().includes(search.toLowerCase()) ||
+      record.transactionId?.toLowerCase().includes(search.toLowerCase()) ||
+      record.remarks?.toLowerCase().includes(search.toLowerCase());
+
     const matchesVisitType = visitTypeFilter === 'All' || record.visitType === visitTypeFilter;
     const matchesStatus = statusFilter === 'All' || record.status === statusFilter;
-    const matchesPaymentMode = paymentModeFilter === 'All' || record.paymentMode === paymentModeFilter;
-    
-    return matchesSearch && matchesVisitType && matchesStatus && matchesPaymentMode;
+
+    return matchesSearch && matchesVisitType && matchesStatus;
   });
+
+  const totalElements = useInvoiceApi
+    ? filteredHistory.length
+    : (listPage?.totalElements ?? filteredHistory.length);
+  const totalPages = useInvoiceApi ? 1 : (listPage?.totalPages ?? 0);
+  const canPrev = !useInvoiceApi && pageNo > 0;
+  const canNext =
+    !useInvoiceApi &&
+    (listPage?.last != null ? !listPage.last : pageNo + 1 < totalPages);
 
   const columns = [
     {
@@ -206,7 +409,7 @@ export default function PaymentHistoryPage() {
       render: (value: string, row: PaymentHistory) => (
         <div>
           <div className="font-bold text-slate-900 text-sm">{value}</div>
-          <div className="text-xs text-slate-500">{row.mobileNumber}</div>
+          <div className="text-xs text-slate-500">{row.patientCode}</div>
         </div>
       ),
     },
@@ -276,12 +479,57 @@ export default function PaymentHistoryPage() {
     },
   ];
 
-  const stats = {
-    totalPayments: history.length,
-    totalAmount: history.reduce((sum, h) => sum + h.netAmount, 0),
-    paidPayments: history.filter(h => h.status === 'Paid').length,
-    pendingPayments: history.filter(h => h.status === 'Pending').length,
-  };
+  const statCards = [
+    {
+      label: 'Net Collection',
+      value: statistics ? formatCurrency(statistics.netCollection) : '—',
+      icon: IndianRupee,
+      tone: 'text-emerald-600',
+      bg: 'bg-emerald-400/30',
+    },
+    {
+      label: 'Total Collected',
+      value: statistics ? formatCurrency(statistics.totalCollected) : '—',
+      icon: TrendingUp,
+      tone: 'text-emerald-700',
+      bg: 'bg-emerald-400/30',
+    },
+    {
+      label: 'Total Transactions',
+      value: statistics != null ? String(statistics.totalTransactions) : '—',
+      icon: Activity,
+      tone: 'text-[#FF671F]',
+      bg: 'bg-blue-400/30',
+    },
+    {
+      label: 'Successful',
+      value: statistics != null ? String(statistics.successfulTransactions) : '—',
+      icon: CheckCircle,
+      tone: 'text-green-700',
+      bg: 'bg-green-400/30',
+    },
+    {
+      label: 'Failed',
+      value: statistics != null ? String(statistics.failedTransactions) : '—',
+      icon: XCircle,
+      tone: 'text-rose-600',
+      bg: 'bg-rose-400/30',
+    },
+    {
+      label: 'Total Refunded',
+      value: statistics ? formatCurrency(statistics.totalRefunded) : '—',
+      icon: ArrowDownLeft,
+      tone: 'text-blue-700',
+      bg: 'bg-blue-400/30',
+    },
+    {
+      label: 'Refund Transactions',
+      value: statistics != null ? String(statistics.refundTransactions) : '—',
+      icon: RefreshCcw,
+      tone: 'text-indigo-700',
+      bg: 'bg-indigo-400/30',
+    },
+  ];
 
   return (
     <div className="p-6 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
@@ -296,47 +544,101 @@ export default function PaymentHistoryPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-400/30 flex items-center justify-center">
-              <Activity size={20} className="text-[#FF671F]" />
-            </div>
-            <span className="text-blue-700 font-bold text-xs uppercase tracking-wider">Total Payments</span>
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-end gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || todayIsoDate()}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input-refined w-full py-2.5 px-4 font-bold"
+            />
           </div>
-          <div className="text-3xl font-black text-slate-900">{stats.totalPayments}</div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              max={todayIsoDate()}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input-refined w-full py-2.5 px-4 font-bold"
+            />
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => void refetchStatistics()}
+          disabled={!statisticsParams || isStatisticsFetching}
+          className="inline-flex items-center justify-center gap-2 rounded-xl custom-gradient text-white font-bold px-5 py-2.5 disabled:opacity-60"
+        >
+          {isStatisticsFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+          Refresh stats
+        </button>
+      </div>
 
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-400/30 flex items-center justify-center">
-              <TrendingUp size={20} className="text-[#FF671F]" />
-            </div>
-            <span className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Total Amount</span>
-          </div>
-          <div className="text-2xl font-black text-emerald-600">{formatCurrency(stats.totalAmount)}</div>
+      {dateRangeInvalid ? (
+        <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          Start date must be on or before end date.
         </div>
+      ) : null}
 
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-green-400/30 flex items-center justify-center">
-              <CheckCircle size={20} className="text-[#FF671F]" />
-            </div>
-            <span className="text-green-700 font-bold text-xs uppercase tracking-wider">Paid</span>
-          </div>
-          <div className="text-3xl font-black text-slate-900">{stats.paidPayments}</div>
+      {isStatisticsError ? (
+        <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {statisticsError instanceof Error
+            ? statisticsError.message
+            : 'Failed to load payment statistics.'}
         </div>
+      ) : null}
 
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-400/30 flex items-center justify-center">
-              <Clock size={20} className="text-amber-600" />
-            </div>
-            <span className="text-amber-700 font-bold text-xs uppercase tracking-wider">Pending</span>
+      {/* Stats — single row inside one panel */}
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-sm mb-6">
+        {isStatisticsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm font-semibold">Loading statistics…</span>
           </div>
-          <div className="text-3xl font-black text-slate-900">{stats.pendingPayments}</div>
-        </div>
+        ) : (
+          <div className="flex flex-nowrap items-stretch gap-0 overflow-x-auto pb-1 scrollbar-thin">
+            {statCards.map((card, index) => {
+              const Icon = card.icon;
+              const isMoney =
+                card.label.includes('Refunded') ||
+                card.label.includes('Collected') ||
+                card.label === 'Net Collection';
+              return (
+                <div
+                  key={card.label}
+                  className={`flex min-w-[9.5rem] flex-1 flex-col items-center justify-center px-3 py-1 text-center sm:min-w-0 ${
+                    index < statCards.length - 1
+                      ? 'border-r border-slate-200/70'
+                      : ''
+                  }`}
+                >
+                  <div className={`mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}>
+                    <Icon size={18} className={card.tone} />
+                  </div>
+                  <span className="mb-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
+                    {card.label}
+                  </span>
+                  <span
+                    className={`text-lg font-black leading-none sm:text-xl ${
+                      isMoney ? 'text-emerald-600' : 'text-slate-900'
+                    }`}
+                  >
+                    {card.value}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -346,7 +648,7 @@ export default function PaymentHistoryPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by patient name, phone, or invoice..."
+            placeholder="Search by invoice (e.g. DCL-INV-2026-001), patient, or phone..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
           />
         </div>
@@ -381,7 +683,10 @@ export default function PaymentHistoryPage() {
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <select
               value={paymentModeFilter}
-              onChange={(e) => setPaymentModeFilter(e.target.value)}
+              onChange={(e) => {
+                setPaymentModeFilter(e.target.value);
+                setPageNo(0);
+              }}
               className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
             >
               <option value="All">All Payment Modes</option>
@@ -394,18 +699,107 @@ export default function PaymentHistoryPage() {
         </div>
       </div>
 
+      {useInvoiceApi && invoiceDetail ? (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                Invoice payment summary
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold text-slate-900">
+                {invoiceDetail.invoiceNumber}
+              </p>
+              <p className="text-xs font-medium text-slate-500">
+                Order #{invoiceDetail.orderId}
+                {invoiceDetail.orderDate ? ` · ${formatDate(invoiceDetail.orderDate)}` : ''}
+                {invoicePatientName ? ` · ${invoicePatientName}` : ''}
+              </p>
+            </div>
+            <Badge
+              className={`${getStatusColor(
+                normalizePaymentStatus(invoiceDetail.paymentStatus)
+              )} border font-bold`}
+            >
+              {invoiceDetail.paymentStatus ?? '—'}
+            </Badge>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {[
+              { label: 'Total', value: invoiceDetail.totalAmount },
+              { label: 'Net', value: invoiceDetail.netAmount },
+              { label: 'Paid', value: invoiceDetail.paidAmount },
+              { label: 'Pending', value: invoiceDetail.pendingAmount ?? 0 },
+              { label: 'Refunded', value: invoiceDetail.refundedAmount ?? 0 },
+              { label: 'Discount', value: invoiceDetail.discountAmount ?? 0 },
+              { label: 'Concession', value: invoiceDetail.concessionAmount ?? 0 },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-white/80 bg-white px-3 py-2 text-center"
+              >
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  {item.label}
+                </p>
+                <p className="text-sm font-black text-slate-900">{formatCurrency(item.value)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {/* Table */}
       <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-        <Table columns={columns} data={filteredHistory} />
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+        {isListError ? (
+          <div className="px-6 py-10 text-center text-sm font-semibold text-rose-600">
+            {listError instanceof Error ? listError.message : 'Failed to load payments.'}
+          </div>
+        ) : (
+          <Table
+            columns={columns}
+            data={filteredHistory}
+            loading={isListLoading || isListFetching}
+          />
+        )}
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Showing {filteredHistory.length} of {history.length} Payments
+            Showing {filteredHistory.length} of {totalElements} payments
+            {useModeApi
+              ? ` (${paymentModeFilter})`
+              : useInvoiceApi
+                ? ` (invoice: ${invoiceSearchTerm})`
+                : useSearchApi
+                  ? ' (search)'
+                  : ''}
           </span>
-          <span className="text-[10px] font-bold text-slate-500">
-            Total Collected: <span className='text-emerald-600'>
-              {formatCurrency(filteredHistory.reduce((sum, h) => sum + h.netAmount, 0))}
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-bold text-slate-500">
+              Total Collected:{' '}
+              <span className="text-emerald-600">
+                {formatCurrency(filteredHistory.reduce((sum, h) => sum + h.netAmount, 0))}
+              </span>
             </span>
-          </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPageNo((p) => Math.max(0, p - 1))}
+                disabled={!canPrev || isListFetching}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Page {pageNo + 1} of {Math.max(totalPages, 1)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPageNo((p) => p + 1)}
+                disabled={!canNext || isListFetching}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
