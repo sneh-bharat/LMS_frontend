@@ -51,7 +51,6 @@ export {
   useTestOrdersByPatientId,
   useTestOrdersByDateRange,
   useTestOrdersByStatus,
-  useTestOrderBranchOptions,
   useTestOrdersList,
   useUpdateTestOrderFinancial,
   useUpdateTestOrderMedical,

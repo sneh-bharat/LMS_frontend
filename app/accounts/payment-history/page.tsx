@@ -32,6 +32,7 @@ import {
 import {
   looksLikeInvoiceNumber,
   mapInvoiceTransactionsToRecords,
+  normalizePaymentModeLabel,
   type PaymentSearchRecord,
   type PaymentTransactionsByInvoiceData,
 } from '@/app/Apis/booking/payment-history';
@@ -71,6 +72,9 @@ export interface PaymentHistory {
 
   // Extra Info
   remarks?: string;
+  paymentType?: string;
+  receiptNumber?: string;
+  collectedBy?: string;
 }
 
 const PAGE_SIZE = 10;
@@ -84,27 +88,40 @@ function normalizePaymentStatus(status: string | null | undefined): PaymentHisto
   return 'Paid';
 }
 
+function formatPaymentTypeLabel(type: string | null | undefined): string | undefined {
+  const t = type?.trim();
+  if (!t) return undefined;
+  return t
+    .toLowerCase()
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 function mapPaymentRecordToHistory(
   record: PaymentSearchRecord,
   context?: { patientId?: number; patientName?: string; invoiceNumber?: string }
 ): PaymentHistory {
   const paymentDate = record.paymentDate ?? record.paymentDateTime ?? '';
-  const paymentMode = (record.paymentMode?.trim() || 'Cash') as PaymentHistory['paymentMode'];
+  const paymentMode = normalizePaymentModeLabel(record.paymentMode) as PaymentHistory['paymentMode'];
+  const isRefund =
+    record.isRefund === true ||
+    record.paymentType?.toUpperCase() === 'REFUND' ||
+    record.paymentStatus?.toUpperCase() === 'REFUNDED';
   const displayAmount =
-    record.isRefund && record.refundAmount != null && record.refundAmount > 0
+    isRefund && record.refundAmount != null && record.refundAmount > 0
       ? record.refundAmount
       : record.amount;
+  const paymentTypeLabel = formatPaymentTypeLabel(record.paymentType);
   return {
     id: record.id,
-    patientId: context?.patientId ?? record.orderId ?? 0,
-    patientName:
-      context?.patientName ?? record.patientName ?? record.collectedBy ?? '—',
+    patientId: context?.patientId ?? record.patientId ?? 0,
+    patientName: context?.patientName ?? record.patientName ?? '—',
     patientCode: record.patientCode ?? '—',
     invoiceId:
       context?.invoiceNumber ??
       record.invoiceNumber ??
       record.orderNumber ??
-      record.receiptNumber ??
       (record.orderId ? `ORD-${record.orderId}` : '—'),
     visitType:
       record.visitType === 'OPD' || record.visitType === 'Diagnostic'
@@ -112,20 +129,22 @@ function mapPaymentRecordToHistory(
         : 'Diagnostic',
     amount: displayAmount,
     paymentMode,
-    transactionId: record.transactionId ?? record.referenceNumber ?? undefined,
+    transactionId:
+      record.transactionId ?? record.receiptNumber ?? record.referenceNumber ?? undefined,
     discount: record.discount ?? undefined,
     tax: record.tax ?? undefined,
-    netAmount: record.netAmount ?? record.amount,
+    netAmount: record.netAmount ?? displayAmount,
     paymentDate,
     createdAt: paymentDate,
-    status: record.isRefund
-      ? 'Refunded'
-      : normalizePaymentStatus(record.paymentStatus),
+    status: isRefund ? 'Refunded' : normalizePaymentStatus(record.paymentStatus),
     remarks:
       record.remarks ??
       record.refundReason ??
       record.paymentDescription ??
       undefined,
+    paymentType: paymentTypeLabel,
+    receiptNumber: record.receiptNumber ?? undefined,
+    collectedBy: record.collectedBy ?? undefined,
   };
 }
 
@@ -419,7 +438,10 @@ export default function PaymentHistoryPage() {
       render: (value: string, row: PaymentHistory) => (
         <div>
           <div className="font-bold text-slate-900 text-sm">{value}</div>
-          <div className="text-xs text-slate-500">{row.visitType}</div>
+          <div className="text-xs text-slate-500">
+            {row.paymentType ? row.paymentType : row.visitType}
+            {row.receiptNumber ? ` · ${row.receiptNumber}` : ''}
+          </div>
         </div>
       ),
     },
@@ -441,14 +463,19 @@ export default function PaymentHistoryPage() {
       align: 'right' as const,
       render: (value: number, row: PaymentHistory) => (
         <div className="text-right">
-          <div className="text-sm font-black text-emerald-600">
+          <div
+            className={`text-sm font-black ${
+              row.status === 'Refunded' ? 'text-blue-600' : 'text-emerald-600'
+            }`}
+          >
+            {row.status === 'Refunded' && value > 0 ? '−' : ''}
             {formatCurrency(value)}
           </div>
-          {row.discount && (
+          {row.discount ? (
             <div className="text-xs text-slate-500">
               Discount: {formatCurrency(row.discount)}
             </div>
-          )}
+          ) : null}
         </div>
       ),
     },
@@ -775,7 +802,13 @@ export default function PaymentHistoryPage() {
             <span className="text-[10px] font-bold text-slate-500">
               Total Collected:{' '}
               <span className="text-emerald-600">
-                {formatCurrency(filteredHistory.reduce((sum, h) => sum + h.netAmount, 0))}
+                {formatCurrency(
+                  filteredHistory.reduce(
+                    (sum, h) =>
+                      h.status === 'Refunded' ? sum - h.netAmount : sum + h.netAmount,
+                    0
+                  )
+                )}
               </span>
             </span>
             <div className="flex items-center gap-2">

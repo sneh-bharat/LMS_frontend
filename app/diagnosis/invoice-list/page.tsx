@@ -26,7 +26,6 @@ import {
   useDeleteTestOrder,
   useTestOrderByOrderNumber,
   useTestOrdersByPatientId,
-  useTestOrderBranchOptions,
   useTestOrdersByDateRange,
   useTestOrdersByProcessingType,
   useTestOrdersByStatus,
@@ -53,17 +52,17 @@ import {
 } from './constants';
 
 const PAGE_SIZE = 10;
+const MIN_PATIENT_SEARCH_LEN = 2;
 
 const defaultDateRange = getDefaultInvoiceDateRange();
 
-type DeleteMode = 'single' | 'bulk';
-
-function parsePatientIdFromSearch(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed || !/^\d+$/.test(trimmed)) return null;
-  const id = Number.parseInt(trimmed, 10);
-  return id > 0 ? id : null;
+function getPatientOrdersLookup(searchTerm: string): string | null {
+  const trimmed = searchTerm.trim();
+  if (trimmed.length < MIN_PATIENT_SEARCH_LEN) return null;
+  return trimmed;
 }
+
+type DeleteMode = 'single' | 'bulk';
 
 export default function InvoiceListPage() {
   const router = useRouter();
@@ -75,7 +74,6 @@ export default function InvoiceListPage() {
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState<InvoiceSearchBy>(DEFAULT_SEARCH_BY);
-  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [startDate, setStartDate] = useState(defaultDateRange.startDate);
   const [endDate, setEndDate] = useState(defaultDateRange.endDate);
   const [status, setStatus] = useState<InvoiceStatusFilter>('Order Status');
@@ -114,10 +112,18 @@ export default function InvoiceListPage() {
   const [debouncedPatientSearch, setDebouncedPatientSearch] = useState('');
 
   const isOrderNumberSearch = searchBy === 'Order Number';
-  const isPatientIdSearch = searchBy === 'Patient ID';
+  const isPatientNameSearch = searchBy === 'Patient Name';
   const orderNumberLookup = isOrderNumberSearch ? debouncedOrderNumber : '';
-  const patientIdLookup = isPatientIdSearch ? parsePatientIdFromSearch(debouncedPatientSearch) : null;
-  const usePatientOrdersApi = isPatientIdSearch && patientIdLookup != null;
+  const patientOrdersLookup = isPatientNameSearch
+    ? getPatientOrdersLookup(debouncedPatientSearch)
+    : null;
+  const usePatientOrdersApi = patientOrdersLookup != null;
+  const patientNameSearchInvalid =
+    isPatientNameSearch &&
+    debouncedPatientSearch.length > 0 &&
+    debouncedPatientSearch.length < MIN_PATIENT_SEARCH_LEN;
+  /** @deprecated Renamed to patientNameSearchInvalid — kept for any stale references */
+  const patientIdSearchInvalid = patientNameSearchInvalid;
   const statusLookup: InvoiceOrderStatus | null = isOrderStatusApiFilter(status)
     ? status
     : null;
@@ -144,12 +150,13 @@ export default function InvoiceListPage() {
     dateRangeValid &&
     !orderNumberLookup &&
     !usePatientOrdersApi &&
+    !isPatientNameSearch &&
     !useStatusOrdersApi &&
     !useProcessingTypeApi;
 
   useEffect(() => {
     setPageNo(0);
-  }, [search, searchBy, selectedBranchId, status, processingType, startDate, endDate]);
+  }, [search, searchBy, status, processingType, startDate, endDate]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -172,27 +179,22 @@ export default function InvoiceListPage() {
   }, [search, isOrderNumberSearch]);
 
   useEffect(() => {
-    if (!isPatientIdSearch) {
+    if (!isPatientNameSearch) {
       setDebouncedPatientSearch('');
       return;
     }
     const timer = window.setTimeout(() => setDebouncedPatientSearch(search.trim()), 400);
     return () => window.clearTimeout(timer);
-  }, [search, isPatientIdSearch]);
+  }, [search, isPatientNameSearch]);
 
   const listQueryEnabled =
     !orderNumberLookup &&
     !usePatientOrdersApi &&
+    !isPatientNameSearch &&
     !useStatusOrdersApi &&
     !useProcessingTypeApi &&
     !useDateRangeApi &&
     !dateRangeInvalid;
-
-  const {
-    data: branchOptionsData,
-    isLoading: isBranchOptionsLoading,
-  } = useTestOrderBranchOptions();
-  const branchOptions = branchOptionsData ?? [];
 
   const {
     data,
@@ -206,7 +208,6 @@ export default function InvoiceListPage() {
     pageNo,
     pageSize: PAGE_SIZE,
     sortBy: 'createdAt',
-    branchId: selectedBranchId ?? undefined,
     enabled: listQueryEnabled,
   });
 
@@ -228,7 +229,9 @@ export default function InvoiceListPage() {
     refetch: refetchPatientOrders,
     isFetching: isPatientOrdersFetching,
     dataUpdatedAt: patientOrdersDataUpdatedAt,
-  } = useTestOrdersByPatientId(patientIdLookup, pageNo, PAGE_SIZE);
+  } = useTestOrdersByPatientId(patientOrdersLookup, pageNo, PAGE_SIZE, {
+    enabled: usePatientOrdersApi,
+  });
 
   const {
     data: ordersByStatusData,
@@ -260,7 +263,9 @@ export default function InvoiceListPage() {
     refetch: refetchProcessingOrders,
     isFetching: isProcessingOrdersFetching,
     dataUpdatedAt: processingOrdersDataUpdatedAt,
-  } = useTestOrdersByProcessingType(processingSearchTerm, pageNo, PAGE_SIZE);
+  } = useTestOrdersByProcessingType(processingSearchTerm, pageNo, PAGE_SIZE, {
+    enabled: useProcessingTypeApi,
+  });
 
   const isOrderNumberLookup = Boolean(orderNumberLookup);
   const isLoading = isOrderNumberLookup
@@ -427,10 +432,6 @@ export default function InvoiceListPage() {
   const filtered = useMemo(() => {
     let rows = invoices;
 
-    if (selectedBranchId != null) {
-      rows = rows.filter((inv) => inv.branchId === selectedBranchId);
-    }
-
     if (usePaymentStatusFilter) {
       const target = status.toLowerCase();
       rows = rows.filter((inv) => {
@@ -458,7 +459,6 @@ export default function InvoiceListPage() {
   }, [
     invoices,
     searchBy,
-    selectedBranchId,
     status,
     isOrderNumberLookup,
     usePatientOrdersApi,
@@ -477,9 +477,6 @@ export default function InvoiceListPage() {
   const canNext =
     !isOrderNumberLookup &&
     (page?.last != null ? !page.last : pageNo + 1 < totalPages);
-
-  const patientIdSearchInvalid =
-    isPatientIdSearch && debouncedPatientSearch.length > 0 && patientIdLookup == null;
 
   const visibleIds = useMemo(() => filtered.map((inv) => inv.id), [filtered]);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -764,10 +761,6 @@ export default function InvoiceListPage() {
         onSearchChange={setSearch}
         searchBy={searchBy}
         onSearchByChange={setSearchBy}
-        branchOptions={branchOptions}
-        selectedBranchId={selectedBranchId}
-        onBranchChange={setSelectedBranchId}
-        isLoadingBranches={isBranchOptionsLoading}
         status={status}
         onStatusChange={setStatus}
         processingType={processingType}
@@ -825,25 +818,32 @@ export default function InvoiceListPage() {
           useStatusOrdersApi ||
           useProcessingTypeApi ||
           useDateRangeApi ||
-          patientIdSearchInvalid ||
+          patientNameSearchInvalid ||
+          (isPatientNameSearch && !debouncedPatientSearch) ||
           dateRangeInvalid
             ? true
             : orders.length > 0
         }
         searchActive={
           Boolean(search.trim()) ||
-          selectedBranchId != null ||
+          isPatientNameSearch ||
           status !== 'Order Status' ||
           processingType !== DEFAULT_PROCESSING_TYPE_FILTER ||
-          patientIdSearchInvalid ||
+          patientNameSearchInvalid ||
           useDateRangeApi
         }
         emptyMessage={
           dateRangeInvalid
             ? 'Start date must be on or before end date.'
-            : patientIdSearchInvalid
-              ? 'Enter a numeric patient ID (e.g. 1001) to search bookings.'
-              : undefined
+            : patientNameSearchInvalid
+              ? 'Enter at least 2 characters of the patient name.'
+              : isPatientNameSearch && !debouncedPatientSearch
+                ? 'Enter a patient name to search bookings.'
+                : isPatientNameSearch && usePatientOrdersApi && orders.length === 0
+                  ? `No bookings found for "${patientOrdersLookup}".`
+                  : useProcessingTypeApi && orders.length === 0
+                    ? `No bookings found for processing type "${processingType}".`
+                    : undefined
         }
         onViewInvoice={handleViewInvoice}
         onDeleteInvoice={handleDeleteInvoice}

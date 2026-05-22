@@ -2,11 +2,8 @@
 
 import {
   Search,
-  Building2,
   Calendar as CalendarIcon,
-  Filter,
   RefreshCw,
-  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/button';
@@ -21,10 +18,8 @@ import {
 import {
   SEARCH_OPTIONS,
   SEARCH_TYPE_PLACEHOLDER,
-  SELECT_BRANCH_LABEL,
   STATUS_OPTIONS,
   PROCESSING_TYPE_FILTER_OPTIONS,
-  type InvoiceBranchOption,
   type InvoiceProcessingTypeFilter,
   type InvoiceSearchBy,
   type InvoiceSearchType,
@@ -36,10 +31,6 @@ export interface InvoiceFiltersProps {
   onSearchChange: (value: string) => void;
   searchBy: InvoiceSearchBy;
   onSearchByChange: (value: InvoiceSearchBy) => void;
-  branchOptions: InvoiceBranchOption[];
-  selectedBranchId: number | null;
-  onBranchChange: (branchId: number | null) => void;
-  isLoadingBranches?: boolean;
   status: InvoiceStatusFilter;
   onStatusChange: (value: InvoiceStatusFilter) => void;
   processingType: InvoiceProcessingTypeFilter;
@@ -60,10 +51,6 @@ export default function InvoiceFilters({
   onSearchChange,
   searchBy,
   onSearchByChange,
-  branchOptions,
-  selectedBranchId,
-  onBranchChange,
-  isLoadingBranches,
   status,
   onStatusChange,
   processingType,
@@ -81,8 +68,8 @@ export default function InvoiceFilters({
   const searchPlaceholder =
     searchBy === SEARCH_TYPE_PLACEHOLDER
       ? 'Select type of search first…'
-      : searchBy === 'Patient ID'
-        ? 'Search by patient ID (numeric)…'
+      : searchBy === 'Patient Name'
+        ? 'Search by patient name…'
         : 'Search by order number…';
 
   return (
@@ -137,29 +124,6 @@ export default function InvoiceFilters({
           </div>
         </div>
 
-        {/* Row 1, Item 3: Branch */}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Branch
-          </label>
-          <Select
-            value={selectedBranchId?.toString() ?? ""}
-            onValueChange={(value) => onBranchChange(value === "" || value === null ? null : Number.parseInt(value, 10))}
-          >
-            <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
-              <SelectValue placeholder={SELECT_BRANCH_LABEL} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">{SELECT_BRANCH_LABEL}</SelectItem>
-              {branchOptions.map((branch) => (
-                <SelectItem key={branch.branchId} value={branch.branchId.toString()}>
-                  {branch.branchName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Row 2, Item 1: Status */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
@@ -185,14 +149,14 @@ export default function InvoiceFilters({
         {/* Row 2, Item 2: Processing Type */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Order Status
+            Order processing type
           </label>
           <Select
             value={processingType}
             onValueChange={(value) => onProcessingTypeChange(value as InvoiceProcessingTypeFilter)}
           >
             <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500">
-              <SelectValue placeholder="Select Processing Type" />
+              <SelectValue placeholder="Select order processing type" />
             </SelectTrigger>
             <SelectContent>
               {PROCESSING_TYPE_FILTER_OPTIONS.map((opt) => (

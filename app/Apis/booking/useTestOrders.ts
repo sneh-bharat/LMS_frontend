@@ -6,8 +6,6 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from '@tanstack/react-query';
-import { branchApi } from '@/app/Apis/branch/branchApi';
-import type { InvoiceBranchOption } from '@/app/diagnosis/invoice-list/constants';
 import {
   bulkDeleteTestOrders,
   createTestOrder,
@@ -53,13 +51,12 @@ export const testOrderQueryKeys = {
     [...testOrderQueryKeys.all, 'patient-last-visit', patientId] as const,
   orderNumber: (orderNumber: string) =>
     [...testOrderQueryKeys.all, 'order-number', orderNumber] as const,
-  patient: (patientId: number, pageNo: number, pageSize: number) =>
+  patient: (patientId: string, pageNo: number, pageSize: number) =>
     [...testOrderQueryKeys.all, 'patient', patientId, pageNo, pageSize] as const,
   patientInvoices: (patientId: number, pageNo: number, pageSize: number) =>
     [...testOrderQueryKeys.all, 'patient-invoices', patientId, pageNo, pageSize] as const,
   status: (status: TestOrderStatusFilter, pageNo: number, pageSize: number) =>
     [...testOrderQueryKeys.all, 'status', status, pageNo, pageSize] as const,
-  branchFilterOptions: () => [...testOrderQueryKeys.all, 'branch-filter-options'] as const,
   dateRange: (p: FetchTestOrdersByDateRangeParams) =>
     [
       ...testOrderQueryKeys.all,
@@ -160,16 +157,18 @@ export function useTestOrderByOrderNumber(orderNumber: string | null) {
 export function useTestOrdersByProcessingType(
   searchTerm: string | null,
   pageNo: number,
-  pageSize: number
+  pageSize: number,
+  options?: { enabled?: boolean }
 ) {
   const term = searchTerm?.trim() ?? '';
+  const enabled = (options?.enabled ?? true) && term.length > 0;
   return useQuery<TestOrdersListApiResponse, Error>({
     queryKey:
       term.length > 0
         ? testOrderQueryKeys.processingSearch(term, pageNo, pageSize)
         : ['test-orders', 'search', 'idle'],
     queryFn: () => fetchTestOrdersBySearch({ searchTerm: term, pageNo, pageSize }),
-    enabled: term.length > 0,
+    enabled,
     staleTime: 30 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
@@ -217,61 +216,24 @@ export function usePatientInvoices(
   });
 }
 
-/** GET `/api/v1/test-orders/patient/{patientId}`. */
+/** GET `/api/v1/test-orders/patient/{patientId}?pageNo=&pageSize=` (booking service only). */
 export function useTestOrdersByPatientId(
-  patientId: number | null,
+  patientId: string | null,
   pageNo: number,
-  pageSize: number
+  pageSize: number,
+  options?: { enabled?: boolean }
 ) {
-  const id = patientId != null && patientId > 0 ? patientId : null;
+  const lookup = patientId?.trim() ?? '';
+  const enabled = (options?.enabled ?? true) && lookup.length >= 2;
   return useQuery<TestOrdersListApiResponse, Error>({
     queryKey:
-      id != null
-        ? testOrderQueryKeys.patient(id, pageNo, pageSize)
+      lookup.length >= 2
+        ? testOrderQueryKeys.patient(lookup, pageNo, pageSize)
         : ['test-orders', 'patient', 'idle'],
-    queryFn: () => fetchTestOrdersByPatientId(id!, pageNo, pageSize),
-    enabled: id != null,
+    queryFn: () => fetchTestOrdersByPatientId(lookup, pageNo, pageSize),
+    enabled,
     staleTime: 30 * 1000,
     retry: false,
-    refetchOnWindowFocus: false,
-  });
-}
-
-/**
- * Branch options for invoice list filter — unique `branchId` values from test orders,
- * resolved to names via branch service when available.
- */
-export function useTestOrderBranchOptions() {
-  return useQuery<InvoiceBranchOption[], Error>({
-    queryKey: testOrderQueryKeys.branchFilterOptions(),
-    queryFn: async () => {
-      const res = await fetchTestOrders({ pageNo: 0, pageSize: 500, sortBy: 'createdAt' });
-      const branchIds = new Set<number>();
-      for (const order of res.data?.content ?? []) {
-        if (order.branchId != null && order.branchId > 0) {
-          branchIds.add(order.branchId);
-        }
-      }
-      if (branchIds.size === 0) return [];
-
-      let branches: { id: number; branchName: string }[] = [];
-      try {
-        const branchRes = await branchApi.getAllBranches({ pageNo: 0, pageSize: 200 });
-        branches = branchRes.data?.content ?? [];
-      } catch {
-        // Labels fall back to "Branch #id" when branch service is unavailable.
-      }
-
-      return Array.from(branchIds)
-        .map((branchId) => ({
-          branchId,
-          branchName:
-            branches.find((b) => b.id === branchId)?.branchName ?? `Branch #${branchId}`,
-        }))
-        .sort((a, b) => a.branchName.localeCompare(b.branchName));
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
     refetchOnWindowFocus: false,
   });
 }

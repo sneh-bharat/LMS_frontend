@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Search,
   Plus,
@@ -18,51 +19,112 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Eye,
+  RefreshCcw,
+  ClipboardList,
+  Inbox,
+  Share2,
+  FlaskConical,
+  BadgeCheck,
+  Activity,
 } from 'lucide-react';
-import { useSamplesList } from '@/app/Apis/booking/useSamples';
-import { mapSampleToReceipt, type SampleReceiptRow } from '@/app/Apis/booking/sample';
+import SampleDetails from '@/app/lab/sample-receipt/Sample-details';
+import UpdateSampleStatus from '@/app/lab/sample-receipt/update-sample-status';
+import EditSample from '@/app/lab/sample-receipt/edit-sample';
+import {
+  useSamplesList,
+  useSampleStatistics,
+  useDeleteSample,
+  useBulkDeleteSamples,
+} from '@/app/Apis/booking/useSamples';
+import type { SampleStatisticsData } from '@/app/Apis/booking/sample';
+import {
+  mapSampleToReceipt,
+  SAMPLE_API_STATUSES,
+  formatSampleStatusLabel,
+  type SampleApiStatus,
+  type SampleReceiptRow,
+} from '@/app/Apis/booking/sample';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 type Receipt = SampleReceiptRow;
+type DeleteMode = 'single' | 'bulk';
 
 const PAGE_SIZE = 10;
-const STATUS_OPTIONS = ['All', 'Pending', 'Accepted', 'Rejected'];
-const SAMPLE_TYPES = ['All', 'Blood', 'Urine', 'Swab', 'Stool', 'Other'];
+type StatusFilter = 'All' | SampleApiStatus;
+const SAMPLE_TYPES = ['All', 'Blood', 'Serum', 'Plasma', 'Urine', 'Swab', 'Stool', 'Other'];
+
+type StatCardConfig = {
+  label: string;
+  key: keyof SampleStatisticsData;
+  icon: LucideIcon;
+  tone: string;
+  bg: string;
+};
+
+const SAMPLE_STAT_CARDS: StatCardConfig[] = [
+  { label: 'Registered', key: 'registeredCount', icon: ClipboardList, tone: 'text-slate-700', bg: 'bg-slate-400/30' },
+  { label: 'Collected', key: 'collectedCount', icon: Package, tone: 'text-emerald-700', bg: 'bg-emerald-400/30' },
+  { label: 'Received', key: 'receivedCount', icon: Inbox, tone: 'text-blue-700', bg: 'bg-blue-400/30' },
+  { label: 'Allocated', key: 'allocatedCount', icon: Share2, tone: 'text-indigo-700', bg: 'bg-indigo-400/30' },
+  { label: 'Processing', key: 'processingCount', icon: Activity, tone: 'text-amber-700', bg: 'bg-amber-400/30' },
+  { label: 'In Analysis', key: 'in_analysisCount', icon: FlaskConical, tone: 'text-violet-700', bg: 'bg-violet-400/30' },
+  { label: 'Analysis Complete', key: 'analysis_completeCount', icon: BadgeCheck, tone: 'text-teal-700', bg: 'bg-teal-400/30' },
+  { label: 'Processed', key: 'processedCount', icon: CheckCircle, tone: 'text-green-700', bg: 'bg-green-400/30' },
+  { label: 'Stored', key: 'storedCount', icon: Database, tone: 'text-cyan-700', bg: 'bg-cyan-400/30' },
+  { label: 'Rejected', key: 'rejectedCount', icon: XCircle, tone: 'text-rose-600', bg: 'bg-rose-400/30' },
+  { label: 'Disposed', key: 'disposedCount', icon: Trash2, tone: 'text-slate-600', bg: 'bg-slate-400/30' },
+];
 
 // ─── Status Badge ───────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: Receipt['status'] }) {
+function StatusBadge({
+  label,
+  workflow,
+}: {
+  label: string;
+  workflow: Receipt['status'];
+}) {
   const config = {
     pending: { color: 'warning' as const, icon: <Clock size={10} /> },
     accepted: { color: 'success' as const, icon: <CheckCircle size={10} /> },
     rejected: { color: 'danger' as const, icon: <XCircle size={10} /> },
   };
+  const { color, icon } = config[workflow];
 
   return (
-    <Badge variant={config[status].color} className="gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase">
-      {config[status].icon}
-      {status}
+    <Badge variant={color} className="gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase">
+      {icon}
+      {label}
     </Badge>
   );
 }
 
 // ─── Condition Badge ───────────────────────────────────────────────────────────────
-function ConditionBadge({ condition }: { condition?: Receipt['condition'] }) {
-  if (!condition) return null;
+function ConditionBadge({
+  label,
+  condition,
+}: {
+  label: string;
+  condition?: Receipt['condition'];
+}) {
+  if (!label || label === '—') return <span className="text-xs text-slate-400">—</span>;
 
   const config = {
-    good: { color: 'success' as const, label: 'Good' },
-    haemolysed: { color: 'danger' as const, label: 'Haemolysed' },
-    clotted: { color: 'warning' as const, label: 'Clotted' },
-    insufficient: { color: 'warning' as const, label: 'Insufficient' },
-    leaked: { color: 'danger' as const, label: 'Leaked' },
+    good: 'success' as const,
+    haemolysed: 'danger' as const,
+    clotted: 'warning' as const,
+    insufficient: 'warning' as const,
+    leaked: 'danger' as const,
   };
+  const variant = condition ? config[condition] : 'secondary';
 
   return (
-    <Badge variant={config[condition].color} className="px-2.5 py-1 text-[10px] font-bold uppercase">
-      {config[condition].label}
+    <Badge variant={variant} className="px-2.5 py-1 text-[10px] font-bold uppercase">
+      {label}
     </Badge>
   );
 }
@@ -74,7 +136,36 @@ export default function SampleReceiptPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedSampleId, setSelectedSampleId] = useState<number | null>(null);
+  const [statusFormOpen, setStatusFormOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<{
+    id: number;
+    label: string;
+    currentStatus?: string;
+  } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<DeleteMode>('single');
+  const [deletingSampleId, setDeletingSampleId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  const deleteSampleMutation = useDeleteSample();
+  const bulkDeleteSamplesMutation = useBulkDeleteSamples();
+  const isDeletePending =
+    deleteSampleMutation.isPending || bulkDeleteSamplesMutation.isPending;
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingSampleId, setEditingSampleId] = useState<number | null>(null);
+
+  const {
+    data: statisticsRes,
+    isLoading: isStatisticsLoading,
+    isFetching: isStatisticsFetching,
+    isError: isStatisticsError,
+    error: statisticsError,
+  } = useSampleStatistics();
+
+  const statistics = statisticsRes?.data ?? null;
 
   const {
     data: samplesRes,
@@ -87,6 +178,7 @@ export default function SampleReceiptPage() {
     pageNo,
     pageSize: PAGE_SIZE,
     sortBy: 'createdAt',
+    status: statusFilter === 'All' ? undefined : statusFilter,
   });
 
   const samplesPage = samplesRes?.data;
@@ -104,15 +196,53 @@ export default function SampleReceiptPage() {
   const canPrev = pageNo > 0;
   const canNext = samplesPage?.last != null ? !samplesPage.last : pageNo + 1 < totalPages;
 
-  const filtered = receipts.filter(r =>
-    (deptFilter === 'All' || r.sampleType === deptFilter) &&
-    (statusFilter === 'All' || r.status === statusFilter.toLowerCase()) &&
-    (r.patient.toLowerCase().includes(search.toLowerCase()) ||
-     r.sampleId.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = receipts.filter((r) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      r.patient.toLowerCase().includes(q) ||
+      r.sampleId.toLowerCase().includes(q) ||
+      (r.collectedBy?.toLowerCase().includes(q) ?? false) ||
+      (r.orderNumber?.toLowerCase().includes(q) ?? false);
 
-  const handleEdit = () => {
-    toast.info('Sample edit is not available yet. Use Register Sample to add a new record.');
+    const matchesType =
+      deptFilter === 'All' ||
+      r.sampleType.toLowerCase() === deptFilter.toLowerCase();
+
+    return matchesSearch && matchesType;
+  });
+
+  const visibleIds = useMemo(() => filtered.map((r) => r.id), [filtered]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allPageSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedSet.has(id));
+  const somePageSelected =
+    visibleIds.some((id) => selectedSet.has(id)) && !allPageSelected;
+
+  const handleToggleSelect = (sampleId: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(sampleId)
+        ? prev.filter((id) => id !== sampleId)
+        : [...prev, sampleId]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => [...new Set([...prev, ...visibleIds])]);
+    }
+  };
+
+  const handleEdit = (receipt: Receipt) => {
+    setEditingSampleId(receipt.id);
+    setEditOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setEditOpen(false);
+    setEditingSampleId(null);
   };
 
   const handleAccept = (receiptId: string) => {
@@ -125,28 +255,139 @@ export default function SampleReceiptPage() {
     );
   };
 
-  const handleReject = (receiptId: string, condition: Receipt['condition']) => {
-    setReceipts(prev =>
-      prev.map(r =>
-        r.sampleId === receiptId
-          ? { ...r, status: 'rejected' as const, condition }
-          : r
-      )
-    );
+  const deletingSample = deletingSampleId
+    ? receipts.find((r) => r.id === deletingSampleId)
+    : null;
+
+  const handleDelete = (id: number) => {
+    setDeleteMode('single');
+    setDeletingSampleId(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handleDelete = (receiptId: string) => {
-    setReceipts(prev => prev.filter(r => r.sampleId !== receiptId));
+  const handleBulkDeleteClick = () => {
+    if (selectedIds.length === 0) return;
+    setDeleteMode('bulk');
+    setDeletingSampleId(null);
+    setDeleteDialogOpen(true);
   };
+
+  const closeDeleteDialog = () => {
+    if (isDeletePending) return;
+    setDeleteDialogOpen(false);
+    setDeletingSampleId(null);
+    setDeleteMode('single');
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      if (deleteMode === 'bulk') {
+        if (selectedIds.length === 0) return;
+
+        const response = await bulkDeleteSamplesMutation.mutateAsync({
+          sampleIds: selectedIds,
+        });
+        if (response.response === false) {
+          throw new Error(response.message || 'Bulk deletion failed.');
+        }
+        toast.success(
+          response.message?.trim() ||
+            `${selectedIds.length} sample${selectedIds.length === 1 ? '' : 's'} deleted successfully.`
+        );
+        if (selectedSampleId != null && selectedIds.includes(selectedSampleId)) {
+          handleCloseDetails();
+        }
+        setSelectedIds([]);
+      } else {
+        if (!deletingSampleId) return;
+
+        const response = await deleteSampleMutation.mutateAsync(deletingSampleId);
+        if (response.response === false) {
+          throw new Error(response.message || 'Deletion failed.');
+        }
+        toast.success(response.message?.trim() || 'Sample deleted successfully.');
+        if (selectedSampleId === deletingSampleId) {
+          handleCloseDetails();
+        }
+        setSelectedIds((prev) => prev.filter((id) => id !== deletingSampleId));
+      }
+
+      setDeleteDialogOpen(false);
+      setDeletingSampleId(null);
+      setDeleteMode('single');
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : deleteMode === 'bulk'
+            ? 'Failed to delete selected samples. Please try again.'
+            : 'Failed to delete sample. Please try again.';
+      toast.error(message);
+      console.error('Error deleting sample(s):', err);
+    }
+  };
+
+  const deleteDialogTitle =
+    deleteMode === 'bulk' ? 'Bulk delete samples' : 'Delete sample';
+
+  const deleteDialogDescription =
+    deleteMode === 'bulk'
+      ? `Are you sure you want to permanently delete ${selectedIds.length} selected sample${
+          selectedIds.length === 1 ? '' : 's'
+        }? This action cannot be undone.`
+      : deletingSample
+        ? `Are you sure you want to permanently delete sample "${deletingSample.sampleId}"? This action cannot be undone.`
+        : 'Are you sure you want to permanently delete this sample? This action cannot be undone.';
 
   const handleOpenModal = () => setModalOpen(true);
 
   const handleCloseModal = () => setModalOpen(false);
 
+  const handleViewDetails = (id: number) => {
+    setSelectedSampleId(id);
+    setDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setSelectedSampleId(null);
+  };
+
+  const handleOpenStatusForm = (receipt: Receipt) => {
+    setStatusTarget({
+      id: receipt.id,
+      label: receipt.sampleId,
+      currentStatus: receipt.apiStatus,
+    });
+    setStatusFormOpen(true);
+  };
+
+  const handleCloseStatusForm = () => {
+    setStatusFormOpen(false);
+    setStatusTarget(null);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* ── Modals ── */}
-    
+      <SampleDetails
+        isOpen={detailsOpen}
+        onClose={handleCloseDetails}
+        sampleId={selectedSampleId}
+      />
+      <UpdateSampleStatus
+        isOpen={statusFormOpen}
+        onClose={handleCloseStatusForm}
+        sampleId={statusTarget?.id ?? null}
+        sampleLabel={statusTarget?.label}
+        currentStatus={statusTarget?.currentStatus}
+        onSuccess={() => void refetch()}
+      />
+      <EditSample
+        isOpen={editOpen}
+        onClose={handleCloseEdit}
+        sampleId={editingSampleId}
+        onSuccess={() => void refetch()}
+      />
 
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -171,6 +412,65 @@ export default function SampleReceiptPage() {
             {totalElements} Samples
           </Badge>
         </div>
+      </div>
+        
+      {isStatisticsError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {statisticsError instanceof Error
+            ? statisticsError.message
+            : 'Failed to load sample statistics.'}
+        </div>
+      ) : null}
+
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 shadow-sm">
+        {isStatisticsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-sm font-semibold">Loading statistics…</span>
+          </div>
+        ) : (
+          <div className="flex flex-nowrap items-stretch gap-0 overflow-x-auto pb-1 scrollbar-thin">
+            {SAMPLE_STAT_CARDS.map((card, index) => {
+              const Icon = card.icon;
+              const count = statistics != null ? statistics[card.key] : null;
+              return (
+                <div
+                  key={card.key}
+                  className={`flex min-w-[9.5rem] flex-1 flex-col items-center justify-center px-3 py-1 text-center sm:min-w-0 ${
+                    index < SAMPLE_STAT_CARDS.length - 1
+                      ? 'border-r border-slate-200/70'
+                      : ''
+                  }`}
+                >
+                  <div
+                    className={`mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}
+                  >
+                    <Icon size={18} className={card.tone} />
+                  </div>
+                  <span className="mb-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
+                    {card.label}
+                  </span>
+                  <span
+                    className={`text-lg font-black leading-none sm:text-xl ${
+                      card.key === 'receivedCount' || card.key === 'collectedCount'
+                        ? 'text-emerald-600'
+                        : card.key === 'rejectedCount'
+                          ? 'text-rose-600'
+                          : 'text-slate-900'
+                    }`}
+                  >
+                    {count != null ? String(count) : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {!isStatisticsLoading && isStatisticsFetching ? (
+          <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Refreshing statistics…
+          </p>
+        ) : null}
       </div>
 
       {/* ── Control Bar ── */}
@@ -202,11 +502,21 @@ export default function SampleReceiptPage() {
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value as StatusFilter;
+                setStatusFilter(value);
+                setPageNo(0);
+                setSelectedIds([]);
+              }}
               className="input-refined py-2 pl-8 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none w-full"
               suppressHydrationWarning
             >
-              {STATUS_OPTIONS.map(status => <option key={status}>{status}</option>)}
+              <option value="All">All statuses</option>
+              {SAMPLE_API_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {formatSampleStatusLabel(status)}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -224,14 +534,57 @@ export default function SampleReceiptPage() {
         </div>
       ) : null}
 
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50/80 px-4 py-3">
+          <p className="text-sm font-semibold text-rose-900">
+            {selectedIds.length} sample{selectedIds.length === 1 ? '' : 's'} selected
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="font-bold border-slate-200 bg-white"
+              disabled={isDeletePending}
+              onClick={() => setSelectedIds([])}
+            >
+              Clear selection
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="font-bold gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={isDeletePending}
+              onClick={handleBulkDeleteClick}
+            >
+              <Trash2 size={14} aria-hidden />
+              Bulk delete samples
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {/* ── Receipts Table ── */}
       <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
+              <th className="w-12 px-4 py-4 text-center">
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = somePageSelected;
+                  }}
+                  onChange={handleToggleSelectAll}
+                  disabled={isDeletePending || filtered.length === 0}
+                  className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                  aria-label="Select all samples on this page"
+                />
+              </th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample ID</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Patient</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tests</th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected By</th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order No.</th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample Type</th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected At</th>
               <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
@@ -242,7 +595,7 @@ export default function SampleReceiptPage() {
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-slate-500">
+                <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 size={20} className="animate-spin text-emerald-600" />
                     <span className="text-sm font-semibold">Loading samples…</span>
@@ -251,7 +604,7 @@ export default function SampleReceiptPage() {
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center">
+                <td colSpan={9} className="px-6 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center text-slate-200 border border-slate-100">
                       <Package size={32} />
@@ -263,8 +616,25 @@ export default function SampleReceiptPage() {
                   </div>
                 </td>
               </tr>
-            ) : filtered.map((receipt, idx) => (
-              <tr key={receipt.sampleId} className="hover:bg-slate-50 transition-colors group">
+            ) : filtered.map((receipt) => {
+              const isSelected = selectedSet.has(receipt.id);
+              return (
+              <tr
+                key={receipt.id}
+                className={`hover:bg-slate-50 transition-colors group ${
+                  isSelected ? 'bg-emerald-50/60' : ''
+                }`}
+              >
+                <td className="w-12 px-4 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelect(receipt.id)}
+                    disabled={isDeletePending}
+                    className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                    aria-label={`Select ${receipt.sampleId}`}
+                  />
+                </td>
                 <td className="px-6 py-4">
                   <span className="text-xs font-bold text-slate-600 font-mono">
                     {receipt.sampleId}
@@ -281,17 +651,13 @@ export default function SampleReceiptPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {receipt.tests.length > 0 ? (
-                      receipt.tests.map((test, i) => (
-                        <Badge key={i} variant="primary" className="text-[9px] px-2 py-0.5">
-                          {test}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
-                  </div>
+                  {receipt.orderNumber ? (
+                    <Badge variant="primary" className="text-[9px] px-2 py-0.5 font-mono">
+                      {receipt.orderNumber}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <Badge variant="secondary" className="px-2.5 py-1 text-[10px] font-bold uppercase">
@@ -305,43 +671,54 @@ export default function SampleReceiptPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <StatusBadge status={receipt.status} />
+                  <StatusBadge label={receipt.statusLabel} workflow={receipt.status} />
                 </td>
                 <td className="px-6 py-4">
-                  <ConditionBadge condition={receipt.condition} />
+                  <ConditionBadge label={receipt.conditionLabel} condition={receipt.condition} />
                 </td>
                 <td className="px-6 py-4 text-center">
                   <div className="flex items-center justify-center gap-1.5">
                     {receipt.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleAccept(receipt.sampleId)}
-                          className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
-                          title="Accept Sample"
-                          suppressHydrationWarning
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleReject(receipt.sampleId, 'haemolysed')}
-                          className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all"
-                          title="Reject Sample"
-                          suppressHydrationWarning
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => handleAccept(receipt.sampleId)}
+                        className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
+                        title="Accept Sample"
+                        suppressHydrationWarning
+                      >
+                        <CheckCircle size={16} />
+                      </button>
                     )}
                     <button
-                      onClick={handleEdit}
+                      type="button"
+                      onClick={() => handleOpenStatusForm(receipt)}
+                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                      title="Update sample status"
+                      suppressHydrationWarning
+                    >
+                      <RefreshCcw size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleViewDetails(receipt.id)}
                       className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                      title="Edit Sample (coming soon)"
+                      title="View sample details"
+                      suppressHydrationWarning
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(receipt)}
+                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                      title="Edit sample"
                       suppressHydrationWarning
                     >
                       <Edit3 size={14} />
                     </button>
                     <button
-                      onClick={() => handleDelete(receipt.sampleId)}
+                      type="button"
+                      onClick={() => handleDelete(receipt.id)}
                       className="p-1.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                       title="Delete Sample"
                       suppressHydrationWarning
@@ -357,7 +734,8 @@ export default function SampleReceiptPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
 
@@ -397,27 +775,16 @@ export default function SampleReceiptPage() {
         </div>
       </div>
 
-      {/* ── Footer Stats ── */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-        <div className="grid grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-slate-900">{totalElements}</div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Samples</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600">{receipts.filter(r => r.status === 'accepted').length}</div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Accepted</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-amber-600">{receipts.filter(r => r.status === 'pending').length}</div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pending</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-rose-600">{receipts.filter(r => r.status === 'rejected').length}</div>
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Rejected</div>
-          </div>
-        </div>
-      </div>
+   
+
+      <DeleteAlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title={deleteDialogTitle}
+        description={deleteDialogDescription}
+        isLoading={isDeletePending}
+      />
     </div>
   );
 }
