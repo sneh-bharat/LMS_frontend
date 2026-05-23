@@ -696,6 +696,7 @@ export const SAMPLE_PROCESSING_TYPES = [
   'STAINING',
   'FILTRATION',
   'ALIQUOTING',
+  'OTHER',
 ] as const;
 
 export type SampleProcessingType = (typeof SAMPLE_PROCESSING_TYPES)[number];
