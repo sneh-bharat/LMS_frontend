@@ -11,7 +11,7 @@ export function getOrdersServiceBaseUrl(): string {
     process.env.NEXT_PUBLIC_API_Order ||
     process.env.NEXT_PUBLIC_API_Orders ||
     process.env.NEXT_PUBLIC_API_Booking ||
-    'http://localhost:8080'
+    ''
   )
     .trim()
     .replace(/\/+$/, '');

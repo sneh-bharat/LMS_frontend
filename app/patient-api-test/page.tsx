@@ -74,7 +74,7 @@ export default function PatientApiTestPage() {
             <p className="text-sm text-blue-900 font-medium">
               <strong>API Base URL:</strong>{' '}
               <code className="bg-blue-100 px-2 py-1 rounded">
-                {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'}
+                {process.env.NEXT_PUBLIC_API_URL || '/api/v1'}
               </code>
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function PatientApiTestPage() {
         {results.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">Test Results</h2>
-            
+
             {results.map((result, index) => (
               <div
                 key={index}

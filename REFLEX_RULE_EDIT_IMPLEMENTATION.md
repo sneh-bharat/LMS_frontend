@@ -323,7 +323,7 @@ The hooks automatically invalidate relevant queries after mutations:
 ### API Testing:
 ```bash
 # Test PUT endpoint directly
-curl -X PUT http://localhost:8080/api/v1/reflex-rules/1 \
+curl -X PUT /api/v1/reflex-rules/1 \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

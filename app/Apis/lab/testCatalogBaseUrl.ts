@@ -4,7 +4,7 @@
  * Department URL: {base}/api/v1/departments/...
  */
 export function getTestCatalogBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_Test || 'http://localhost:8080').replace(
+  const raw = (process.env.NEXT_PUBLIC_API_Test || '').replace(
     /\/+$/,
     ''
   );

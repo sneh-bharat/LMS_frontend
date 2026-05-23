@@ -3,7 +3,7 @@
  * For `/orders/*` routes use `ordersAxios` + `getOrdersServiceBaseUrl()` instead.
  */
 export function getBookingServiceBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_Booking || 'http://localhost:8080')
+  const raw = (process.env.NEXT_PUBLIC_API_Booking || '')
     .trim()
     .replace(/\/+$/, '');
 

@@ -3,7 +3,7 @@
  * `/api/v1` before resource paths (e.g. `/patients`).
  */
 export function getPatientServiceBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_URL1 || 'http://localhost:8080/api/v1').replace(
+  const raw = (process.env.NEXT_PUBLIC_API_URL1 || '/api/v1').replace(
     /\/+$/,
     ''
   );
