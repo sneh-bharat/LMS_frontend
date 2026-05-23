@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Search,
@@ -9,196 +9,188 @@ import {
   Edit2,
   Trash2,
   Settings,
-  CheckCircle2,
-  XCircle,
   Package,
-  Clock,
-  CreditCard,
-Microscope,
-  Zap,
+  Microscope,
   LayoutGrid,
   ChevronDown,
-  FileText,
-  Database,
-  Tag,
   FlaskConical,
-  Activity,
   User,
-  Eye
+  Eye,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import Modal from '@/components/ui/modal';
-import Input from '@/components/ui/input';
-import Textarea from '@/components/ui/form-group';
 import AddNewSample, { type TestSample } from './AddNewSample';
+import SampleDetails from '../sample-receipt/Sample-details';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import {
+  deleteSample,
+  mapSampleToListRow,
+  type SampleListRow,
+} from '@/app/Apis/booking/sample';
+import { useSamplesList } from '@/app/Apis/booking/useSamples';
 
-// ─── Data Types ──────────────────────────────────────────────────────────────
-interface TubeDetail {
-  type: string;
-  quantity: number;
-  confirmed: boolean;
+const PAGE_SIZE = 10;
+const STATUS_OPTIONS = ['All', 'Pending', 'Processing', 'Complete', 'Failed'];
+const SAMPLE_TYPES = ['All', 'Blood', 'Urine', 'Swab', 'Stool', 'Other'];
+
+function listRowToTestSample(row: SampleListRow): TestSample {
+  return {
+    id: String(row.id),
+    sampleCode: row.sampleCode,
+    patientName: row.patientName,
+    collectedBy: row.collectedBy,
+    testName: row.testName,
+    sampleType: row.sampleType,
+    collectedAt: row.collectedAt,
+    status: row.status,
+    location:
+      row.location === 'Laboratory' || row.location === 'Home'
+        ? row.location
+        : 'Clinic',
+    createdAt: row.createdAt,
+  };
 }
 
-const SAMPLE_DATA: TestSample[] = [
-  {
-    id: '1',
-    sampleCode: 'S001',
-    patientName: 'John Doe',
-    collectedBy: '',
-    testName: 'Complete Blood Count (CBC)',
-    sampleType: 'Blood',
-    collectedAt: '2026-03-30 10:30 AM',
-    status: 'Pending',
-    location: 'Clinic',
-    createdAt: '2026-03-30T10:30:00Z',
-  },
-  {
-    id: '2',
-    sampleCode: 'S002',
-    patientName: 'Sara Smith',
-    collectedBy: '',
-    testName: 'Urine Test',
-    sampleType: 'Urine',
-    collectedAt: '2026-03-30 11:00 AM',
-    status: 'Complete',
-    location: 'Laboratory',
-    createdAt: '2026-03-30T11:00:00Z',
-  },
-  {
-    id: '3',
-    sampleCode: 'S003',
-    patientName: 'Mike Johnson',
-    collectedBy: '',
-    testName: 'Liver Function Test (LFT)',
-    sampleType: 'Blood',
-    collectedAt: '2026-03-30 09:15 AM',
-    status: 'Processing',
-    location: 'Clinic',
-    createdAt: '2026-03-30T09:15:00Z',
-  },
-  {
-    id: '4',
-    sampleCode: 'S004',
-    patientName: 'Emma Wilson',
-    collectedBy: '',
-    testName: 'COVID-19 RT-PCR',
-    sampleType: 'Nasal Swab',
-    collectedAt: '2026-03-29 02:45 PM',
-    status: 'Complete',
-    location: 'Home',
-    createdAt: '2026-03-29T14:45:00Z',
-  },
-  {
-    id: '5',
-    sampleCode: 'S005',
-    patientName: 'David Brown',
-    collectedBy: '',
-    testName: 'Complete Blood Count (CBC)',
-    sampleType: 'Blood',
-    collectedAt: '2026-03-30 01:20 PM',
-    status: 'Failed',
-    location: 'Clinic',
-    createdAt: '2026-03-30T13:20:00Z',
-  },
-];
-
-const STATUS_OPTIONS = ['All', 'Pending', 'Processing', 'Complete', 'Failed'];
-const SAMPLE_TYPES = ['All', 'Blood', 'Urine', 'Serum', 'Plasma', 'CSF', 'Stool', 'Saliva', 'Nasal Swab', 'Throat Swab'];
-
-// ─── Components ───────────────────────────────────────────────────────────────
-function PackageActions({ pkg, onEdit }: { pkg: TestSample; onEdit: (pkg: TestSample) => void }) {
+// ─── Actions menu (same pattern as categories page) ─────────────────────────
+function SampleActions({
+  sample,
+  onEdit,
+  onDelete,
+}: {
+  sample: SampleListRow;
+  onEdit: (sample: SampleListRow) => void;
+  onDelete: (id: number) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right - 224 + window.scrollX,
+      });
+    }
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div className="inline-block">
       <button
+        ref={buttonRef}
+        type="button"
         onClick={() => setOpen(!open)}
-        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+        className="p-2 hover:bg-emerald-50 rounded-lg transition-all text-slate-400 hover:text-emerald-600 hover:shadow-sm"
       >
-        <MoreHorizontal size={20} />
+        <MoreHorizontal size={18} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
-          <button 
-            onClick={() => {
-              onEdit(pkg);
-              setOpen(false);
-            }} 
-            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="fixed w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+            }}
           >
-            <Edit2 size={14} /> Edit Sample
-          </button>
-          <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-            <FlaskConical size={14} /> Manage Samples
-          </button>
-          <div className="h-[1px] bg-slate-100 my-2"></div>
-          <button className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-            <Trash2 size={14} /> Deactivate
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                onEdit(sample);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+            >
+              <Edit2 size={16} strokeWidth={2} />
+              <span>Edit Sample</span>
+            </button>
+            <div className="h-px bg-slate-100 my-1" />
+            <button
+              type="button"
+              onClick={() => {
+                onDelete(sample.id);
+                setOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+            >
+              <Trash2 size={16} strokeWidth={2} />
+              <span>Delete Sample</span>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
 export default function TestPackagePage() {
-  const [packages, setPackages] = useState<TestSample[]>(SAMPLE_DATA);
+  const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TestSample | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedSampleId, setSelectedSampleId] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingSampleId, setDeletingSampleId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredPackages = packages.filter((pkg) => {
+  const {
+    data: samplesRes,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useSamplesList({
+    pageNo,
+    pageSize: PAGE_SIZE,
+    sortBy: 'createdAt',
+  });
+
+  const samples = useMemo(
+    () => (samplesRes?.data?.content ?? []).map(mapSampleToListRow),
+    [samplesRes?.data?.content]
+  );
+
+  const totalElements = samplesRes?.data?.totalElements ?? 0;
+  const totalPages = samplesRes?.data?.totalPages ?? 0;
+  const canPrev = pageNo > 0;
+  const canNext =
+    samplesRes?.data?.last != null ? !samplesRes.data.last : pageNo + 1 < totalPages;
+
+  const filteredPackages = samples.filter((pkg) => {
     const matchesSearch =
+      !search.trim() ||
       pkg.testName.toLowerCase().includes(search.toLowerCase()) ||
-      pkg.sampleCode.toLowerCase().includes(search.toLowerCase());
+      pkg.sampleCode.toLowerCase().includes(search.toLowerCase()) ||
+      pkg.patientName.toLowerCase().includes(search.toLowerCase());
 
     const matchesCategory = categoryFilter === 'All' || pkg.sampleType === categoryFilter;
 
-    const matchesStatus =
-      statusFilter === 'All' || pkg.status === statusFilter;
+    const matchesStatus = statusFilter === 'All' || pkg.status === statusFilter;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleNewTestSubmit = (newPackageData: TestSample) => {
-    console.log('New package created:', newPackageData);
+  const deletingSample = deletingSampleId
+    ? samples.find((s) => s.id === deletingSampleId)
+    : null;
 
-    if (editingPackage) {
-      // Update existing package
-      setPackages(
-        packages.map((p) =>
-          p.id === editingPackage.id ? { ...p, ...newPackageData } : p
-        )
-      );
-      setEditingPackage(null);
-    } else {
-      // Create new package with auto-incremented ID
-      const nextId = String(Math.max(...packages.map((p) => parseInt(p.id)), 0) + 1);
-      const nextCode = `T${String(parseInt(nextId)).padStart(3, '0')}`;
-
-      const newPackage: TestSample = {
-        id: nextId,
-        sampleCode: nextCode,
-        patientName: newPackageData.patientName,
-        collectedBy: newPackageData.collectedBy,
-        testName: newPackageData.testName,
-        sampleType: newPackageData.sampleType,
-        collectedAt: newPackageData.collectedAt,
-        status: newPackageData.status,
-        location: newPackageData.location || 'Clinic',
-        createdAt: newPackageData.createdAt || new Date().toISOString(),
-        notes: newPackageData.notes,
-        tubes: newPackageData.tubes,
-      };
-      setPackages([...packages, newPackage]);
-    }
+  const handleNewTestSubmit = (_data: TestSample) => {
+    void refetch();
+    setEditingPackage(null);
   };
 
-  const handleEdit = (pkg: TestSample) => {
-    setEditingPackage(pkg);
+  const handleEdit = (sample: SampleListRow) => {
+    setEditingPackage(listRowToTestSample(sample));
     setIsModalOpen(true);
   };
 
@@ -212,28 +204,56 @@ export default function TestPackagePage() {
     setEditingPackage(null);
   };
 
+  const handleViewDetails = (sample: SampleListRow) => {
+    setSelectedSampleId(sample.id);
+    setDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setSelectedSampleId(null);
+  };
+
+  const handleDelete = (id: number) => {
+    setDeletingSampleId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingSampleId) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteSample(deletingSampleId);
+      await refetch();
+      setDeleteDialogOpen(false);
+      if (selectedSampleId === deletingSampleId) {
+        handleCloseDetails();
+      }
+    } catch (err) {
+      console.error('Failed to delete sample:', err);
+    } finally {
+      setIsDeleting(false);
+      setDeletingSampleId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* ═══ HEADER ═════════════════════════════════════════════ */}
+      {/* Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        
-           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-              <Microscope size={20} />
-            </div>
-            <div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+            <Microscope size={20} />
+          </div>
+          <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
-                    Test <span className="text-[#FF671F]">Samples Collection</span>
+              Test <span className="text-[#FF671F]">Samples Collection</span>
             </h1>
             <p className="text-slate-500 text-sm font-medium max-w-xl">
-            Manage diagnostic test packages and bundled offerings.
-          </p>
-            </div>
-            <div>
-
-            </div>
-
-          
+              Manage diagnostic sample collection and tracking.
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" className="gap-2 px-6">
@@ -250,7 +270,7 @@ export default function TestPackagePage() {
         </div>
       </div>
 
-      {/* ═══ CONTROL BAR ════════════════════════════════════════ */}
+      {/* Control bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-4">
         <div className="relative flex-1 group w-full">
           <Search
@@ -276,7 +296,10 @@ export default function TestPackagePage() {
                 <option key={c}>{c}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+            <ChevronDown
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={14}
+            />
           </div>
           <div className="relative flex-1 lg:w-40 group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -289,7 +312,10 @@ export default function TestPackagePage() {
                 <option key={status}>{status}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
+            <ChevronDown
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={14}
+            />
           </div>
           <Button variant="outline" size="sm" className="rounded-lg p-2.5 border-slate-200">
             <Settings size={18} />
@@ -297,7 +323,19 @@ export default function TestPackagePage() {
         </div>
       </div>
 
-      {/* ═══ PACKAGES TABLE ══════════════════════════════════════ */}
+      {isError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
+          <AlertCircle size={18} className="shrink-0" />
+          <span className="font-medium">
+            {error instanceof Error ? error.message : 'Failed to load samples.'}
+          </span>
+          <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Table */}
       <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -307,16 +345,16 @@ export default function TestPackagePage() {
                   Sample Code
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                   Patient Name
+                  Patient Name
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                 Test Name
+                  Test Name
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   Sample Type
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Collected At
+                  Collected At
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                   Actions
@@ -324,82 +362,117 @@ export default function TestPackagePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredPackages.map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-slate-600 font-mono">
-                      {pkg.sampleCode}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                        <User size={20} />
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-500 line-clamp-1">
-                          {pkg.patientName}
-                        </div>
-                      </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-slate-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 size={20} className="animate-spin text-emerald-600" />
+                      <span className="text-sm font-semibold">Loading samples…</span>
                     </div>
                   </td>
-                    <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                                <Package size={20} />
-                            </div>
-                            <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm mb-0.5">
-                                {pkg.testName}
-                            </div>
-                        </div> 
-                    </td>
-                    <td className="px-6 py-4">
-                        <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
-                        {pkg.sampleType}
-                        </Badge>
-                    
-                    </td>
-                  <td className="px-6 py-4 text-center">
-                      <span className="text-sm font-semibold text-slate-700">
-                      {pkg.collectedAt}
-                    </span>
-                  
-                  </td>
-                  <td className="px-6 py-4 text-center"> 
-                      <PackageActions pkg={pkg} onEdit={handleEdit} />
+                </tr>
+              ) : filteredPackages.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-slate-500">
+                    <p className="text-sm font-semibold">No samples found</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredPackages.map((pkg) => (
+                  <tr key={pkg.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-600 font-mono">
+                        {pkg.sampleCode}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                          <User size={20} />
+                        </div>
+                        <div className="text-xs text-slate-500 line-clamp-1">{pkg.patientName}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                          <Package size={20} />
+                        </div>
+                        <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm">
+                          {pkg.testName}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="primary" className="px-2.5 py-1 text-[10px] font-bold">
+                        {pkg.sampleType}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-sm font-semibold text-slate-700">{pkg.collectedAt}</span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDetails(pkg)}
+                          className="p-2 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl transition-all"
+                          title="View sample details"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <SampleActions
+                          sample={pkg}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* ═══ FOOTER ═════════════════════════════════════════════ */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            <span>Showing {filteredPackages.length} of {packages.length} Tests</span>
-            <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-            <span className="text-[#FF671F]">Test Packages v1.0</span>
+            <span>
+              Showing {filteredPackages.length} of {totalElements} samples
+            </span>
+            <div className="w-1 h-1 rounded-full bg-slate-200" />
+            <span className="text-[#FF671F]">Samples v1.0</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="px-4 py-1 text-[10px] font-bold"
+              disabled={!canPrev || isFetching}
+              onClick={() => setPageNo((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft size={14} className="inline mr-1" />
               Prev
             </Button>
+            <span className="px-4 py-1 text-xs font-bold text-slate-600">
+              Page {pageNo + 1} of {Math.max(totalPages, 1)}
+            </span>
             <Button
-              variant="secondary"
+              type="button"
+              variant="outline"
               size="sm"
-              className="px-4 py-1 text-[10px]"
+              className="px-4 py-1 text-[10px] font-bold"
+              disabled={!canNext || isFetching}
+              onClick={() => setPageNo((p) => p + 1)}
             >
-              1
-            </Button>
-            <Button variant="outline" size="sm" className="px-4 py-1 text-[10px]">
               Next
+              <ChevronRight size={14} className="inline ml-1" />
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ═══ CREATE/EDIT MODAL ═════════════════════════════════════ */}
       <AddNewSample
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -407,7 +480,34 @@ export default function TestPackagePage() {
         editData={editingPackage}
         isEditMode={!!editingPackage}
       />
-      
+
+      <SampleDetails
+        isOpen={detailsOpen}
+        onClose={handleCloseDetails}
+        sampleId={selectedSampleId}
+        onEdit={() => {
+          handleCloseDetails();
+          const sample = samples.find((s) => s.id === selectedSampleId);
+          if (sample) handleEdit(sample);
+        }}
+      />
+
+      <DeleteAlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          if (isDeleting) return;
+          setDeleteDialogOpen(false);
+          setDeletingSampleId(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Sample"
+        description={
+          deletingSample
+            ? `Are you sure you want to permanently delete sample "${deletingSample.sampleCode}"? This action cannot be undone.`
+            : 'Are you sure you want to permanently delete this sample? This action cannot be undone.'
+        }
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

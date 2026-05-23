@@ -1,6 +1,30 @@
 export { bookingAxios, readAuthTokenFromLocalStorage } from './axios';
 export { getBookingServiceBaseUrl } from './bookingServiceBaseUrl';
 export {
+  createEstimation,
+  ESTIMATIONS_API_PATH,
+  fetchEstimations,
+  normalizeCreateEstimationPayload,
+  formatEstimationCurrency,
+  formatEstimationDate,
+  formatEstimationLabel,
+  type CreateEstimationApiResponse,
+  type CreateEstimationPayload,
+  type CreateEstimationResponseData,
+  type Estimation,
+  type EstimationItem,
+  type EstimationItemCreatePayload,
+  type EstimationsListApiResponse,
+  type EstimationsPage,
+  type FetchEstimationsParams,
+} from './estimation';
+export {
+  useCreateEstimation,
+  useEstimationsList,
+  useInvalidateEstimations,
+  estimationQueryKeys,
+} from './useEstimations';
+export {
   createTestOrder,
   deleteTestOrder,
   bulkDeleteTestOrders,
@@ -51,7 +75,6 @@ export {
   useTestOrdersByPatientId,
   useTestOrdersByDateRange,
   useTestOrdersByStatus,
-  useTestOrderBranchOptions,
   useTestOrdersList,
   useUpdateTestOrderFinancial,
   useUpdateTestOrderMedical,
