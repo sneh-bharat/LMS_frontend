@@ -4,7 +4,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Search,
   Plus,
-  MoreHorizontal,
   Filter,
   Microscope,
   Clock,
@@ -19,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
-  Eye,
   RefreshCcw,
   ClipboardList,
   Inbox,
@@ -27,10 +25,22 @@ import {
   FlaskConical,
   BadgeCheck,
   Activity,
+  ArrowRightCircle,
+  MoreVertical,
+  Eye,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import SampleDetails from '@/app/lab/sample-receipt/Sample-details';
 import UpdateSampleStatus from '@/app/lab/sample-receipt/update-sample-status';
 import EditSample from '@/app/lab/sample-receipt/edit-sample';
+import SampleProcess from '@/app/lab/sample-receipt/sample-process';
+import ProcessDetails from '@/app/lab/sample-receipt/process-details';
 import {
   useSamplesList,
   useSampleStatistics,
@@ -43,6 +53,7 @@ import {
   SAMPLE_API_STATUSES,
   formatSampleStatusLabel,
   type SampleApiStatus,
+  type SampleProcessingRecord,
   type SampleReceiptRow,
 } from '@/app/Apis/booking/sample';
 import { toast } from 'sonner';
@@ -156,6 +167,18 @@ export default function SampleReceiptPage() {
     deleteSampleMutation.isPending || bulkDeleteSamplesMutation.isPending;
   const [editOpen, setEditOpen] = useState(false);
   const [editingSampleId, setEditingSampleId] = useState<number | null>(null);
+  const [processFormOpen, setProcessFormOpen] = useState(false);
+  const [processTarget, setProcessTarget] = useState<{
+    id: number;
+    label: string;
+    processId?: number;
+    record?: SampleProcessingRecord;
+  } | null>(null);
+  const [processDetailsOpen, setProcessDetailsOpen] = useState(false);
+  const [processDetailsTarget, setProcessDetailsTarget] = useState<{
+    sampleId: number;
+    label: string;
+  } | null>(null);
 
   const {
     data: statisticsRes,
@@ -367,6 +390,41 @@ export default function SampleReceiptPage() {
     setStatusTarget(null);
   };
 
+  const handleOpenProcessForm = (receipt: Receipt) => {
+    setProcessTarget({ id: receipt.id, label: receipt.sampleId });
+    setProcessFormOpen(true);
+  };
+
+  const handleCloseProcessForm = () => {
+    setProcessFormOpen(false);
+    setProcessTarget(null);
+  };
+
+  const handleEditProcessing = (record: SampleProcessingRecord) => {
+    setProcessDetailsOpen(false);
+    setProcessTarget({
+      id: record.sampleId,
+      label: processDetailsTarget?.label ?? `Sample #${record.sampleId}`,
+      processId: record.id,
+      record,
+    });
+    setProcessFormOpen(true);
+  };
+
+  const handleOpenProcessDetails = (sampleId: number, label: string) => {
+    setProcessDetailsTarget({ sampleId, label });
+    setProcessDetailsOpen(true);
+  };
+
+  const handleCloseProcessDetails = () => {
+    setProcessDetailsOpen(false);
+    setProcessDetailsTarget(null);
+  };
+
+  const handleViewProcessingDetails = (receipt: Receipt) => {
+    handleOpenProcessDetails(receipt.id, receipt.sampleId);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <SampleDetails
@@ -387,6 +445,27 @@ export default function SampleReceiptPage() {
         onClose={handleCloseEdit}
         sampleId={editingSampleId}
         onSuccess={() => void refetch()}
+      />
+      <SampleProcess
+        isOpen={processFormOpen}
+        onClose={handleCloseProcessForm}
+        sampleId={processTarget?.id ?? null}
+        sampleLabel={processTarget?.label}
+        processId={processTarget?.processId ?? null}
+        initialRecord={processTarget?.record ?? null}
+        onSuccess={() => {
+          void refetch();
+          if (processTarget?.id) {
+            handleOpenProcessDetails(processTarget.id, processTarget.label);
+          }
+        }}
+      />
+      <ProcessDetails
+        isOpen={processDetailsOpen}
+        onClose={handleCloseProcessDetails}
+        sampleId={processDetailsTarget?.sampleId ?? null}
+        sampleLabel={processDetailsTarget?.label}
+        onEditRecord={handleEditProcessing}
       />
 
       {/* ── Header ── */}
@@ -676,61 +755,90 @@ export default function SampleReceiptPage() {
                 <td className="px-6 py-4">
                   <ConditionBadge label={receipt.conditionLabel} condition={receipt.condition} />
                 </td>
-                <td className="px-6 py-4 text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    {receipt.status === 'pending' && (
-                      <button
-                        type="button"
-                        onClick={() => handleAccept(receipt.sampleId)}
-                        className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
-                        title="Accept Sample"
-                        suppressHydrationWarning
-                      >
-                        <CheckCircle size={16} />
-                      </button>
-                    )}
-                    <button
+                <td
+                  className="px-6 py-4 text-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
                       type="button"
-                      onClick={() => handleOpenStatusForm(receipt)}
-                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                      title="Update sample status"
-                      suppressHydrationWarning
-                    >
-                      <RefreshCcw size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleViewDetails(receipt.id)}
-                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                      className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-xl hover:shadow-emerald-100 transition-all duration-300"
                       title="View sample details"
-                      suppressHydrationWarning
+                      aria-label="View sample details"
+                      onClick={() => handleViewDetails(receipt.id)}
                     >
-                      <Eye size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(receipt)}
-                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                      title="Edit sample"
-                      suppressHydrationWarning
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(receipt.id)}
-                      className="p-1.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                      title="Delete Sample"
-                      suppressHydrationWarning
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <button 
-                      className="p-1.5 text-slate-300 hover:text-slate-600"
-                      suppressHydrationWarning
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ArrowRightCircle size={15} strokeWidth={2} />
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300"
+                            title="More actions"
+                            aria-label="More actions"
+                            disabled={isDeletePending}
+                          >
+                            <MoreVertical size={15} strokeWidth={2} />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent className="min-w-56 p-1.5 rounded-xl border-slate-100 shadow-2xl">
+                        {receipt.status === 'pending' && (
+                          <DropdownMenuItem
+                            onClick={() => handleAccept(receipt.sampleId)}
+                            className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+                          >
+                            <CheckCircle size={16} className="mr-3 text-emerald-500" />
+                            <span>Accept Sample</span>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => handleOpenProcessForm(receipt)}
+                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+                        >
+                          <Activity size={16} className="mr-3 text-amber-500" />
+                          <span>Record Processing</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleViewProcessingDetails(receipt)}
+                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+                        >
+                          <ClipboardList size={16} className="mr-3 text-amber-600" />
+                          <span>Processing Details</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleOpenStatusForm(receipt)}
+                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-blue-700"
+                        >
+                          <RefreshCcw size={16} className="mr-3 text-blue-500" />
+                          <span>Update Status</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleViewDetails(receipt.id)}
+                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+                        >
+                          <Eye size={16} className="mr-3 text-emerald-500" />
+                          <span>View Details</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-1.5 bg-slate-50" />
+                        <DropdownMenuItem
+                          onClick={() => handleEdit(receipt)}
+                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+                        >
+                          <Edit3 size={16} className="mr-3 text-emerald-500" />
+                          <span>Edit Sample</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(receipt.id)}
+                          className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
+                        >
+                          <Trash2 size={16} className="mr-3" />
+                          <span>Delete Sample</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </td>
               </tr>

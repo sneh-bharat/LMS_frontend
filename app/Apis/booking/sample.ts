@@ -690,6 +690,377 @@ export function sampleToUpdateFormFields(sample: Sample): UpdateSampleFormData {
   };
 }
 
+/** Lab processing types for POST `/api/v1/sample-processing`. */
+export const SAMPLE_PROCESSING_TYPES = [
+  'CENTRIFUGATION',
+  'STAINING',
+  'FILTRATION',
+  'ALIQUOTING',
+] as const;
+
+export type SampleProcessingType = (typeof SAMPLE_PROCESSING_TYPES)[number];
+
+export const SAMPLE_QUALITY_CHECK_TYPES = [
+  'VISUAL_INSPECTION',
+  'HEMOLYSIS_CHECK',
+  'CONTAMINATION_CHECK',
+] as const;
+
+export type SampleQualityCheckType = (typeof SAMPLE_QUALITY_CHECK_TYPES)[number];
+
+/** POST/PUT `/api/v1/sample-processing` request body. */
+export interface SampleProcessingPayload {
+  sampleId: number;
+  processingType: string;
+  processingMethod: string;
+  processingDateTime: string;
+  processedBy: string;
+  equipmentUsed: string;
+  reagentUsed: string;
+  lotNumber: string;
+  processingParameters: string;
+  rpm?: number | null;
+  durationMinutes?: number | null;
+  temperatureCelsius?: number | null;
+  aliquotCount?: number | null;
+  aliquotVolume: string;
+  qualityCheck: string;
+  processingNotes: string;
+}
+
+/** @deprecated Use `SampleProcessingPayload` */
+export type CreateSampleProcessingPayload = SampleProcessingPayload;
+
+/** PUT `/api/v1/sample-processing/{processId}` request body. */
+export type UpdateSampleProcessingPayload = SampleProcessingPayload;
+
+export interface SampleProcessingRecord {
+  id: number;
+  sampleId: number;
+  processingType: string;
+  processingMethod?: string | null;
+  processingDateTime: string;
+  processedBy: string;
+  equipmentUsed?: string | null;
+  reagentUsed?: string | null;
+  lotNumber?: string | null;
+  processingParameters?: string | null;
+  rpm?: number | null;
+  durationMinutes?: number | null;
+  temperatureCelsius?: number | null;
+  aliquotCount?: number | null;
+  aliquotVolume?: string | null;
+  qualityCheck?: string | null;
+  processingNotes?: string | null;
+  sampleBarcode?: string | null;
+  isActive?: boolean;
+}
+
+export interface CreateSampleProcessingApiResponse {
+  data?: SampleProcessingRecord;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface UpdateSampleProcessingApiResponse {
+  data?: SampleProcessingRecord;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface SampleProcessingByIdApiResponse {
+  data: SampleProcessingRecord;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/** GET `/api/v1/sample-processing/sample/{sampleId}` — `data` is a list of records. */
+export interface SampleProcessingBySampleApiResponse {
+  data: SampleProcessingRecord[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/** Normalizes API `data` when it is a single object or an array. */
+export function normalizeSampleProcessingList(
+  data: SampleProcessingRecord | SampleProcessingRecord[] | null | undefined
+): SampleProcessingRecord[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data.filter((r) => r && typeof r.id === 'number');
+  if (typeof data === 'object' && 'id' in data) return [data];
+  return [];
+}
+
+/** Newest processing record first. */
+export function sortSampleProcessingRecords(
+  records: SampleProcessingRecord[]
+): SampleProcessingRecord[] {
+  return [...records].sort((a, b) => {
+    const ta = new Date(a.processingDateTime).getTime();
+    const tb = new Date(b.processingDateTime).getTime();
+    if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) return tb - ta;
+    return b.id - a.id;
+  });
+}
+
+/** Human-readable processing / quality-check enum (e.g. CENTRIFUGATION → Centrifugation). */
+export function formatSampleProcessingLabel(value?: string | null): string {
+  const s = value?.trim();
+  if (!s) return '—';
+  return s
+    .toLowerCase()
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/** Form fields for sample processing drawer. */
+export interface SampleProcessingFormData {
+  processingType: SampleProcessingType;
+  processingMethod: string;
+  processingDateTime: string;
+  processedBy: string;
+  equipmentUsed: string;
+  reagentUsed: string;
+  lotNumber: string;
+  processingParameters: string;
+  rpm: string;
+  durationMinutes: string;
+  temperatureCelsius: string;
+  aliquotCount: string;
+  aliquotVolume: string;
+  qualityCheck: SampleQualityCheckType;
+  processingNotes: string;
+}
+
+function parseOptionalPositiveNumber(
+  value: string,
+  fieldLabel: string
+): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) {
+    throw new Error(`${fieldLabel} must be a valid number.`);
+  }
+  return n;
+}
+
+function parseOptionalNumberOrNull(
+  value: string,
+  fieldLabel: string
+): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) {
+    throw new Error(`${fieldLabel} must be a valid number.`);
+  }
+  return n;
+}
+
+function numberToFormField(value?: number | null): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  return String(value);
+}
+
+/** Maps API processing record into form fields for edit. */
+export function sampleProcessingToFormFields(
+  record: SampleProcessingRecord
+): SampleProcessingFormData {
+  const rawType = record.processingType?.trim().toUpperCase() ?? 'OTHER';
+  const processingType = SAMPLE_PROCESSING_TYPES.includes(rawType as SampleProcessingType)
+    ? (rawType as SampleProcessingType)
+    : 'OTHER';
+
+  const rawQuality = record.qualityCheck?.trim().toUpperCase() ?? 'VISUAL_INSPECTION';
+  const qualityCheck = SAMPLE_QUALITY_CHECK_TYPES.includes(
+    rawQuality as SampleQualityCheckType
+  )
+    ? (rawQuality as SampleQualityCheckType)
+    : 'VISUAL_INSPECTION';
+
+  return {
+    processingType,
+    processingMethod: record.processingMethod?.trim() ?? '',
+    processingDateTime: toDatetimeLocalInput(record.processingDateTime),
+    processedBy: record.processedBy?.trim() ?? '',
+    equipmentUsed: record.equipmentUsed?.trim() ?? '',
+    reagentUsed: record.reagentUsed?.trim() ?? 'None',
+    lotNumber: record.lotNumber?.trim() ?? '',
+    processingParameters: record.processingParameters?.trim() ?? '',
+    rpm: numberToFormField(record.rpm),
+    durationMinutes: numberToFormField(record.durationMinutes),
+    temperatureCelsius: numberToFormField(record.temperatureCelsius),
+    aliquotCount: numberToFormField(record.aliquotCount),
+    aliquotVolume: record.aliquotVolume?.trim() ?? '',
+    qualityCheck,
+    processingNotes: record.processingNotes?.trim() ?? '',
+  };
+}
+
+export function buildCreateSampleProcessingPayload(
+  sampleId: number,
+  form: SampleProcessingFormData
+): SampleProcessingPayload {
+  if (!Number.isFinite(sampleId) || sampleId <= 0) {
+    throw new Error('A valid sample id is required.');
+  }
+
+  const processingDateTime = toApiDateTime(form.processingDateTime);
+  if (!processingDateTime) {
+    throw new Error('Processing date & time is required.');
+  }
+
+  const processingType = form.processingType.trim().toUpperCase();
+  if (!processingType) {
+    throw new Error('Processing type is required.');
+  }
+
+  const processedBy = form.processedBy.trim();
+  if (!processedBy) {
+    throw new Error('Processed by is required.');
+  }
+
+  return {
+    sampleId,
+    processingType,
+    processingMethod: form.processingMethod.trim(),
+    processingDateTime,
+    processedBy,
+    equipmentUsed: form.equipmentUsed.trim(),
+    reagentUsed: form.reagentUsed.trim(),
+    lotNumber: form.lotNumber.trim(),
+    processingParameters: form.processingParameters.trim(),
+    rpm: parseOptionalPositiveNumber(form.rpm, 'RPM'),
+    durationMinutes: parseOptionalPositiveNumber(form.durationMinutes, 'Duration'),
+    temperatureCelsius: parseOptionalPositiveNumber(
+      form.temperatureCelsius,
+      'Temperature'
+    ),
+    aliquotCount: parseOptionalPositiveNumber(form.aliquotCount, 'Aliquot count'),
+    aliquotVolume: form.aliquotVolume.trim(),
+    qualityCheck: form.qualityCheck.trim().toUpperCase(),
+    processingNotes: form.processingNotes.trim(),
+  };
+}
+
+/** PUT body — empty numeric fields are sent as `null`. */
+export function buildUpdateSampleProcessingPayload(
+  sampleId: number,
+  form: SampleProcessingFormData
+): UpdateSampleProcessingPayload {
+  const base = buildCreateSampleProcessingPayload(sampleId, form);
+  return {
+    ...base,
+    rpm: parseOptionalNumberOrNull(form.rpm, 'RPM'),
+    durationMinutes: parseOptionalNumberOrNull(form.durationMinutes, 'Duration'),
+    temperatureCelsius: parseOptionalNumberOrNull(
+      form.temperatureCelsius,
+      'Temperature'
+    ),
+    aliquotCount: parseOptionalNumberOrNull(form.aliquotCount, 'Aliquot count'),
+  };
+}
+
+/**
+ * POST `/api/v1/sample-processing`
+ * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
+ */
+export async function createSampleProcessing(
+  payload: CreateSampleProcessingPayload
+): Promise<CreateSampleProcessingApiResponse> {
+  const res = (await bookingAxios.post(
+    '/sample-processing',
+    payload
+  )) as CreateSampleProcessingApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to create sample processing.');
+  }
+
+  return res;
+}
+
+/**
+ * PUT `/api/v1/sample-processing/{processId}`
+ * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
+ */
+export async function updateSampleProcessing(
+  processId: number,
+  payload: UpdateSampleProcessingPayload
+): Promise<UpdateSampleProcessingApiResponse> {
+  if (!Number.isFinite(processId) || processId <= 0) {
+    throw new Error('A valid processing id is required.');
+  }
+
+  const res = (await bookingAxios.put(
+    `/sample-processing/${processId}`,
+    payload
+  )) as UpdateSampleProcessingApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to update sample processing.');
+  }
+
+  return res;
+}
+
+/**
+ * GET `/api/v1/sample-processing/{processId}`
+ * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
+ */
+export async function fetchSampleProcessingById(
+  processId: number
+): Promise<SampleProcessingByIdApiResponse> {
+  if (!Number.isFinite(processId) || processId <= 0) {
+    throw new Error('A valid processing id is required.');
+  }
+
+  const res = (await bookingAxios.get(
+    `/sample-processing/${processId}`
+  )) as SampleProcessingByIdApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to load sample processing.');
+  }
+
+  return res;
+}
+
+/**
+ * GET `/api/v1/sample-processing/sample/{sampleId}`
+ * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
+ */
+export async function fetchSampleProcessingBySampleId(
+  sampleId: number
+): Promise<SampleProcessingBySampleApiResponse> {
+  if (!Number.isFinite(sampleId) || sampleId <= 0) {
+    throw new Error('A valid sample id is required.');
+  }
+
+  const res = (await bookingAxios.get(
+    `/sample-processing/sample/${sampleId}`
+  )) as SampleProcessingBySampleApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to load sample processing for this sample.');
+  }
+
+  return {
+    ...res,
+    data: sortSampleProcessingRecords(normalizeSampleProcessingList(res.data)),
+  };
+}
+
 export function buildUpdateSamplePayload(form: UpdateSampleFormData): UpdateSamplePayload {
   const orderId = Number.parseInt(String(form.orderId).trim(), 10);
   if (!Number.isFinite(orderId) || orderId < 1) {

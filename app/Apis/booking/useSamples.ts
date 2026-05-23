@@ -6,6 +6,10 @@ import {
   fetchSampleById,
   fetchSampleStatistics,
   registerSample,
+  createSampleProcessing,
+  updateSampleProcessing,
+  fetchSampleProcessingById,
+  fetchSampleProcessingBySampleId,
   updateSampleStatus,
   updateSample,
   deleteSample,
@@ -16,6 +20,12 @@ import {
   type FetchSamplesParams,
   type RegisterSamplePayload,
   type RegisterSampleApiResponse,
+  type CreateSampleProcessingPayload,
+  type CreateSampleProcessingApiResponse,
+  type UpdateSampleProcessingPayload,
+  type UpdateSampleProcessingApiResponse,
+  type SampleProcessingByIdApiResponse,
+  type SampleProcessingBySampleApiResponse,
   type SampleByIdApiResponse,
   type SamplesListApiResponse,
   type SampleStatisticsApiResponse,
@@ -37,6 +47,10 @@ export const sampleQueryKeys = {
       params.sortBy ?? 'createdAt',
     ] as const,
   detail: (id: number) => [...sampleQueryKeys.all, 'detail', id] as const,
+  processing: (processId: number) =>
+    [...sampleQueryKeys.all, 'processing', processId] as const,
+  processingBySample: (sampleId: number) =>
+    [...sampleQueryKeys.all, 'processing', 'sample', sampleId] as const,
   statistics: () => [...sampleQueryKeys.all, 'statistics'] as const,
 };
 
@@ -136,6 +150,85 @@ export function useBulkDeleteSamples() {
     onSuccess: (res) => {
       if (res.response === false) return;
       queryClient.invalidateQueries({ queryKey: sampleQueryKeys.all });
+    },
+  });
+}
+
+/** GET `/api/v1/sample-processing/{processId}` */
+export function useSampleProcessingById(processId: number | null, enabled = true) {
+  const idValid = processId != null && processId > 0;
+
+  return useQuery<SampleProcessingByIdApiResponse, Error>({
+    queryKey: idValid
+      ? sampleQueryKeys.processing(processId)
+      : ['samples', 'processing', 'idle'],
+    queryFn: () => fetchSampleProcessingById(processId!),
+    enabled: enabled && idValid,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/sample-processing/sample/{sampleId}` */
+export function useSampleProcessingBySampleId(sampleId: number | null, enabled = true) {
+  const idValid = sampleId != null && sampleId > 0;
+
+  return useQuery<SampleProcessingBySampleApiResponse, Error>({
+    queryKey: idValid
+      ? sampleQueryKeys.processingBySample(sampleId)
+      : ['samples', 'processing', 'sample', 'idle'],
+    queryFn: () => fetchSampleProcessingBySampleId(sampleId!),
+    enabled: enabled && idValid,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** PUT `/api/v1/sample-processing/{processId}` */
+export function useUpdateSampleProcessing() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    UpdateSampleProcessingApiResponse,
+    Error,
+    { processId: number; payload: UpdateSampleProcessingPayload }
+  >({
+    mutationFn: ({ processId, payload }) => updateSampleProcessing(processId, payload),
+    onSuccess: (res, { processId, payload }) => {
+      if (res.response === false) return;
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.processing(processId) });
+      queryClient.invalidateQueries({
+        queryKey: sampleQueryKeys.processingBySample(payload.sampleId),
+      });
+    },
+  });
+}
+
+/** POST `/api/v1/sample-processing` */
+export function useCreateSampleProcessing() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    CreateSampleProcessingApiResponse,
+    Error,
+    CreateSampleProcessingPayload
+  >({
+    mutationFn: (payload) => createSampleProcessing(payload),
+    onSuccess: (res, { sampleId }) => {
+      if (res.response === false) return;
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.detail(sampleId) });
+      queryClient.invalidateQueries({
+        queryKey: sampleQueryKeys.processingBySample(sampleId),
+      });
+      if (res.data?.id) {
+        queryClient.invalidateQueries({
+          queryKey: sampleQueryKeys.processing(res.data.id),
+        });
+      }
     },
   });
 }

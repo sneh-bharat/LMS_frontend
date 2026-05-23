@@ -101,7 +101,7 @@ export default function UpdateSampleStatus({
         <div className="flex items-center gap-3">
           <RefreshCcw className="text-white" size={22} />
           <span>
-            Update Sample <span className="text-emerald-200">Status</span>
+          Specimen <span className="text-emerald-200"> Status</span>
           </span>
         </div>
       }
