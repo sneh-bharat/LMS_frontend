@@ -52,6 +52,7 @@ export async function fetchPaymentStatistics(
 export interface PaymentSearchRecord {
   id: number;
   orderId?: number;
+  patientId?: number;
   amount: number;
   currency?: string;
   paymentMode: string;
@@ -60,6 +61,7 @@ export interface PaymentSearchRecord {
   paymentDescription?: string | null;
   paymentDate?: string | null;
   paymentDateTime?: string | null;
+  paidBy?: string | null;
   collectedBy?: string | null;
   receiptNumber?: string | null;
   referenceNumber?: string | null;
@@ -80,6 +82,37 @@ export interface PaymentSearchRecord {
   refundAmount?: number | null;
   refundDate?: string | null;
   refundReason?: string | null;
+}
+
+const PAYMENT_MODE_DISPLAY: Record<string, string> = {
+  CASH: 'Cash',
+  CARD: 'Card',
+  UPI: 'UPI',
+  ONLINE: 'UPI',
+  CREDIT: 'Card',
+  BANK_TRANSFER: 'Bank Transfer',
+  NEFT: 'Bank Transfer',
+  RTGS: 'Bank Transfer',
+};
+
+/** Maps API values like `CASH` / `Cash` to UI labels used in filters and icons. */
+export function normalizePaymentModeLabel(mode: string | null | undefined): string {
+  const raw = mode?.trim();
+  if (!raw) return 'Cash';
+  const key = raw.toUpperCase().replace(/\s+/g, '_');
+  return PAYMENT_MODE_DISPLAY[key] ?? raw;
+}
+
+/** Maps UI filter labels to API path segment (e.g. `Cash` → `CASH`). */
+export function paymentModeForApi(mode: string): string {
+  const key = mode.trim();
+  const reverse: Record<string, string> = {
+    Cash: 'CASH',
+    Card: 'CARD',
+    UPI: 'UPI',
+    'Bank Transfer': 'BANK_TRANSFER',
+  };
+  return reverse[key] ?? key.toUpperCase().replace(/\s+/g, '_');
 }
 
 /** Single payment row inside invoice transaction lookup. */
@@ -304,8 +337,10 @@ export async function fetchPaymentsByMode(
     pageSize: String(params.pageSize ?? 10),
   });
 
+  const apiMode = paymentModeForApi(mode);
+
   const res = (await bookingAxios.get(
-    `/payments/mode/${encodeURIComponent(mode)}?${query.toString()}`
+    `/payments/mode/${encodeURIComponent(apiMode)}?${query.toString()}`
   )) as PaymentListApiResponse;
 
   if (res.data) {

@@ -249,11 +249,21 @@ export async function fetchTestOrderByOrderNumber(
   ) as Promise<TestOrderDetailApiResponse>;
 }
 
+/** Path segment for GET `/test-orders/patient/{patientId}` — numeric id or UHID (e.g. `15`, `PT-000003`). */
+export type TestOrdersPatientLookup = string | number;
+
+function testOrdersPatientPathSegment(patientId: TestOrdersPatientLookup): string {
+  const raw = typeof patientId === 'number' ? String(patientId) : patientId.trim();
+  if (!raw) throw new Error('Patient ID is required.');
+  return encodeURIComponent(raw);
+}
+
 /**
  * GET `/api/v1/test-orders/patient/{patientId}?pageNo=0&pageSize=10` — orders for a patient.
+ * `{patientId}` is sent as entered (numeric id or patient code / UHID). Does not call lims-patient.
  */
 export async function fetchTestOrdersByPatientId(
-  patientId: number,
+  patientId: TestOrdersPatientLookup,
   pageNo: number = 0,
   pageSize: number = 10
 ): Promise<TestOrdersListApiResponse> {
@@ -261,9 +271,18 @@ export async function fetchTestOrdersByPatientId(
     pageNo: String(pageNo),
     pageSize: String(pageSize),
   });
-  return bookingAxios.get(
-    `/test-orders/patient/${patientId}?${params.toString()}`
-  ) as Promise<TestOrdersListApiResponse>;
+  const res = (await bookingAxios.get(
+    `/test-orders/patient/${testOrdersPatientPathSegment(patientId)}?${params.toString()}`
+  )) as TestOrdersListApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to load test orders for patient.');
+  }
+
+  if (res.data) {
+    res.data = normalizeTestOrdersPage(res.data, pageNo, pageSize);
+  }
+  return res;
 }
 
 export interface PatientInvoiceItem {
@@ -449,7 +468,7 @@ export interface FetchTestOrdersBySearchParams {
 
 /**
  * GET `/api/v1/test-orders/search?searchTerm=Emergency&pageNo=0&pageSize=10`
- * Search orders by processing / priority type (Routine, Urgent, Emergency, Timed, etc.).
+ * Search orders by processing type (Emergency, Normal, Urgent, Routine) or other keywords.
  */
 export async function fetchTestOrdersBySearch(
   params: FetchTestOrdersBySearchParams
@@ -466,6 +485,10 @@ export async function fetchTestOrdersBySearch(
   const res = (await bookingAxios.get(
     `/test-orders/search?${search.toString()}`
   )) as TestOrdersListApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to search test orders.');
+  }
 
   if (res.data) {
     res.data = normalizeTestOrdersPage(res.data, params.pageNo ?? 0, params.pageSize ?? 10);

@@ -41,7 +41,7 @@ export const SAMPLE_INVOICES: Invoice[] = [
   },
 ];
 
-export const SEARCH_OPTIONS = ['Order Number', 'Patient ID'] as const;
+export const SEARCH_OPTIONS = ['Order Number', 'Patient Name'] as const;
 
 export type InvoiceSearchType = (typeof SEARCH_OPTIONS)[number];
 
@@ -52,9 +52,6 @@ export const SEARCH_TYPE_PLACEHOLDER = '';
 export const DEFAULT_SEARCH_BY: '' | InvoiceSearchType = SEARCH_TYPE_PLACEHOLDER;
 
 export type InvoiceSearchBy = typeof SEARCH_TYPE_PLACEHOLDER | InvoiceSearchType;
-
-/** Default branch filter label (no branch selected). */
-export const SELECT_BRANCH_LABEL = 'Select Branch';
 
 export function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -68,11 +65,6 @@ export function getDefaultInvoiceDateRange(): { startDate: string; endDate: stri
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), 1);
   return { startDate: toIsoDate(start), endDate: toIsoDate(today) };
-}
-
-export interface InvoiceBranchOption {
-  branchId: number;
-  branchName: string;
 }
 
 /** Values for GET `/test-orders/status/{status}`. */
@@ -109,20 +101,21 @@ export function isPaymentStatusFilter(
   return (ORDER_STATUS_API_OPTIONS as readonly string[]).includes(status);
 }
 
-/** Processing priority filter — GET `/test-orders/search?searchTerm=…` */
+/** Order processing type — GET `/test-orders/search?searchTerm=…` */
 export const PROCESSING_TYPE_FILTER_OPTIONS = [
-  'Processing Type',
+  'Order processing type',
   'Routine',
   'Urgent',
   'Emergency',
-  'Timed Collection',
+  'Normal',
 ] as const;
 
 export type InvoiceProcessingTypeFilter = (typeof PROCESSING_TYPE_FILTER_OPTIONS)[number];
 
-export const DEFAULT_PROCESSING_TYPE_FILTER: InvoiceProcessingTypeFilter = 'Processing Type';
+export const DEFAULT_PROCESSING_TYPE_FILTER: InvoiceProcessingTypeFilter =
+  'Order processing type';
 
-/** Maps UI label to `searchTerm` for GET `/test-orders/search`. */
+/** Maps dropdown value to `searchTerm` for GET `/api/v1/test-orders/search`. */
 export function processingTypeToSearchTerm(
   filter: InvoiceProcessingTypeFilter
 ): string | null {
@@ -133,8 +126,8 @@ export function processingTypeToSearchTerm(
       return 'Urgent';
     case 'Emergency':
       return 'Emergency';
-    case 'Timed Collection':
-      return 'Timed';
+    case 'Normal':
+      return 'Normal';
     default:
       return null;
   }
@@ -142,6 +135,6 @@ export function processingTypeToSearchTerm(
 
 export function isProcessingTypeApiFilter(
   filter: InvoiceProcessingTypeFilter
-): filter is Exclude<InvoiceProcessingTypeFilter, 'Processing Type'> {
-  return filter !== 'Processing Type';
+): filter is Exclude<InvoiceProcessingTypeFilter, 'Order processing type'> {
+  return filter !== 'Order processing type';
 }

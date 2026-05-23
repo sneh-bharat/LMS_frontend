@@ -61,6 +61,7 @@ const NAV = [
             { label: 'Online Booking Request', href: '/OnlineBooking' },
             { label: 'Diagnostic Booking', href: '/diagnosis/diagnostic-booking' },
             { label: 'Tracking Order', href: '/diagnosis/tracking-order' },
+            { label: 'Estimation', href: '/diagnosis/estimation' },
             { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
             { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Appointments', href: '/Appointments' },
