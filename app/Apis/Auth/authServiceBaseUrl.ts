@@ -4,7 +4,7 @@
  * Branch search: {base}/api/v1/tenants/{tenantId}/branches/search
  */
 export function getAuthServiceBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_AUTH || 'http://localhost:8080').replace(
+  const raw = (process.env.NEXT_PUBLIC_API_AUTH || '').replace(
     /\/+$/,
     ''
   );
