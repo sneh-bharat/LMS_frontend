@@ -54,6 +54,12 @@ import { mapPatientToBookingForm } from '../patientFormUtils';
 import PreExistingDynamics from '../PreExistingDynamics';
 import AddReferringDoctorModal from './AddReferringDoctorModal';
 import {
+  BLANK_MEMBER_CARD,
+  MEMBERSHIP_CARD_PAYMENT_MODE,
+  MemberCardDrawer,
+  MemberCardSummaryButton,
+} from './membercard';
+import {
   fetchReferringDoctorById,
   type ReferringDoctor,
 } from '@/app/Apis/doctor/referringDoctorApi';
@@ -196,6 +202,10 @@ interface FormState {
   paymentMode: string;
   paymentReference: string;
   createdByName: string;
+  membershipCardNumber: string;
+  membershipCardHolderName: string;
+  membershipCardHolderEmail: string;
+  membershipCardOtp: string;
   srfId: string;
   lmpDate: string;
   patientId?: number;
@@ -227,7 +237,7 @@ function formatBookingSubmitError(err: unknown): string {
 
 const TITLES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby', 'M/s'];
 const GENDERS = ['Male', 'Female', 'Other'];
-const PAY_MODES = ['Cash', 'Card', 'UPI', 'Online', 'Credit'];
+const PAY_MODES = ['Cash', 'Card', 'UPI', 'Online', 'Credit', 'Membership Card'];
 const DISC_TYPES = ['%', 'Flat'];
 
 const BLANK: FormState = {
@@ -245,7 +255,12 @@ const BLANK: FormState = {
   collectionDate: isoDateOffset(1),
   collectionTime: DEFAULT_COLLECTION_TIME,
   expectedReportDate: isoDateOffset(2),
-  payment: '', paymentMode: 'Cash', paymentReference: '', createdByName: '', srfId: '', lmpDate: '',
+  payment: '', paymentMode: 'Cash', paymentReference: '', createdByName: '',
+  membershipCardNumber: BLANK_MEMBER_CARD.membershipCardNumber,
+  membershipCardHolderName: BLANK_MEMBER_CARD.holderName,
+  membershipCardHolderEmail: BLANK_MEMBER_CARD.holderEmail,
+  membershipCardOtp: BLANK_MEMBER_CARD.otp,
+  srfId: '', lmpDate: '',
 };
 
 // ─── Modals ──────────────────────────────────────────────────────────────────
@@ -506,6 +521,7 @@ function DiagnosticBookingContent() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [addInvOpen, setAddInvOpen] = useState(false);
   const [addReferringDoctorOpen, setAddReferringDoctorOpen] = useState(false);
+  const [memberCardDrawerOpen, setMemberCardDrawerOpen] = useState(false);
   const [referringDoctors, setReferringDoctors] = useState<ReferringDoctor[]>([]);
   const [mobileLookupMessage, setMobileLookupMessage] = useState<string | null>(null);
   const [apiDynamicsOptions, setApiDynamicsOptions] = useState<string[]>([]);
@@ -676,6 +692,34 @@ function DiagnosticBookingContent() {
   const set = (key: keyof FormState) => (e: any) => {
     const value = e && e.target ? e.target.value : e;
     setForm(f => ({ ...f, [key]: value }));
+  };
+
+  const handlePaymentModeChange = (mode: string | null) => {
+    if (!mode) return;
+    const isMembershipCard = mode === MEMBERSHIP_CARD_PAYMENT_MODE;
+    setForm((f) => ({
+      ...f,
+      paymentMode: mode,
+      ...(isMembershipCard
+        ? {}
+        : {
+            membershipCardNumber: BLANK_MEMBER_CARD.membershipCardNumber,
+            membershipCardHolderName: BLANK_MEMBER_CARD.holderName,
+            membershipCardHolderEmail: BLANK_MEMBER_CARD.holderEmail,
+            membershipCardOtp: BLANK_MEMBER_CARD.otp,
+          }),
+    }));
+    setMemberCardDrawerOpen(isMembershipCard);
+  };
+
+  const applyMemberCardForm = (card: typeof BLANK_MEMBER_CARD) => {
+    setForm((f) => ({
+      ...f,
+      membershipCardNumber: card.membershipCardNumber,
+      membershipCardHolderName: card.holderName,
+      membershipCardHolderEmail: card.holderEmail,
+      membershipCardOtp: card.otp,
+    }));
   };
 
   const applyPatientRecord = useCallback(async (patient: Patient, mobileOverride?: string) => {
@@ -932,6 +976,17 @@ function DiagnosticBookingContent() {
           });
         }}
         branchId={effectiveBranchId}
+      />
+      <MemberCardDrawer
+        isOpen={memberCardDrawerOpen}
+        onClose={() => setMemberCardDrawerOpen(false)}
+        value={{
+          membershipCardNumber: form.membershipCardNumber,
+          holderName: form.membershipCardHolderName,
+          holderEmail: form.membershipCardHolderEmail,
+          otp: form.membershipCardOtp,
+        }}
+        onChange={applyMemberCardForm}
       />
 
       {/* ── Header ── */}
@@ -1542,7 +1597,7 @@ function DiagnosticBookingContent() {
                       <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
                       <Input type="number" value={form.payment} onChange={set('payment')} placeholder="Payable amount..." className="pl-10 h-12 bg-white border-gray-300 font-black text-[#050b18] placeholder:text-gray-300 shadow-sm" />
                     </div>
-                    <Select value={form.paymentMode} onValueChange={set('paymentMode')}>
+                    <Select value={form.paymentMode} onValueChange={handlePaymentModeChange}>
                       <SelectTrigger className="border-gray-300 h-10 font-bold">
                         <SelectValue placeholder="Mode" />
                       </SelectTrigger>
@@ -1565,6 +1620,18 @@ function DiagnosticBookingContent() {
                         className="border-gray-300 h-10 font-semibold"
                       />
                     </div>
+
+                    {form.paymentMode === MEMBERSHIP_CARD_PAYMENT_MODE ? (
+                      <MemberCardSummaryButton
+                        value={{
+                          membershipCardNumber: form.membershipCardNumber,
+                          holderName: form.membershipCardHolderName,
+                          holderEmail: form.membershipCardHolderEmail,
+                          otp: form.membershipCardOtp,
+                        }}
+                        onOpen={() => setMemberCardDrawerOpen(true)}
+                      />
+                    ) : null}
                     <div className="flex justify-between items-center text-sm pt-1">
                       <span className="font-bold text-slate-500">Paid Amount</span>
                       <span className="font-black text-emerald-700">₹{financials.paidAmount.toLocaleString()}</span>
