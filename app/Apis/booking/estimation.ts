@@ -8,6 +8,28 @@ import bookingAxios, { readAuthTokenFromLocalStorage } from './axios';
  */
 export const ESTIMATIONS_API_PATH = '/estimations' as const;
 
+/** Valid values for `PUT /api/v1/estimations/{id}/status?status=` */
+export const ESTIMATION_STATUSES = [
+  'DRAFT',
+  'APPROVED',
+  'CONVERTED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+] as const;
+
+export type EstimationStatus = (typeof ESTIMATION_STATUSES)[number];
+
+export function normalizeEstimationStatus(value: string): EstimationStatus {
+  const s = value.trim().toUpperCase();
+  if (ESTIMATION_STATUSES.includes(s as EstimationStatus)) {
+    return s as EstimationStatus;
+  }
+  throw new Error(
+    `Invalid estimation status. Use: ${ESTIMATION_STATUSES.join(', ')}`
+  );
+}
+
 export interface EstimationItem {
   id: number;
   testId: number;
@@ -33,6 +55,8 @@ export interface Estimation {
   id: number;
   estimationNumber: string;
   patientId: number;
+  patientName?: string | null;
+  patientCode?: string | null;
   priority: string;
   estimationStatus: string;
   approvalStatus: string;
@@ -53,7 +77,53 @@ export interface Estimation {
   createdAt?: string | null;
   updatedAt?: string | null;
   estimationItems?: EstimationItem[] | null;
+  approvalRemarks?: string | null;
+  approvedBy?: string | null;
+  approvedDateTime?: string | null;
+  clinicalNotes?: string | null;
+  concessionAmount?: number | null;
+  concessionBy?: string | null;
+  contrastCharge?: number | null;
+  conversionNotes?: string | null;
+  convertedDateTime?: string | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
+  drugAllergy?: string | null;
+  emergencyCharge?: number | null;
+  estimatedReportDate?: string | null;
+  estimatedTaxAmount?: number | null;
+  estimatedTurnaroundHours?: number | null;
+  expiryNotificationSent?: boolean | null;
+  hasAnaemia?: boolean | null;
+  hasArthritis?: boolean | null;
+  hasAsthma?: boolean | null;
+  hasDiabetes?: boolean | null;
+  hasHypertension?: boolean | null;
+  hasThyroid?: boolean | null;
+  isActive?: boolean | null;
+  lmpDate?: string | null;
+  otherPreExistingDisease?: string | null;
+  parentEstimationId?: number | null;
+  referringDoctorId?: number | null;
+  referringDoctorName?: string | null;
+  referringHospitalId?: number | null;
+  referringHospitalName?: string | null;
+  rejectedDateTime?: string | null;
+  rejectionReason?: string | null;
+  remarks?: string | null;
+  requestedBy?: string | null;
+  srfId?: string | null;
+  versionNumber?: number | null;
+  branchId?: number | null;
   [key: string]: unknown;
+}
+
+export interface EstimationDetailApiResponse {
+  data: Estimation;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
 }
 
 export interface EstimationsPage {
@@ -135,6 +205,113 @@ export function formatEstimationDate(value?: string | null): string {
     });
   }
   return value.trim();
+}
+
+export function formatEstimationDateTime(value?: string | null): string {
+  if (!value?.trim()) return '—';
+  const d = new Date(value.trim());
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  return value.trim();
+}
+
+/** Pre-existing disease labels from API boolean flags. */
+export function estimationToDiseases(estimation: Estimation): string[] {
+  const diseases: string[] = [];
+  if (estimation.hasDiabetes) diseases.push('Diabetes');
+  if (estimation.hasHypertension) diseases.push('Hypertension');
+  if (estimation.hasAnaemia) diseases.push('Anaemia');
+  if (estimation.hasThyroid) diseases.push('Thyroid');
+  if (estimation.hasArthritis) diseases.push('Arthritis');
+  if (estimation.hasAsthma) diseases.push('Asthma');
+  if (estimation.otherPreExistingDisease?.trim()) {
+    for (const part of estimation.otherPreExistingDisease.split(',')) {
+      const t = part.trim();
+      if (t && !diseases.some((d) => d.toLowerCase() === t.toLowerCase())) {
+        diseases.push(t);
+      }
+    }
+  }
+  return diseases;
+}
+
+/**
+ * GET `/api/v1/estimations/{estimationId}`
+ */
+export async function fetchEstimationById(
+  estimationId: number
+): Promise<EstimationDetailApiResponse> {
+  const token = readAuthTokenFromLocalStorage();
+  if (!token?.trim()) {
+    throw new Error('Authentication required. Please log in again.');
+  }
+  if (!Number.isFinite(estimationId) || estimationId <= 0) {
+    throw new Error('A valid estimation id is required.');
+  }
+
+  const res = (await bookingAxios.get(
+    `${ESTIMATIONS_API_PATH}/${estimationId}`
+  )) as EstimationDetailApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to load estimation.');
+  }
+
+  return res;
+}
+
+export interface UpdateEstimationStatusParams {
+  estimationId: number;
+  status: EstimationStatus | string;
+}
+
+export interface UpdateEstimationStatusApiResponse {
+  data: Estimation;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/**
+ * **Update estimation status** — `PUT /api/v1/estimations/{estimationId}/status?status=APPROVED`
+ *
+ * Valid `status`: DRAFT | APPROVED | CONVERTED | REJECTED | EXPIRED | CANCELLED
+ * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
+ */
+export async function updateEstimationStatus(
+  params: UpdateEstimationStatusParams
+): Promise<UpdateEstimationStatusApiResponse> {
+  const token = readAuthTokenFromLocalStorage();
+  if (!token?.trim()) {
+    throw new Error('Authentication required. Please log in again.');
+  }
+
+  const { estimationId } = params;
+  if (!Number.isFinite(estimationId) || estimationId <= 0) {
+    throw new Error('A valid estimation id is required.');
+  }
+
+  const status = normalizeEstimationStatus(params.status);
+  const query = new URLSearchParams({ status });
+
+  const res = (await bookingAxios.put(
+    `${ESTIMATIONS_API_PATH}/${estimationId}/status?${query.toString()}`,
+    {}
+  )) as UpdateEstimationStatusApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to update estimation status.');
+  }
+
+  return res;
 }
 
 /**

@@ -138,6 +138,7 @@ const NAV = [
             { label: 'Doctors', href: '/doctor' },
             { label: 'Collectors', href: '/collector' },
             { label: 'Members', href: '/member' },
+            { label: 'Organization', href: '/organization' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },

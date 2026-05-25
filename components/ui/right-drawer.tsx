@@ -36,6 +36,7 @@ export function RightDrawer({
         lg: "sm:!max-w-[650px] sm:w-[650px]",
         xl: "sm:!max-w-[800px] sm:w-[800px]",
         "2xl": "sm:!max-w-[1000px] sm:w-[1000px]",
+        full: "sm:!max-w-[min(96vw,1600px)] sm:w-[min(96vw,1600px)]",
     }[maxWidth] || "sm:!max-w-[500px] sm:w-[500px]"
 
     return (

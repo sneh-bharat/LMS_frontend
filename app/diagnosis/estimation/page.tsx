@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +11,6 @@ import {
   Eye,
   FileText,
   Filter,
-  Loader2,
   MoreHorizontal,
   RefreshCcw,
   Search,
@@ -21,6 +21,13 @@ import {
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useEstimationsList } from '@/app/Apis/booking/useEstimations';
 import {
   formatEstimationCurrency,
@@ -29,10 +36,20 @@ import {
   type Estimation,
 } from '@/app/Apis/booking/estimation';
 import NewEstimation from './New-Estimation';
+import EstimationDetails from '@/app/diagnosis/estimation/estimation-details';
+import EstimationStatusUpdate from './status-update';
 
 const PAGE_SIZE = 10;
 
-const STATUS_FILTER_OPTIONS = ['All', 'Draft', 'Submitted', 'Approved', 'Rejected', 'Converted'];
+const STATUS_FILTER_OPTIONS = [
+  'All',
+  'Draft',
+  'Approved',
+  'Converted',
+  'Rejected',
+  'Expired',
+  'Cancelled',
+];
 const APPROVAL_FILTER_OPTIONS = ['All', 'Pending', 'Approved', 'Rejected'];
 
 function statusBadgeVariant(
@@ -59,65 +76,65 @@ function EstimationActions({
   row,
   onView,
   onEdit,
+  onStatusUpdate,
   onConvert,
 }: {
   row: Estimation;
   onView: (row: Estimation) => void;
   onEdit: (row: Estimation) => void;
+  onStatusUpdate: (row: Estimation) => void;
   onConvert: (row: Estimation) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
-        aria-label="Estimation actions"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+            aria-label="Estimation actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-52 p-1.5 rounded-2xl border-slate-100 shadow-2xl"
       >
-        <MoreHorizontal size={20} />
-      </button>
-      {open ? (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              type="button"
-              onClick={() => {
-                onView(row);
-                setOpen(false);
-              }}
-              className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
-            >
-              <Eye size={14} /> View
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onEdit(row);
-                setOpen(false);
-              }}
-              className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-            >
-              <Edit3 size={14} /> Edit
-            </button>
-            <div className="h-px bg-slate-100 my-2" />
-            <button
-              type="button"
-              onClick={() => {
-                onConvert(row);
-                setOpen(false);
-              }}
-              disabled={Boolean(row.isConverted)}
-              className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-amber-600 hover:bg-amber-50 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <RefreshCcw size={14} /> Convert
-            </button>
-          </div>
-        </>
-      ) : null}
-    </div>
+        <DropdownMenuItem
+          onClick={() => onView(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+        >
+          <Eye size={14} />
+          View
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onEdit(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+        >
+          <Edit3 size={14} />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onStatusUpdate(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-green-600 focus:bg-green-50 focus:text-green-700"
+        >
+          <Check size={14} />
+          Status Update
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1.5 bg-slate-100" />
+        <DropdownMenuItem
+          onClick={() => onConvert(row)}
+          disabled={Boolean(row.isConverted)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700 disabled:opacity-50"
+        >
+          <RefreshCcw size={14} />
+          Convert
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -127,6 +144,8 @@ export default function EstimationListPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [approvalFilter, setApprovalFilter] = useState('All');
   const [newEstimationOpen, setNewEstimationOpen] = useState(false);
+  const [viewEstimationId, setViewEstimationId] = useState<number | null>(null);
+  const [statusUpdateTarget, setStatusUpdateTarget] = useState<Estimation | null>(null);
 
   const {
     data: estimationsRes,
@@ -177,7 +196,7 @@ export default function EstimationListPage() {
   }, [estimations, search, statusFilter, approvalFilter]);
 
   const handleView = (row: Estimation) => {
-    toast.info(`View estimation ${row.estimationNumber} (coming soon).`);
+    if (row.id > 0) setViewEstimationId(row.id);
   };
 
   const handleEdit = (row: Estimation) => {
@@ -194,11 +213,34 @@ export default function EstimationListPage() {
 
   const openAdd = () => setNewEstimationOpen(true);
 
+  const handleStatusUpdateOpen = (row: Estimation) => {
+    if (row.id > 0) setStatusUpdateTarget(row);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <NewEstimation
         isOpen={newEstimationOpen}
         onClose={() => setNewEstimationOpen(false)}
+        onSuccess={() => void refetch()}
+      />
+      <EstimationDetails
+        isOpen={viewEstimationId != null}
+        onClose={() => setViewEstimationId(null)}
+        estimationId={viewEstimationId}
+      />
+      <EstimationStatusUpdate
+        isOpen={statusUpdateTarget != null}
+        onClose={() => setStatusUpdateTarget(null)}
+        estimationId={statusUpdateTarget?.id ?? null}
+        estimationNumber={statusUpdateTarget?.estimationNumber}
+        currentStatus={statusUpdateTarget?.estimationStatus}
+        patientLabel={
+          statusUpdateTarget?.patientName?.trim() ||
+          (statusUpdateTarget?.patientId
+            ? `Patient #${statusUpdateTarget.patientId}`
+            : null)
+        }
         onSuccess={() => void refetch()}
       />
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
@@ -400,11 +442,11 @@ export default function EstimationListPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-slate-900 group-hover:text-[#006D77] transition-colors text-sm mb-0.5">
-                            Patient #{row.patientId}
+                            {row.patientName}
                           </div>
                           <div className="text-xs text-slate-500 line-clamp-1">
-                            {row.estimationNumber || '—'} •{' '}
-                            {row.createdByName?.trim() || 'N/A'}
+                            {row.patientCode}
+  
                           </div>
                         </div>
                       </div>
@@ -456,6 +498,7 @@ export default function EstimationListPage() {
                         row={row}
                         onView={handleView}
                         onEdit={handleEdit}
+                        onStatusUpdate={handleStatusUpdateOpen}
                         onConvert={handleConvert}
                       />
                     </td>
