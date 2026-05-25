@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, Eye, MoreHorizontal, Plus, RefreshCw } from 'lucide-react';
+import { AlertCircle, Building2, Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Search, SearchX, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
+import { ConfirmAlertDialog, DeleteAlertDialog } from '@/components/ui';
 import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
@@ -28,9 +30,10 @@ import {
   getOrganizationType,
   type Organization,
 } from '@/app/Apis/organizations/organization';
-import { useOrganizations } from '@/app/Apis/organizations/useOrganizations';
+import { useOrganizations, useApproveOrganization, useToggleOrganizationStatus, useDeleteOrganization } from '@/app/Apis/organizations/useOrganizations';
 import OrganizationDetailsDrawer from './details';
 import AddNewOrganization from './Add-new-orgn';
+import EditOrganization from './Edit-orgn';
 
 const PAGE_SIZE = 10;
 const DEFAULT_BRANCH_ID = 1;
@@ -51,10 +54,21 @@ function statusBadgeVariant(status: string) {
 function OrganizationActions({
   row,
   onView,
+  onEdit,
+  onApprove,
+  onToggleStatus,
+  onDelete,
 }: {
   row: Organization;
   onView: (row: Organization) => void;
+  onEdit: (row: Organization) => void;
+  onApprove?: (row: Organization) => void;
+  onToggleStatus?: (row: Organization) => void;
+  onDelete?: (row: Organization) => void;
 }) {
+  const status = getOrganizationStatus(row);
+  const isPending = status === 'PENDING';
+  const isActive = row.isActive;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -80,6 +94,40 @@ function OrganizationActions({
           <Eye size={14} />
           View
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onEdit(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+        >
+          <Pencil size={14} />
+          Edit
+        </DropdownMenuItem>
+        {isPending && onApprove && (
+          <DropdownMenuItem
+            onClick={() => onApprove(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700"
+          >
+            <Plus size={14} className="rotate-0 text-amber-600" />
+            Approve
+          </DropdownMenuItem>
+        )}
+        {!isPending && onToggleStatus && (
+          <DropdownMenuItem
+            onClick={() => onToggleStatus(row)}
+            className={`rounded-lg py-2.5 text-xs font-black uppercase ${isActive ? 'text-rose-600 focus:bg-rose-50 focus:text-rose-700' : 'text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700'}`}
+          >
+            <Plus size={14} className={isActive ? 'rotate-45' : 'rotate-0'} />
+            {isActive ? 'Deactivate' : 'Activate'}
+          </DropdownMenuItem>
+        )}
+        {onDelete && (
+          <DropdownMenuItem
+            onClick={() => onDelete(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+          >
+            <Trash2 size={14} />
+            Delete
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -87,11 +135,28 @@ function OrganizationActions({
 
 export default function OrganizationPage() {
   const [pageNo, setPageNo] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   const [branchId, setBranchId] = useState(String(DEFAULT_BRANCH_ID));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<number | null>(null);
+  const [organizationToEdit, setOrganizationToEdit] = useState<Organization | null>(null);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [organizationToApprove, setOrganizationToApprove] = useState<Organization | null>(null);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [organizationToToggle, setOrganizationToToggle] = useState<Organization | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [organizationToDelete, setOrganizationToDelete] = useState<Organization | null>(null);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [flashApiMessage, setFlashApiMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const parsedBranchId = useMemo(() => {
     const id = Number.parseInt(branchId.trim(), 10);
@@ -115,9 +180,14 @@ export default function OrganizationPage() {
       pageNo,
       pageSize: PAGE_SIZE,
       branchId: parsedBranchId ?? undefined,
+      searchTerm: debouncedSearchTerm.trim() || undefined,
     },
-    { enabled: parsedBranchId != null }
+    { enabled: parsedBranchId != null || debouncedSearchTerm.trim().length > 0 }
   );
+
+  const approveMutation = useApproveOrganization();
+  const toggleMutation = useToggleOrganizationStatus();
+  const deleteMutation = useDeleteOrganization();
 
   useEffect(() => {
     const msg = data?.message?.trim();
@@ -139,9 +209,88 @@ export default function OrganizationPage() {
     setDetailsOpen(true);
   };
 
+  const handleEdit = (org: Organization) => {
+    setOrganizationToEdit(org);
+    setEditOpen(true);
+  };
+
+  const handleApprove = (org: Organization) => {
+    setOrganizationToApprove(org);
+    setApproveOpen(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!organizationToApprove) return;
+    try {
+      const res = await approveMutation.mutateAsync(organizationToApprove.id);
+      if (res.response === false) {
+        toast.error(res.message || 'Failed to approve organization.');
+        return;
+      }
+      toast.success(res.message || 'Organization approved successfully.');
+      setApproveOpen(false);
+      setOrganizationToApprove(null);
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to approve organization.');
+    }
+  };
+
+  const handleToggleStatus = (org: Organization) => {
+    setOrganizationToToggle(org);
+    setStatusDialogOpen(true);
+  };
+
+  const handleConfirmToggleStatus = async () => {
+    if (!organizationToToggle) return;
+    try {
+      const res = await toggleMutation.mutateAsync({
+        organizationId: organizationToToggle.id,
+        isActive: !organizationToToggle.isActive,
+      });
+      if (res.response === false) {
+        toast.error(res.message || 'Failed to update organization status.');
+        return;
+      }
+      toast.success(res.message || 'Status updated successfully.');
+      setStatusDialogOpen(false);
+      setOrganizationToToggle(null);
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status.');
+    }
+  };
+
+  const handleDelete = (org: Organization) => {
+    setOrganizationToDelete(org);
+    setDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!organizationToDelete) return;
+    try {
+      const res = await deleteMutation.mutateAsync(organizationToDelete.id);
+      if (res.response === false) {
+        toast.error(res.message || 'Failed to delete organization.');
+        return;
+      }
+      toast.success(res.message || 'Organization deleted successfully.');
+      setDeleteOpen(false);
+      setOrganizationToDelete(null);
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete organization.');
+    }
+  };
+
   const closeDetails = () => {
     setDetailsOpen(false);
     setSelectedOrganizationId(null);
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setOrganizationToEdit(null);
   };
 
   return (
@@ -151,6 +300,12 @@ export default function OrganizationPage() {
         onClose={() => setAddOpen(false)}
         onSuccess={() => void refetch()}
         defaultTargetBranchId={parsedBranchId ?? DEFAULT_BRANCH_ID}
+      />
+      <EditOrganization
+        isOpen={editOpen}
+        onClose={closeEdit}
+        onSuccess={() => void refetch()}
+        organization={organizationToEdit}
       />
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
@@ -187,8 +342,38 @@ export default function OrganizationPage() {
       </div>
 
       <div className="w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white backdrop-blur-xl p-4 shadow-sm border-t-white/20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-md">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div className="space-y-1.5 flex-1">
+            <label className={filterLabelClass}>Search Organizations</label>
+            <div className="relative group">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10"
+                size={18}
+              />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPageNo(0);
+                }}
+                placeholder="Search by name or code..."
+                className={`${inputClass} pl-11 pr-10`}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setPageNo(0);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                >
+                  <SearchX size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          {/* <div className="space-y-1.5 w-32">
             <label className={filterLabelClass}>Branch ID</label>
             <Input
               type="number"
@@ -199,13 +384,13 @@ export default function OrganizationPage() {
               placeholder="e.g. 1"
               disabled={isLoading}
             />
-          </div>
+          </div> */}
         </div>
-        {flashApiMessage ? (
+        {/* {flashApiMessage ? (
           <div className="mt-4 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-300">
             {flashApiMessage}
           </div>
-        ) : null}
+        ) : null} */}
       </div>
 
       <div className="w-full overflow-hidden rounded-[1.5rem] bg-white border border-slate-300 backdrop-blur-md shadow-sm">
@@ -232,6 +417,9 @@ export default function OrganizationPage() {
               </TableHead>
               <TableHead className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest">
                 Status
+              </TableHead>
+              <TableHead className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest">
+                Active/Inactive
               </TableHead>
               <TableHead className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest text-center">
                 Actions
@@ -329,12 +517,31 @@ export default function OrganizationPage() {
                       >
                         {status}
                       </Badge>
+
+                    </TableCell>
+                    <TableCell
+
+                      className="font-black text-[10px] uppercase tracking-wider"
+                    >
+                      <Badge
+                        variant={org.isActive ? 'success' : 'destructive'}
+                        className="font-black text-[10px] uppercase tracking-wider"
+                      >
+                        {org.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
                     </TableCell>
                     <TableCell
                       className="px-6 py-5 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <OrganizationActions row={org} onView={handleView} />
+                      <OrganizationActions
+                        row={org}
+                        onView={handleView}
+                        onEdit={handleEdit}
+                        onApprove={handleApprove}
+                        onToggleStatus={handleToggleStatus}
+                        onDelete={handleDelete}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -376,6 +583,53 @@ export default function OrganizationPage() {
           </div>
         ) : null}
       </div>
+
+      <EditOrganization
+        isOpen={editOpen}
+        onClose={closeEdit}
+        onSuccess={() => void refetch()}
+        organization={organizationToEdit}
+      />
+
+      <ConfirmAlertDialog
+        isOpen={approveOpen}
+        onClose={() => {
+          setApproveOpen(false);
+          setOrganizationToApprove(null);
+        }}
+        onConfirm={handleConfirmApprove}
+        title="Approve Organization"
+        description={`Are you sure you want to approve "${organizationToApprove?.orgName}"? This will activate the organization and allow them to start using the platform.`}
+        confirmText="Approve Organization"
+        isLoading={approveMutation.isPending}
+        variant="success"
+      />
+
+      <ConfirmAlertDialog
+        isOpen={statusDialogOpen}
+        onClose={() => {
+          setStatusDialogOpen(false);
+          setOrganizationToToggle(null);
+        }}
+        onConfirm={handleConfirmToggleStatus}
+        title={organizationToToggle?.isActive ? 'Deactivate Organization' : 'Activate Organization'}
+        description={`Are you sure you want to ${organizationToToggle?.isActive ? 'deactivate' : 'activate'} "${organizationToToggle?.orgName}"? This will ${organizationToToggle?.isActive ? 'disable' : 'enable'} their access to the platform.`}
+        confirmText={organizationToToggle?.isActive ? 'Deactivate Now' : 'Activate Now'}
+        isLoading={toggleMutation.isPending}
+        variant={organizationToToggle?.isActive ? 'destructive' : 'success'}
+      />
+
+      <DeleteAlertDialog
+        isOpen={deleteOpen}
+        onClose={() => {
+          setDeleteOpen(false);
+          setOrganizationToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Organization"
+        description={`Are you sure you want to permanently delete "${organizationToDelete?.orgName}"? This action cannot be undone and all associated data will be lost.`}
+        isLoading={deleteMutation.isPending}
+      />
 
       <OrganizationDetailsDrawer
         isOpen={detailsOpen}

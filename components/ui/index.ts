@@ -34,3 +34,5 @@ export { default as RightDrawer } from './right-drawer';
 
 // Domain-specific components
 export { default as ReferrerCard } from './referrer-card';
+export { ConfirmAlertDialog } from './confirm-alert-dialog';
+export { DeleteAlertDialog } from './delete-alert-dialog';

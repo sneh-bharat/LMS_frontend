@@ -5,11 +5,17 @@ import {
   createOrganization,
   fetchAllOrganizations,
   fetchOrganizationById,
+  updateOrganization,
+  approveOrganization,
+  toggleOrganizationStatus,
+  deleteOrganization,
   type CreateOrganizationApiResponse,
   type CreateOrganizationPayload,
   type FetchOrganizationsParams,
   type OrganizationDetailApiResponse,
   type OrganizationsListApiResponse,
+  type UpdateOrganizationApiResponse,
+  type UpdateOrganizationPayload,
 } from './organization';
 
 export const organizationQueryKeys = {
@@ -21,6 +27,7 @@ export const organizationQueryKeys = {
       params.pageNo ?? 0,
       params.pageSize ?? 10,
       params.branchId ?? 'all',
+      params.searchTerm ?? '',
     ] as const,
   detail: (organizationId: number) =>
     [...organizationQueryKeys.all, 'detail', organizationId] as const,
@@ -84,6 +91,66 @@ export function useCreateOrganization() {
     mutationFn: (payload) => createOrganization(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all });
+    },
+  });
+}
+
+/** PUT `/api/v1/organizations/{organizationId}` */
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    UpdateOrganizationApiResponse,
+    Error,
+    { organizationId: number; payload: UpdateOrganizationPayload }
+  >({
+    mutationFn: ({ organizationId, payload }) => updateOrganization(organizationId, payload),
+    onSuccess: (_, { organizationId }) => {
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.detail(organizationId) });
+    },
+  });
+}
+
+/** PUT `/api/v1/organizations/{organizationId}/approve` */
+export function useApproveOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ message: string; response: boolean; status: string }, Error, number>({
+    mutationFn: (organizationId) => approveOrganization(organizationId),
+    onSuccess: (_, organizationId) => {
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.detail(organizationId) });
+    },
+  });
+}
+
+/** PUT `/api/v1/organizations/{organizationId}/status?isActive=true` */
+export function useToggleOrganizationStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { message: string; response: boolean; status: string },
+    Error,
+    { organizationId: number; isActive: boolean }
+  >({
+    mutationFn: ({ organizationId, isActive }) => toggleOrganizationStatus(organizationId, isActive),
+    onSuccess: (_, { organizationId }) => {
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.detail(organizationId) });
+    },
+  });
+}
+
+/** DELETE `/api/v1/organizations/{organizationId}` */
+export function useDeleteOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ message: string; response: boolean; status: string }, Error, number>({
+    mutationFn: (organizationId) => deleteOrganization(organizationId),
+    onSuccess: (_, organizationId) => {
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: organizationQueryKeys.detail(organizationId) });
     },
   });
 }

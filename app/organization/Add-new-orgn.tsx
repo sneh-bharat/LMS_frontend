@@ -24,6 +24,7 @@ import {
   type OrganizationType,
 } from '@/app/Apis/organizations/organization';
 import { useCreateOrganization } from '@/app/Apis/organizations/useOrganizations';
+import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
 
 const FORM_ID = 'add-new-organization-form';
 const FIELD_LABEL =
@@ -130,6 +131,7 @@ export default function AddNewOrganization({
   defaultTargetBranchId = 1,
 }: AddNewOrganizationProps) {
   const createMutation = useCreateOrganization();
+  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll({ size: 100 });
   const [form, setForm] = useState(() => createEmptyForm(defaultTargetBranchId));
 
   const resetForm = () => {
@@ -150,9 +152,9 @@ export default function AddNewOrganization({
 
   const set =
     <K extends keyof FormState>(key: K) =>
-    (value: FormState[K]) => {
-      setForm((prev) => ({ ...prev, [key]: value }));
-    };
+      (value: FormState[K]) => {
+        setForm((prev) => ({ ...prev, [key]: value }));
+      };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,15 +324,23 @@ export default function AddNewOrganization({
               disabled={submitting}
             />
           </Field>
-          <Field label="Target branch ID">
-            <Input
-              type="number"
-              min={1}
+          <Field label="Target branch" required>
+            <Select
               value={form.targetBranchId}
-              onChange={(e) => set('targetBranchId')(e.target.value)}
-              className={INPUT_CLASS}
-              disabled={submitting}
-            />
+              onValueChange={(v) => set('targetBranchId')(v || '')}
+              disabled={submitting || isLoadingBranches}
+            >
+              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
+                <SelectValue placeholder={isLoadingBranches ? "Loading branches..." : "Select branch"} />
+              </SelectTrigger>
+              <SelectContent>
+                {branchesData?.data?.content?.map((branch) => (
+                  <SelectItem key={branch.id} value={String(branch.id)}>
+                    {branch.branchName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </FormSection>
 
@@ -346,6 +356,7 @@ export default function AddNewOrganization({
           </Field>
           <Field label="Primary phone">
             <Input
+            maxLength={10}
               value={form.primaryPhone}
               onChange={(e) => set('primaryPhone')(e.target.value)}
               className={INPUT_CLASS}
@@ -355,6 +366,7 @@ export default function AddNewOrganization({
           </Field>
           <Field label="Secondary phone">
             <Input
+            maxLength={10}
               value={form.secondaryPhone}
               onChange={(e) => set('secondaryPhone')(e.target.value)}
               className={INPUT_CLASS}

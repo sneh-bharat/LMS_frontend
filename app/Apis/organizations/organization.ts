@@ -106,10 +106,41 @@ export interface CreateOrganizationApiResponse {
   timestamp?: string;
 }
 
+/** PUT `/api/v1/organizations/{organizationId}` body. */
+export interface UpdateOrganizationPayload {
+  orgName?: string;
+  orgType?: OrganizationType | string;
+  shortName?: string;
+  orgCode?: string;
+  registrationNumber?: string;
+  addressLine1?: string;
+  primaryPhone?: string;
+  secondaryPhone?: string;
+  email?: string;
+  website?: string;
+  contactPersonName?: string;
+  contactPersonDesignation?: string;
+  contactPersonPhone?: string;
+  contactPersonEmail?: string;
+  paymentTermsDays?: number;
+  billingCycle?: BillingCycle | string;
+  specialNotes?: string;
+  termsAndConditions?: string;
+}
+
+export interface UpdateOrganizationApiResponse {
+  data?: Organization;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
 export interface FetchOrganizationsParams {
   pageNo?: number;
   pageSize?: number;
   branchId?: number;
+  searchTerm?: string;
 }
 
 function trimOptional(value: string | undefined): string | undefined {
@@ -239,17 +270,24 @@ export function getOrganizationStatus(org: Organization): string {
 export async function fetchAllOrganizations(
   params: FetchOrganizationsParams = {}
 ): Promise<OrganizationsListApiResponse> {
-  const search = new URLSearchParams({
+  const isSearch = params.searchTerm && params.searchTerm.trim().length > 0;
+  const endpoint = isSearch ? '/organizations/search' : '/organizations/all';
+
+  const query = new URLSearchParams({
     pageNo: String(params.pageNo ?? 0),
     pageSize: String(params.pageSize ?? 10),
   });
 
-//   if (params.branchId != null && params.branchId > 0) {
-//     search.set('branchId', String(params.branchId));
-//   }
+  if (isSearch) {
+    query.set('searchTerm', params.searchTerm!.trim());
+  }
+
+  //   if (params.branchId != null && params.branchId > 0) {
+  //     query.set('branchId', String(params.branchId));
+  //   }
 
   const res = (await organizationClient.get(
-    `/organizations/all?${search.toString()}`
+    `${endpoint}?${query.toString()}`
   )) as OrganizationsListApiResponse;
 
   if (res.response === false) {
@@ -299,6 +337,77 @@ export async function createOrganization(
 
   if (res.response === false) {
     throw new Error(res.message?.trim() || 'Failed to create organization.');
+  }
+
+  return res;
+}
+
+/**
+ * PUT `/api/v1/organizations/{organizationId}`
+ */
+export async function updateOrganization(
+  organizationId: number,
+  payload: UpdateOrganizationPayload
+): Promise<UpdateOrganizationApiResponse> {
+  const res = (await organizationClient.put(
+    `/organizations/${organizationId}`,
+    payload
+  )) as UpdateOrganizationApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to update organization.');
+  }
+
+  return res;
+}
+
+/**
+ * PUT `/api/v1/organizations/{organizationId}/approve`
+ */
+export async function approveOrganization(
+  organizationId: number
+): Promise<{ message: string; response: boolean; status: string }> {
+  const res = (await organizationClient.put(
+    `/organizations/${organizationId}/approve`
+  )) as { message: string; response: boolean; status: string };
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to approve organization.');
+  }
+
+  return res;
+}
+
+/**
+ * PUT `/api/v1/organizations/{organizationId}/status?isActive=true`
+ */
+export async function toggleOrganizationStatus(
+  organizationId: number,
+  isActive: boolean
+): Promise<{ message: string; response: boolean; status: string }> {
+  const res = (await organizationClient.put(
+    `/organizations/${organizationId}/status?isActive=${isActive}`
+  )) as { message: string; response: boolean; status: string };
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || `Failed to ${isActive ? 'activate' : 'deactivate'} organization.`);
+  }
+
+  return res;
+}
+
+/**
+ * DELETE `/api/v1/organizations/{organizationId}`
+ */
+export async function deleteOrganization(
+  organizationId: number
+): Promise<{ message: string; response: boolean; status: string }> {
+  const res = (await organizationClient.delete(
+    `/organizations/${organizationId}`
+  )) as { message: string; response: boolean; status: string };
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to delete organization.');
   }
 
   return res;

@@ -11,6 +11,7 @@ export const branchKeys = {
   details: () => [...branchKeys.all, 'detail'] as const,
   detail: (id: number) => [...branchKeys.details(), id] as const,
   active: () => [...branchKeys.all, 'active'] as const,
+  listAll: (params: any) => [...branchKeys.all, 'listAll', params] as const,
 };
 
 // ─── Query Hooks ─────────────────────────────────────────────────────────────
@@ -35,6 +36,20 @@ export function useActiveBranches(params: { pageNo?: number; pageSize?: number; 
   return useQuery({
     queryKey: [...branchKeys.active(), params],
     queryFn: () => branchApi.getActiveBranches(params),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Hook to fetch all branches (using /all endpoint)
+ */
+export function useBranchesAll(params: { page?: number; size?: number; tenantId?: number } = {}) {
+  const { page = 0, size = 10, ...rest } = params;
+  return useQuery({
+    queryKey: branchKeys.listAll({ page, size, ...rest }),
+    queryFn: () => branchApi.listBranchesAll({ page, size, ...rest }),
     staleTime: 5 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
