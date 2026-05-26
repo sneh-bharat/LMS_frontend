@@ -297,8 +297,8 @@ export default function EditOrganization({
                     </Field>
                     <Field label="Organization type" required>
                         <Select
-                            value={form.orgType || undefined}
-                            onValueChange={(v) => set('orgType')(v as OrganizationType)}
+                            value={form.orgType}
+                            onValueChange={(v) => set('orgType')((v ?? '') as OrganizationType)}
                             disabled={submitting}
                         >
                             <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
@@ -441,8 +441,8 @@ export default function EditOrganization({
                     </Field>
                     <Field label="Billing cycle">
                         <Select
-                            value={form.billingCycle || undefined}
-                            onValueChange={(v) => set('billingCycle')(v as BillingCycle)}
+                            value={form.billingCycle}
+                            onValueChange={(v) => set('billingCycle')((v ?? '') as BillingCycle)}
                             disabled={submitting}
                         >
                             <SelectTrigger className={`${INPUT_CLASS} font-bold`}>

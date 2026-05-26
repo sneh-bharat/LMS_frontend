@@ -143,6 +143,24 @@ export interface FetchOrganizationsParams {
   searchTerm?: string;
 }
 
+export interface OrganizationStatisticsData {
+  totalOrganizations: number;
+  activeOrganizations: number;
+  inactiveOrganizations: number;
+}
+
+export interface OrganizationStatisticsApiResponse {
+  data: OrganizationStatisticsData;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface FetchOrganizationStatisticsParams {
+  branchId?: number;
+}
+
 function trimOptional(value: string | undefined): string | undefined {
   const t = value?.trim();
   return t ? t : undefined;
@@ -282,9 +300,9 @@ export async function fetchAllOrganizations(
     query.set('searchTerm', params.searchTerm!.trim());
   }
 
-  //   if (params.branchId != null && params.branchId > 0) {
-  //     query.set('branchId', String(params.branchId));
-  //   }
+  if (!isSearch && params.branchId != null && params.branchId > 0) {
+    query.set('branchId', String(params.branchId));
+  }
 
   const res = (await organizationClient.get(
     `${endpoint}?${query.toString()}`
@@ -300,6 +318,30 @@ export async function fetchAllOrganizations(
       params.pageNo ?? 0,
       params.pageSize ?? 10
     );
+  }
+
+  return res;
+}
+
+/**
+ * GET `/api/v1/organizations/statistics`
+ */
+export async function fetchOrganizationStatistics(
+  params: FetchOrganizationStatisticsParams = {}
+): Promise<OrganizationStatisticsApiResponse> {
+  const query = new URLSearchParams();
+
+  if (params.branchId != null && params.branchId > 0) {
+    query.set('branchId', String(params.branchId));
+  }
+
+  const qs = query.toString();
+  const res = (await organizationClient.get(
+    `/organizations/statistics${qs ? `?${qs}` : ''}`
+  )) as OrganizationStatisticsApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to load organization statistics.');
   }
 
   return res;

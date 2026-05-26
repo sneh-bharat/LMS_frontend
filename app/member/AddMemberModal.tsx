@@ -1,418 +1,489 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CreditCard, Loader2, Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui';
+import { Textarea } from '@/components/ui/textarea';
 import { RightDrawer } from '@/components/ui/right-drawer';
-import { Member, MemberFormData, MembershipType, PaymentMode } from '@/app/member/types';
+import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
+import {getOrganizationName,type Organization,} from '@/app/Apis/organizations/organization';
+import { useOrganizations } from '@/app/Apis/organizations/useOrganizations';
+import {MEMBER_CARD_TYPES,formatMemberCardLabel,type CreateMemberCardPayload,type MemberCardType,} from '@/app/Apis/membership/membership';
+import { useCreateMemberCard } from '@/app/Apis/membership/useMembership';
 
-const MOCK_STAFF = [
-  { id: 1, name: 'Ravi Sharma',  employeeCode: 'EMP001' },
-  { id: 2, name: 'Priya Mehta',  employeeCode: 'EMP002' },
-  { id: 3, name: 'Arjun Singh',  employeeCode: 'EMP003' },
-  { id: 4, name: 'Neha Kapoor',  employeeCode: 'EMP004' },
-  { id: 5, name: 'Vikram Patel', employeeCode: 'EMP005' },
-];
+const FORM_ID = 'create-member-card-form';
+const FIELD_LABEL =
+  'text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1';
+const INPUT_CLASS =
+  'h-11 rounded-xl border-slate-200 bg-white font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500';
 
+function todayIsoDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
-interface AddMemberModalProps {
+export interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: MemberFormData) => void;
-  editData?: Member | null;
-  isEditMode?: boolean;
+  onSuccess?: () => void;
+  defaultBranchId?: number;
+}
+
+type FormState = {
+  branchId: string;
+  organizationId: string;
+  cardholderName: string;
+  cardType: MemberCardType | '';
+  limitAmount: string;
+  expiryDate: string;
+  remarks: string;
+  internalNotes: string;
+  billingAddress: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactEmail: string;
+  autoRenewal: boolean;
+};
+
+function createEmptyForm(defaultBranchId: number): FormState {
+  return {
+    branchId: 'Select Branch',
+    organizationId: '',
+    cardholderName: '',
+    cardType: '',
+    limitAmount: '',
+    expiryDate: '',
+    remarks: '',
+    internalNotes: '',
+    billingAddress: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactEmail: '',
+    autoRenewal: false,
+  };
+}
+
+function FormSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+      <h3 className="text-[10px] font-black text-teal-700 uppercase tracking-widest">
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ''}`}>
+      <Label className={FIELD_LABEL}>
+        {label}
+        {required ? <span className="text-red-500 ml-0.5">*</span> : null}
+      </Label>
+      {children}
+    </div>
+  );
 }
 
 export default function AddMemberModal({
   isOpen,
   onClose,
-  onSubmit,
-  editData = null,
-  isEditMode = false,
+  onSuccess,
+  defaultBranchId = 1,
 }: AddMemberModalProps) {
-  const [formData, setFormData] = useState<MemberFormData>({
-    cardId: editData?.cardId || '',
-    type: editData?.type || 'Basic',
-    cashbackPercentage: editData?.cashbackPercentage || 0,
-    discountPercentage: editData?.discountPercentage || 0,
-    validityType: editData?.validity.type || 'Months',
-    validityMonths: editData?.validity.value || 12,
-    walletStatus: editData?.walletStatus || 'Active',
-    marketingStaffId: editData?.marketingStaff.id || 0,
-    marketingStaffName: editData?.marketingStaff.name || '',
-    marketingStaffCode: editData?.marketingStaff.employeeCode || '',
-    registrationCharges: editData?.registrationCharges || 0,
-    paymentMode: editData?.paymentMode || 'Cash',
-    notes: '',
-  });
+  const createMutation = useCreateMemberCard();
+  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll({ size: 100 });
+  const [form, setForm] = useState(() => createEmptyForm(defaultBranchId));
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const parsedBranchId = useMemo(() => {
+    const id = Number.parseInt(form.branchId, 10);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }, [form.branchId]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target;
+  const { data: organizationsRes, isLoading: isLoadingOrgs } = useOrganizations(
+    { pageNo: 0, pageSize: 200, branchId: parsedBranchId ?? undefined },
+    { enabled: isOpen && parsedBranchId != null }
+  );
 
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' && value === '' ? 0 : type === 'number' ? Number(value) : value,
-    }));
+  const branches = branchesData?.data?.content ?? [];
 
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
+  const organizations = useMemo(() => {
+    const list = organizationsRes?.data?.content ?? [];
+    if (parsedBranchId == null) return list;
+    return list.filter(
+      (org: Organization) => org.branchId == null || org.branchId === parsedBranchId
+    );
+  }, [organizationsRes?.data?.content, parsedBranchId]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  const selectedBranch = useMemo(
+    () => branches.find((b) => String(b.id) === form.branchId),
+    [branches, form.branchId]
+  );
 
-    if (!formData.cardId.trim()) newErrors.cardId = 'Card ID is required';
-    if (!formData.type) newErrors.type = 'Membership type is required';
-    if (formData.cashbackPercentage < 0 || formData.cashbackPercentage > 100) newErrors.cashbackPercentage = 'Must be between 0 and 100';
-    if (formData.discountPercentage < 0 || formData.discountPercentage > 100) newErrors.discountPercentage = 'Must be between 0 and 100';
-    if (formData.validityType === 'Months' && (!formData.validityMonths || formData.validityMonths <= 0)) newErrors.validityMonths = 'Validity must be greater than 0';
-    if (!formData.marketingStaffId) newErrors.marketingStaffId = 'Please select marketing staff';
-    if (!formData.registrationCharges || formData.registrationCharges < 0) newErrors.registrationCharges = 'Valid amount required';
-    if (!formData.paymentMode) newErrors.paymentMode = 'Payment mode is required';
+  const selectedOrganization = useMemo(
+    () => organizations.find((o) => String(o.id) === form.organizationId),
+    [organizations, form.organizationId]
+  );
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onSubmit(formData);
-      handleClose();
-    }
-  };
+  const resetForm = () => setForm(createEmptyForm(defaultBranchId));
 
   const handleClose = () => {
-    setFormData({
-      cardId: '',
-      type: 'Basic',
-      cashbackPercentage: 0,
-      discountPercentage: 0,
-      validityType: 'Months',
-      validityMonths: 12,
-      walletStatus: 'Active',
-      marketingStaffId: 0,
-      marketingStaffName: '',
-      marketingStaffCode: '',
-      registrationCharges: 0,
-      paymentMode: 'Cash',
-      notes: '',
-    });
-    setErrors({});
-    onClose();
+    if (!createMutation.isPending) {
+      resetForm();
+      onClose();
+    }
   };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    setForm(createEmptyForm(defaultBranchId));
+  }, [isOpen, defaultBranchId]);
 
-  const MEMBERSHIP_TYPES: MembershipType[] = ['Basic', 'Silver', 'Gold', 'Platinum', 'Premium', 'Loyalty'];
-  const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Card', 'Online', 'UPI'];
-  const CASHBACK_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30];
+  const set =
+    <K extends keyof FormState>(key: K) =>
+    (value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const organizationId = Number.parseInt(form.organizationId, 10);
+    const cardholderName = form.cardholderName.trim();
+    const cardType = form.cardType.trim() as MemberCardType;
+    const limitAmount = Number.parseFloat(form.limitAmount);
+    const branchId = Number.parseInt(form.branchId, 10);
+
+    if (!Number.isFinite(organizationId) || organizationId < 1) {
+      toast.error('Please select an organization.');
+      return;
+    }
+    if (!cardholderName) {
+      toast.error('Cardholder name is required.');
+      return;
+    }
+    if (!cardType) {
+      toast.error('Card type is required.');
+      return;
+    }
+    if (!Number.isFinite(limitAmount) || limitAmount < 0) {
+      toast.error('Limit amount must be a valid non-negative number.');
+      return;
+    }
+    if (!Number.isFinite(branchId) || branchId < 1) {
+      toast.error('Please select a branch.');
+      return;
+    }
+
+    const expiryDate = form.expiryDate.trim();
+    const minExpiry = todayIsoDate();
+    if (expiryDate && expiryDate < minExpiry) {
+      toast.error('Expiry date cannot be in the past.');
+      return;
+    }
+
+    const payload: CreateMemberCardPayload = {
+      organizationId,
+      cardholderName,
+      cardType,
+      limitAmount,
+      branchId,
+      expiryDate: expiryDate || undefined,
+      remarks: form.remarks.trim() || undefined,
+      internalNotes: form.internalNotes.trim() || undefined,
+      billingAddress: form.billingAddress.trim() || undefined,
+      emergencyContactName: form.emergencyContactName.trim() || undefined,
+      emergencyContactPhone: form.emergencyContactPhone.trim() || undefined,
+      emergencyContactEmail: form.emergencyContactEmail.trim() || undefined,
+      autoRenewal: form.autoRenewal,
+    };
+
+    try {
+      const res = await createMutation.mutateAsync(payload);
+      if (res.response === false) {
+        toast.error(res.message || 'Failed to create member card.');
+        return;
+      }
+      toast.success(res.message || 'Member card created successfully.');
+      resetForm();
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create member card.');
+    }
+  };
+
+  const submitting = createMutation.isPending;
 
   return (
-    <>
-      <RightDrawer
-        isOpen={isOpen}
-        onClose={handleClose}
-        title={
-          <>
-            {isEditMode ? 'Edit Membership' : 'Add New Member'}{' '}
-            <span className="text-emerald-200">Card</span>
-          </>
-        }
-        description={isEditMode ? 'Update membership details' : 'Add a new membership card'}
-        footer={
-          <div className="flex gap-3 w-full">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 px-6 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+    <RightDrawer
+      isOpen={isOpen}
+      onClose={handleClose}
+      maxWidth="2xl"
+      title={
+        <div className="flex items-center gap-3">
+          <CreditCard className="text-white" size={22} aria-hidden />
+          <span>
+            New <span className="text-emerald-200">Membership Card</span>
+          </span>
+        </div>
+      }
+      description="Create a membership card for an organization · organization, cardholder, type & limit required"
+      footer={
+        <div className="flex flex-wrap gap-3 w-full justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={submitting}
+            className="border-slate-200 text-slate-600 font-bold"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            disabled={submitting}
+            className="custom-gradient text-white font-bold gap-2 min-w-[200px] h-12"
+          >
+            {submitting ? (
+              <>
+                <Loader2 size={18} className="animate-spin" aria-hidden />
+                Creating…
+              </>
+            ) : (
+              <>
+                <Plus size={18} aria-hidden />
+                Create card
+              </>
+            )}
+          </Button>
+        </div>
+      }
+    >
+      <form id={FORM_ID} onSubmit={(e) => void handleSubmit(e)} className="space-y-6 pb-4">
+        <FormSection title="Branch & organization">
+          <Field label="Branch" required>
+            <Select
+              value={form.branchId}
+              onValueChange={(v) => {
+                setForm((prev) => ({
+                  ...prev,
+                  branchId: v ?? '',
+                  organizationId: '',
+                }));
+              }}
+              disabled={submitting || isLoadingBranches}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="membership-form"
-              className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl"
+              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
+                <SelectValue
+                  placeholder={isLoadingBranches ? 'Loading branches…' : 'Select branch'}
+                >
+                  {selectedBranch?.branchName ?? null}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={String(branch.id)}>
+                    {branch.branchName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Organization" required>
+            <Select
+              value={form.organizationId}
+              onValueChange={(v) => set('organizationId')(v ?? '')}
+              disabled={
+                submitting || isLoadingOrgs || parsedBranchId == null || organizations.length === 0
+              }
             >
-              Save
-            </button>
-          </div>
-        }
-        maxWidth="lg"
-      >
-        <form id="membership-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
-          
-          {/* Basic Information */}
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Card ID *
-                </label>
-                <input
-                  type="text"
-                  name="cardId"
-                  placeholder="MEM2024001 or scan barcode"
-                  value={formData.cardId}
-                  onChange={handleInputChange}
-                  disabled={isEditMode}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.cardId
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.cardId && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.cardId}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Membership Type *
-                </label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.type
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
+              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
+                <SelectValue
+                  placeholder={
+                    parsedBranchId == null
+                      ? 'Select branch first'
+                      : isLoadingOrgs
+                        ? 'Loading organizations…'
+                        : organizations.length === 0
+                          ? 'No organizations for branch'
+                          : 'Select organization'
+                  }
                 >
-                  {MEMBERSHIP_TYPES.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                {errors.type && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.type}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+                  {selectedOrganization ? getOrganizationName(selectedOrganization) : null}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {organizations.map((org) => (
+                  <SelectItem key={org.id} value={String(org.id)}>
+                    {getOrganizationName(org)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </FormSection>
 
-          {/* Benefits */}
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Benefits & Cashback
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Cashback (%) 
-                </label>
-                <select
-                  name="cashbackPercentage"
-                  value={formData.cashbackPercentage}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                >
-                  {CASHBACK_OPTIONS.map(option => (
-                    <option key={option} value={option}>{option}%</option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-slate-500 mt-1.5 font-medium flex items-center gap-1">
-                  ℹ Cashback will be added to wallet based on invoice value
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Discount (%)
-                </label>
-                <input
-                  type="number"
-                  name="discountPercentage"
-                  min="0"
-                  max="100"
-                  value={formData.discountPercentage}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Validity */}
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Validity Details
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Validity Type
-                </label>
-                <select
-                  name="validityType"
-                  value={formData.validityType}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                >
-                  <option value="Lifetime">Lifetime</option>
-                  <option value="Months">Months</option>
-                </select>
-              </div>
-
-              {formData.validityType === 'Months' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                    Validity Period (Months)
-                  </label>
-                  <input
-                    type="number"
-                    name="validityMonths"
-                    min="1"
-                    max="120"
-                    value={formData.validityMonths}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Staff & Status */}
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Staff & Wallet Status
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Wallet Status
-                </label>
-                <select
-                  name="walletStatus"
-                  value={formData.walletStatus}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Marketing Staff *
-                </label>
-                <select
-                  name="marketingStaffId"
-                  value={formData.marketingStaffId}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.marketingStaffId
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                >
-                  <option value={0}>Select Staff</option>
-                  {MOCK_STAFF.map(staff => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.name} {staff.employeeCode && `(${staff.employeeCode})`}
-                    </option>
-                  ))}
-                </select>
-                {errors.marketingStaffId && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.marketingStaffId}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Payment */}
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Registration & Payment
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Registration Charges (₹) *
-                </label>
-                <input
-                  type="number"
-                  name="registrationCharges"
-                  min="0"
-                  value={formData.registrationCharges}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.registrationCharges
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                />
-                {errors.registrationCharges && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.registrationCharges}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                  Payment Mode *
-                </label>
-                <select
-                  name="paymentMode"
-                  value={formData.paymentMode}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                    errors.paymentMode
-                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                      : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                  }`}
-                >
-                  {PAYMENT_MODES.map(mode => (
-                    <option key={mode} value={mode}>{mode}</option>
-                  ))}
-                </select>
-                {errors.paymentMode && (
-                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                    <AlertCircle size={12} /> {errors.paymentMode}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
-              Additional Information
-            </h3>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Notes (Optional)
-              </label>
-              <textarea
-                name="notes"
-                placeholder="Any additional notes..."
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 resize-none"
+        <FormSection title="Card details">
+          <Field label="Cardholder name" required className="sm:col-span-2">
+            <Input
+              value={form.cardholderName}
+              onChange={(e) => set('cardholderName')(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="e.g. Jane Smith"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Card type" required>
+            <Select
+              value={form.cardType}
+              onValueChange={(v) => set('cardType')((v ?? '') as MemberCardType)}
+              disabled={submitting}
+            >
+              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
+                <SelectValue placeholder="Select card type" />
+              </SelectTrigger>
+              <SelectContent>
+                {MEMBER_CARD_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {formatMemberCardLabel(t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Limit amount (₹)" required>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.limitAmount}
+              onChange={(e) => set('limitAmount')(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="50000"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Expiry date">
+            <Input
+              type="date"
+              min={todayIsoDate()}
+              value={form.expiryDate}
+              onChange={(e) => set('expiryDate')(e.target.value)}
+              className={INPUT_CLASS}
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Auto renewal" className="sm:col-span-2">
+            <label className="flex items-center gap-3 cursor-pointer pt-2">
+              <input
+                type="checkbox"
+                checked={form.autoRenewal}
+                onChange={(e) => set('autoRenewal')(e.target.checked)}
+                disabled={submitting}
+                className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
               />
-            </div>
-          </div>
+              <span className="text-sm font-bold text-slate-700">Enable auto renewal</span>
+            </label>
+          </Field>
+        </FormSection>
 
-        </form>
-      </RightDrawer>
-    </>
+        <FormSection title="Billing & address">
+          <Field label="Billing address" className="sm:col-span-2">
+            <Textarea
+              value={form.billingAddress}
+              onChange={(e) => set('billingAddress')(e.target.value)}
+              className="min-h-[88px] rounded-xl border-slate-200 font-medium resize-y"
+              placeholder="123 Business Park, Sector 18, Noida"
+              disabled={submitting}
+            />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Emergency contact">
+          <Field label="Contact name">
+            <Input
+              value={form.emergencyContactName}
+              onChange={(e) => set('emergencyContactName')(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="John Smith"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Contact phone">
+            <Input
+              value={form.emergencyContactPhone}
+              onChange={(e) => set('emergencyContactPhone')(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="9876543213"
+              maxLength={15}
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Contact email" className="sm:col-span-2">
+            <Input
+              type="email"
+              value={form.emergencyContactEmail}
+              onChange={(e) => set('emergencyContactEmail')(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="john.smith@example.com"
+              disabled={submitting}
+            />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Notes">
+          <Field label="Remarks" className="sm:col-span-2">
+            <Textarea
+              value={form.remarks}
+              onChange={(e) => set('remarks')(e.target.value)}
+              className="min-h-[72px] rounded-xl border-slate-200 font-medium resize-y"
+              placeholder="Annual corporate membership card"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Internal notes" className="sm:col-span-2">
+            <Textarea
+              value={form.internalNotes}
+              onChange={(e) => set('internalNotes')(e.target.value)}
+              className="min-h-[72px] rounded-xl border-slate-200 font-medium resize-y"
+              placeholder="Approved by admin on 2026-05-23"
+              disabled={submitting}
+            />
+          </Field>
+        </FormSection>
+      </form>
+    </RightDrawer>
   );
 }
