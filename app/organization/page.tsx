@@ -1,7 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Search, SearchX, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle,
+  Eye,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  SearchX,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Table,
@@ -30,7 +44,13 @@ import {
   getOrganizationType,
   type Organization,
 } from '@/app/Apis/organizations/organization';
-import { useOrganizations, useApproveOrganization, useToggleOrganizationStatus, useDeleteOrganization } from '@/app/Apis/organizations/useOrganizations';
+import {
+  useOrganizations,
+  useOrganizationStatistics,
+  useApproveOrganization,
+  useToggleOrganizationStatus,
+  useDeleteOrganization,
+} from '@/app/Apis/organizations/useOrganizations';
 import OrganizationDetailsDrawer from './details';
 import AddNewOrganization from './Add-new-orgn';
 import EditOrganization from './Edit-orgn';
@@ -166,6 +186,49 @@ export default function OrganizationPage() {
   useEffect(() => {
     setPageNo(0);
   }, [parsedBranchId]);
+
+  const {
+    data: statisticsRes,
+    isLoading: isStatisticsLoading,
+    isError: isStatisticsError,
+    error: statisticsError,
+    isFetching: isStatisticsFetching,
+    refetch: refetchStatistics,
+  } = useOrganizationStatistics({
+    branchId: parsedBranchId ?? undefined,
+  });
+
+  const statistics = statisticsRes?.data ?? null;
+
+  const statCards = useMemo(
+    () => [
+      {
+        label: 'Total Organizations',
+        value: statistics != null ? String(statistics.totalOrganizations) : '—',
+        icon: Building2,
+        tone: 'text-[#FF671F]',
+        bg: 'bg-[#FF671F]/15',
+        valueColor: 'text-[#FF671F]',
+      },
+      {
+        label: 'Active',
+        value: statistics != null ? String(statistics.activeOrganizations) : '—',
+        icon: CheckCircle,
+        tone: 'text-[#006D77]',
+        bg: 'bg-[#006D77]/15',
+        valueColor: 'text-[#006D77]',
+      },
+      {
+        label: 'Inactive',
+        value: statistics != null ? String(statistics.inactiveOrganizations) : '—',
+        icon: XCircle,
+        tone: 'text-red-600',
+        bg: 'bg-red-400/30',
+        valueColor: 'text-red-600',
+      },
+    ],
+    [statistics]
+  );
 
   const {
     data,
@@ -322,10 +385,17 @@ export default function OrganizationPage() {
             variant="outline"
             size="sm"
             className="gap-2 font-bold border-slate-200 bg-white shadow-sm"
-            disabled={isLoading || isFetching}
-            onClick={() => refetch()}
+            disabled={isLoading || isFetching || isStatisticsFetching}
+            onClick={() => {
+              void refetch();
+              void refetchStatistics();
+            }}
           >
-            <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} aria-hidden />
+            <RefreshCw
+              size={16}
+              className={isFetching || isStatisticsFetching ? 'animate-spin' : ''}
+              aria-hidden
+            />
             Refresh
           </Button>
           <Button
@@ -340,13 +410,56 @@ export default function OrganizationPage() {
           </Button>
         </div>
       </div>
+      
+      {isStatisticsError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {statisticsError instanceof Error
+            ? statisticsError.message
+            : 'Failed to load organization statistics.'}
+        </div>
+      ) : null}
 
-      <div className="w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white backdrop-blur-xl p-4 shadow-sm border-t-white/20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-          <div className="space-y-1.5 flex-1">
-            <label className={filterLabelClass}>Search Organizations</label>
-            <div className="relative group">
-              <Search
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 shadow-sm">
+        {isStatisticsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
+            <Loader2 size={20} className="animate-spin" aria-hidden />
+            <span className="text-sm font-semibold">Loading statistics…</span>
+          </div>
+        ) : (
+          <div className="flex flex-nowrap items-stretch gap-0 overflow-x-auto pb-1 scrollbar-thin">
+            {statCards.map((card, index) => {
+              const Icon = card.icon;
+              return (
+                <div
+                  key={card.label}
+                  className={`flex min-w-[9.5rem] flex-1 flex-col items-center justify-center px-3 py-1 text-center sm:min-w-0 ${
+                    index < statCards.length - 1 ? 'border-r border-slate-200/70' : ''
+                  }`}
+                >
+                  <div
+                    className={`mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}
+                  >
+                    <Icon size={18} className={card.tone} aria-hidden />
+                  </div>
+                  <span className="mb-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
+                    {card.label}
+                  </span>
+                  <span
+                    className={`text-lg font-black leading-none sm:text-xl ${card.valueColor}`}
+                  >
+                    {card.value}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+     
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
+        <div className="relative group flex-1 w-full">
+          <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10"
                 size={18}
               />
@@ -371,27 +484,10 @@ export default function OrganizationPage() {
                   <SearchX size={16} />
                 </button>
               )}
-            </div>
-          </div>
-          {/* <div className="space-y-1.5 w-32">
-            <label className={filterLabelClass}>Branch ID</label>
-            <Input
-              type="number"
-              min={1}
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              className={inputClass}
-              placeholder="e.g. 1"
-              disabled={isLoading}
-            />
-          </div> */}
         </div>
-        {/* {flashApiMessage ? (
-          <div className="mt-4 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold animate-in fade-in slide-in-from-top-1 duration-300">
-            {flashApiMessage}
-          </div>
-        ) : null} */}
+       
       </div>
+
 
       <div className="w-full overflow-hidden rounded-[1.5rem] bg-white border border-slate-300 backdrop-blur-md shadow-sm">
         <Table className="border-collapse">
@@ -520,7 +616,6 @@ export default function OrganizationPage() {
 
                     </TableCell>
                     <TableCell
-
                       className="font-black text-[10px] uppercase tracking-wider"
                     >
                       <Badge

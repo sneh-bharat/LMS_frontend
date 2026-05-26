@@ -81,7 +81,7 @@ function createEmptyForm(defaultBranchId: number): FormState {
     billingCycle: '',
     specialNotes: '',
     termsAndConditions: '',
-    targetBranchId: String(defaultBranchId > 0 ? defaultBranchId : 1),
+    targetBranchId: defaultBranchId > 0 ? String(defaultBranchId) : '',
   };
 }
 
@@ -171,7 +171,11 @@ export default function AddNewOrganization({
       return;
     }
 
-    const branchId = Number.parseInt(form.targetBranchId.trim(), 10);
+    const branchId = Number.parseInt(form.targetBranchId, 10);
+    if (!Number.isFinite(branchId) || branchId <= 0) {
+      toast.error('Please select a branch.');
+      return;
+    }
     const paymentDays = form.paymentTermsDays.trim()
       ? Number.parseInt(form.paymentTermsDays.trim(), 10)
       : undefined;
@@ -200,8 +204,7 @@ export default function AddNewOrganization({
       termsAndConditions: form.termsAndConditions.trim() || undefined,
       billingCycle: form.billingCycle || undefined,
       paymentTermsDays: paymentDays,
-      targetBranchId:
-        Number.isFinite(branchId) && branchId > 0 ? branchId : defaultTargetBranchId,
+      targetBranchId: branchId,
     };
 
     try {
@@ -281,8 +284,8 @@ export default function AddNewOrganization({
           </Field>
           <Field label="Organization type" required>
             <Select
-              value={form.orgType || undefined}
-              onValueChange={(v) => set('orgType')(v as OrganizationType)}
+              value={form.orgType}
+              onValueChange={(v) => set('orgType')((v ?? '') as OrganizationType)}
               disabled={submitting}
             >
               <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
@@ -324,10 +327,10 @@ export default function AddNewOrganization({
               disabled={submitting}
             />
           </Field>
-          <Field label="Target branch" required>
+          <Field label="Select Branch" required>
             <Select
               value={form.targetBranchId}
-              onValueChange={(v) => set('targetBranchId')(v || '')}
+              onValueChange={(v) => set('targetBranchId')(v ?? '')}
               disabled={submitting || isLoadingBranches}
             >
               <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
@@ -445,8 +448,8 @@ export default function AddNewOrganization({
           </Field>
           <Field label="Billing cycle">
             <Select
-              value={form.billingCycle || undefined}
-              onValueChange={(v) => set('billingCycle')(v as BillingCycle)}
+              value={form.billingCycle}
+              onValueChange={(v) => set('billingCycle')((v ?? '') as BillingCycle)}
               disabled={submitting}
             >
               <SelectTrigger className={`${INPUT_CLASS} font-bold`}>

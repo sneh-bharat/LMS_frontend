@@ -5,14 +5,17 @@ import {
   createOrganization,
   fetchAllOrganizations,
   fetchOrganizationById,
+  fetchOrganizationStatistics,
   updateOrganization,
   approveOrganization,
   toggleOrganizationStatus,
   deleteOrganization,
   type CreateOrganizationApiResponse,
   type CreateOrganizationPayload,
+  type FetchOrganizationStatisticsParams,
   type FetchOrganizationsParams,
   type OrganizationDetailApiResponse,
+  type OrganizationStatisticsApiResponse,
   type OrganizationsListApiResponse,
   type UpdateOrganizationApiResponse,
   type UpdateOrganizationPayload,
@@ -31,6 +34,12 @@ export const organizationQueryKeys = {
     ] as const,
   detail: (organizationId: number) =>
     [...organizationQueryKeys.all, 'detail', organizationId] as const,
+  statistics: (params: FetchOrganizationStatisticsParams) =>
+    [
+      ...organizationQueryKeys.all,
+      'statistics',
+      params.branchId ?? 'all',
+    ] as const,
 };
 
 export type OrganizationsListQueryKey = ReturnType<typeof organizationQueryKeys.list>;
@@ -62,6 +71,21 @@ export function useOrganizations(
     refetchOnWindowFocus: false,
     ...queryOptions,
     enabled: queryOptions?.enabled ?? enabled,
+  });
+}
+
+/** GET `/api/v1/organizations/statistics` */
+export function useOrganizationStatistics(
+  params: FetchOrganizationStatisticsParams = {},
+  options?: { enabled?: boolean }
+) {
+  return useQuery<OrganizationStatisticsApiResponse, Error>({
+    queryKey: organizationQueryKeys.statistics(params),
+    queryFn: () => fetchOrganizationStatistics(params),
+    enabled: options?.enabled ?? true,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
