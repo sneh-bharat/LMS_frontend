@@ -45,11 +45,15 @@ export function useActiveBranches(params: { pageNo?: number; pageSize?: number; 
 /**
  * Hook to fetch all branches (using /all endpoint)
  */
-export function useBranchesAll(params: { page?: number; size?: number; tenantId?: number } = {}) {
+export function useBranchesAll(
+  params: { page?: number; size?: number; tenantId?: number } = {},
+  options?: { enabled?: boolean }
+) {
   const { page = 0, size = 10, ...rest } = params;
   return useQuery({
     queryKey: branchKeys.listAll({ page, size, ...rest }),
     queryFn: () => branchApi.listBranchesAll({ page, size, ...rest }),
+    enabled: options?.enabled ?? true,
     staleTime: 5 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
