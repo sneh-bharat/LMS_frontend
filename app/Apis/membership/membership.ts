@@ -12,10 +12,13 @@ export interface MemberCard {
   patientName?: string;
   organizationName?: string;
   orgName?: string;
+  orgCode?: string;
   organization?: string | { orgName?: string; name?: string };
   cardType?: string;
   status?: string;
   cardStatus?: string;
+  /** Some APIs return `activationDate` instead of `activatedDate`. */
+  activationDate?: string;
   limitAmount?: number;
   creditLimit?: number;
   totalLimit?: number;
@@ -38,6 +41,20 @@ export interface MemberCard {
   issueDate?: string;
   issuedDate?: string;
   activatedDate?: string;
+  lastTransactionDate?: string | null;
+  currency?: string;
+  transactionCount?: number;
+  isExpired?: boolean;
+  isUsable?: boolean;
+  blockedDate?: string | null;
+  blockedReason?: string | null;
+  suspendedDate?: string | null;
+  suspendedReason?: string | null;
+  billingAddress?: string | null;
+  createdByName?: string | null;
+  updatedByName?: string | null;
+  renewalCount?: number;
+  employeeId?: string | number | null;
   createdAt?: string;
   updatedAt?: string;
   createdDate?: string;
@@ -57,21 +74,55 @@ export interface MemberCardDetailApiResponse {
   timestamp?: string;
 }
 
+/** Payload from GET `/api/v1/member-cards/{cardId}/balance`. */
 export interface MemberCardBalanceData {
-  cardType?: string;
-  limitAmount?: number;
-  expiryDate?: string;
-  lastTransactionDate?: string;
-  isUsable?: boolean;
+  orgName?: string;
+  organizationId?: number;
   orgCode?: string;
   cardId?: number;
   cardholderName?: string;
+  cardNumber?: string;
+  cardType?: string;
+  cardStatus?: string;
+  limitAmount?: number;
+  usedAmount?: number;
+  usedBalance?: number;
+  amountUsed?: number;
+  availableBalance?: number;
+  availableAmount?: number;
+  balanceAvailable?: number;
+  expiryDate?: string;
+  lastTransactionDate?: string;
+  isUsable?: boolean;
+  isExpired?: boolean;
   usagePercentage?: number;
   currency?: string;
   transactionCount?: number;
-  isExpired?: boolean;
-  cardNumber?: string;
-  cardStatus?: string;
+}
+
+/** Maps balance API response into `MemberCard` for shared display helpers. */
+export function memberCardFromBalanceData(
+  balance: MemberCardBalanceData,
+  fallback?: MemberCard | null
+): MemberCard {
+  const id = balance.cardId ?? fallback?.id ?? 0;
+
+  return {
+    ...(fallback ?? { id }),
+    id,
+    cardNumber: balance.cardNumber ?? fallback?.cardNumber,
+    cardholderName: balance.cardholderName ?? fallback?.cardholderName,
+    cardType: balance.cardType ?? fallback?.cardType,
+    status: balance.cardStatus ?? fallback?.status,
+    cardStatus: balance.cardStatus ?? fallback?.cardStatus,
+    orgName: balance.orgName ?? fallback?.orgName,
+    organizationName: balance.orgName ?? fallback?.organizationName,
+    organizationId: balance.organizationId ?? fallback?.organizationId,
+    limitAmount: balance.limitAmount ?? fallback?.limitAmount,
+    usedAmount: balance.usedAmount ?? fallback?.usedAmount,
+    availableBalance: balance.availableBalance ?? fallback?.availableBalance,
+    expiryDate: balance.expiryDate ?? fallback?.expiryDate,
+  };
 }
 
 export interface MemberCardBalanceApiResponse {
@@ -103,7 +154,7 @@ export interface MemberCardsListApiResponse {
 export interface FetchMemberCardsParams {
   pageNo?: number;
   pageSize?: number;
-  branchId?: number;
+   branchId?: number;
   /** When set, uses GET `/member-cards/search` (e.g. cardholder name). */
   searchTerm?: string;
 }
@@ -232,6 +283,18 @@ export function getMemberCardStatus(card: MemberCard): string {
   return s ? s.toUpperCase() : '—';
 }
 
+/** Normalizes status for comparison (`PENDING ACTIVATION` → `PENDING_ACTIVATION`). */
+export function normalizeMemberCardStatusKey(status: string): string {
+  return status.trim().toUpperCase().replace(/\s+/g, '_');
+}
+
+/** True when card status is `PENDING ACTIVATION` (or `PENDING_ACTIVATION`). */
+export function isMemberCardPendingActivation(card: MemberCard): boolean {
+  const raw = (card.status ?? card.cardStatus)?.trim();
+  if (!raw) return false;
+  return normalizeMemberCardStatusKey(raw) === 'PENDING_ACTIVATION';
+}
+
 function pickAmount(...values: (number | undefined)[]): number | null {
   for (const v of values) {
     if (v != null && Number.isFinite(v)) return v;
@@ -262,6 +325,19 @@ export function getMemberCardAvailableBalance(card: MemberCard): number | null {
 
 export function getMemberCardExpiryDate(card: MemberCard): string {
   return card.expiryDate?.trim() || card.validTill?.trim() || card.validTo?.trim() || '';
+}
+
+function normalizeMemberCardDetail(card: MemberCard): MemberCard {
+  const organizationName =
+    card.organizationName?.trim() || card.orgName?.trim() || '';
+
+  return {
+    ...card,
+    // Make sure organization helper always works for detail payloads.
+    ...(organizationName ? { organizationName, orgName: organizationName } : {}),
+    // Align activation date naming
+    activatedDate: card.activatedDate ?? card.activationDate,
+  };
 }
 
 export function formatMemberCardLabel(value: string | null | undefined): string {
@@ -343,10 +419,6 @@ export async function fetchMemberCardStatistics(
 ): Promise<MemberCardStatisticsApiResponse> {
   const query = new URLSearchParams();
 
-  if (params.branchId != null && params.branchId > 0) {
-    query.set('branchId', String(params.branchId));
-  }
-
   const qs = query.toString();
   const res = (await membershipClient.get(
     `/member-cards/statistics${qs ? `?${qs}` : ''}`
@@ -380,6 +452,10 @@ export async function fetchMemberCardById(
 
   if (res.response === false) {
     throw new Error(res.message?.trim() || 'Failed to load member card details.');
+  }
+
+  if (res.data) {
+    res.data = normalizeMemberCardDetail(res.data);
   }
 
   return res;
@@ -594,6 +670,39 @@ export interface DeleteMemberCardApiResponse {
   status: string;
 }
 
+export interface ActivateMemberCardApiResponse {
+  cardId: number;
+  data?: MemberCard;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/**
+ * PUT `/api/v1/member-cards/{cardId}/activate`
+ */
+export async function activateMemberCard(
+  cardId: number
+): Promise<ActivateMemberCardApiResponse> {
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+
+  const res = (await membershipClient.put(
+    `/member-cards/${cardId}/activate`
+  )) as ActivateMemberCardApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to activate member card.');
+  }
+
+  return {
+    ...res,
+    cardId: res.cardId ?? res.data?.id ?? cardId,
+  };
+}
+
 /**
  * DELETE `/api/v1/member-cards/{cardId}`
  */
@@ -613,4 +722,226 @@ export async function deleteMemberCard(
   }
 
   return res;
+}
+
+/** POST `/api/v1/member-cards/allocate-limit` */
+export interface AllocateMemberCardLimitPayload {
+  cardId: number;
+  allocationAmount: number;
+  remarks?: string;
+}
+
+export interface AllocateMemberCardLimitApiResponse {
+  data?: MemberCard;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export function buildAllocateMemberCardLimitPayload(
+  input: AllocateMemberCardLimitPayload
+): AllocateMemberCardLimitPayload {
+  const cardId = input.cardId;
+  const allocationAmount = input.allocationAmount;
+
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+  if (
+    allocationAmount == null ||
+    !Number.isFinite(allocationAmount) ||
+    allocationAmount <= 0
+  ) {
+    throw new Error('Allocation amount must be a positive number.');
+  }
+
+  const payload: AllocateMemberCardLimitPayload = {
+    cardId,
+    allocationAmount,
+  };
+
+  if (input.remarks?.trim()) {
+    payload.remarks = input.remarks.trim();
+  }
+
+  return payload;
+}
+
+/**
+ * POST `/api/v1/member-cards/allocate-limit`
+ */
+export async function allocateMemberCardLimit(
+  payload: AllocateMemberCardLimitPayload
+): Promise<AllocateMemberCardLimitApiResponse> {
+  const body = buildAllocateMemberCardLimitPayload(payload);
+
+  const res = (await membershipClient.post(
+    '/member-cards/allocate-limit',
+    body
+  )) as AllocateMemberCardLimitApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to allocate member card limit.');
+  }
+
+  return res;
+}
+
+/** Row from GET `/api/v1/member-cards/{cardId}/transactions`. */
+export interface MemberCardTransaction {
+  id: number;
+  transactionId?: string;
+  cardId?: number;
+  transactionDate?: string;
+  date?: string;
+  createdAt?: string;
+  createdDate?: string;
+  amount?: number;
+  transactionAmount?: number;
+  allocationAmount?: number;
+  transactionType?: string;
+  type?: string;
+  description?: string;
+  remarks?: string;
+  notes?: string;
+  referenceNumber?: string;
+  receiptNumber?: string;
+  balanceBefore?: number;
+  balanceAfter?: number;
+  openingBalance?: number;
+  closingBalance?: number;
+  status?: string;
+  transactionStatus?: string;
+  currency?: string;
+  createdBy?: string;
+  createdByName?: string;
+  paymentMode?: string;
+}
+
+export interface MemberCardTransactionsPage {
+  content: MemberCardTransaction[];
+  pageNo: number;
+  pageSize: number;
+  totalPages: number;
+  totalElements: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface MemberCardTransactionsApiResponse {
+  data: MemberCardTransaction[] | MemberCardTransactionsPage;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface FetchMemberCardTransactionsParams {
+  pageNo?: number;
+  pageSize?: number;
+}
+
+function normalizeMemberCardTransactionsPage(
+  data: MemberCardTransaction[] | MemberCardTransactionsPage,
+  pageNo: number,
+  pageSize: number
+): MemberCardTransactionsPage {
+  if (Array.isArray(data)) {
+    return {
+      content: data,
+      pageNo,
+      pageSize,
+      totalElements: data.length,
+      totalPages: 1,
+      first: pageNo === 0,
+      last: true,
+    };
+  }
+
+  const content = data.content ?? [];
+  const totalElements = data.totalElements ?? content.length;
+  const size = data.pageSize ?? pageSize;
+  const no = data.pageNo ?? pageNo;
+  const totalPages =
+    data.totalPages ?? Math.max(1, Math.ceil(totalElements / Math.max(size, 1)));
+
+  return {
+    ...data,
+    content,
+    pageNo: no,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    first: data.first ?? no === 0,
+    last: data.last ?? no + 1 >= totalPages,
+  };
+}
+
+export function getMemberCardTransactionDate(txn: MemberCardTransaction): string | null {
+  return (
+    txn.transactionDate?.trim() ||
+    txn.date?.trim() ||
+    txn.createdAt?.trim() ||
+    txn.createdDate?.trim() ||
+    null
+  );
+}
+
+export function getMemberCardTransactionAmount(txn: MemberCardTransaction): number | null {
+  const amount = txn.amount ?? txn.transactionAmount ?? txn.allocationAmount;
+  return amount != null && Number.isFinite(amount) ? amount : null;
+}
+
+export function getMemberCardTransactionType(txn: MemberCardTransaction): string {
+  return txn.transactionType?.trim() || txn.type?.trim() || '—';
+}
+
+export function getMemberCardTransactionStatus(txn: MemberCardTransaction): string {
+  return txn.transactionStatus?.trim() || txn.status?.trim() || '—';
+}
+
+export function getMemberCardTransactionReference(txn: MemberCardTransaction): string {
+  return (
+    txn.referenceNumber?.trim() ||
+    txn.receiptNumber?.trim() ||
+    txn.transactionId?.trim() ||
+    (txn.id > 0 ? `#${txn.id}` : '—')
+  );
+}
+
+export function getMemberCardTransactionDescription(txn: MemberCardTransaction): string {
+  return txn.description?.trim() || txn.remarks?.trim() || txn.notes?.trim() || '—';
+}
+
+/**
+ * GET `/api/v1/member-cards/{cardId}/transactions?pageNo=0&pageSize=10`
+ */
+export async function fetchMemberCardTransactions(
+  cardId: number,
+  params: FetchMemberCardTransactionsParams = {}
+): Promise<MemberCardTransactionsApiResponse & { data: MemberCardTransactionsPage }> {
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+
+  const pageNo = params.pageNo ?? 0;
+  const pageSize = params.pageSize ?? 10;
+  const query = new URLSearchParams({
+    pageNo: String(pageNo),
+    pageSize: String(pageSize),
+  });
+
+  const res = (await membershipClient.get(
+    `/member-cards/${cardId}/transactions?${query.toString()}`
+  )) as MemberCardTransactionsApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to load member card transactions.');
+  }
+
+  return {
+    ...res,
+    data: normalizeMemberCardTransactionsPage(res.data, pageNo, pageSize),
+  };
 }
