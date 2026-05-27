@@ -94,17 +94,9 @@ function MemberCardDetailsBody(props: MemberCardDetailsBodyProps) {
   const status = getMemberCardStatus(card);
   const cardType = getMemberCardType(card);
   const limit =
-    pickBalanceAmount(balance?.limitAmount, balance?.creditLimit, balance?.totalLimit) ??
-    getMemberCardLimitAmount(card);
-  const used =
-    pickBalanceAmount(balance?.usedAmount, balance?.usedBalance, balance?.amountUsed) ??
-    getMemberCardUsedAmount(card);
-  const available =
-    pickBalanceAmount(
-      balance?.availableBalance,
-      balance?.availableAmount,
-      balance?.balanceAvailable
-    ) ?? getMemberCardAvailableBalance(card);
+    pickBalanceAmount(balance?.limitAmount) ?? getMemberCardLimitAmount(card);
+  const used = getMemberCardUsedAmount(card);
+  const available = getMemberCardAvailableBalance(card);
 
   return (
     <div className="space-y-8 pb-4">
