@@ -5,6 +5,7 @@ import {
   createMemberCard,
   deleteMemberCard,
   fetchAllMemberCards,
+  fetchMemberCardBalanceById,
   fetchMemberCardById,
   fetchMemberCardStatistics,
   updateMemberCard,
@@ -15,6 +16,7 @@ import {
   type UpdateMemberCardPayload,
   type FetchMemberCardStatisticsParams,
   type FetchMemberCardsParams,
+  type MemberCardBalanceApiResponse,
   type MemberCardDetailApiResponse,
   type MemberCardStatisticsApiResponse,
   type MemberCardsListApiResponse,
@@ -32,6 +34,7 @@ export const memberCardQueryKeys = {
       params.searchTerm?.trim() ?? '',
     ] as const,
   detail: (cardId: number) => [...memberCardQueryKeys.all, 'detail', cardId] as const,
+  balance: (cardId: number) => [...memberCardQueryKeys.all, 'balance', cardId] as const,
   statistics: (params: FetchMemberCardStatisticsParams) =>
     [...memberCardQueryKeys.all, 'statistics', params.branchId ?? 'all'] as const,
 };
@@ -93,6 +96,24 @@ export function useMemberCardById(
   return useQuery<MemberCardDetailApiResponse, Error>({
     queryKey: id != null ? memberCardQueryKeys.detail(id) : ['member-cards', 'detail', 'idle'],
     queryFn: () => fetchMemberCardById(id!),
+    enabled,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/member-cards/{cardId}/balance` */
+export function useMemberCardBalanceById(
+  cardId: number | null,
+  options?: { enabled?: boolean }
+) {
+  const id = cardId != null && cardId > 0 ? cardId : null;
+  const enabled = (options?.enabled ?? true) && id != null;
+
+  return useQuery<MemberCardBalanceApiResponse, Error>({
+    queryKey: id != null ? memberCardQueryKeys.balance(id) : ['member-cards', 'balance', 'idle'],
+    queryFn: () => fetchMemberCardBalanceById(id!),
     enabled,
     staleTime: 30 * 1000,
     retry: 1,

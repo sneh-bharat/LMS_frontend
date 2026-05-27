@@ -57,6 +57,31 @@ export interface MemberCardDetailApiResponse {
   timestamp?: string;
 }
 
+export interface MemberCardBalanceData {
+  cardType?: string;
+  limitAmount?: number;
+  expiryDate?: string;
+  lastTransactionDate?: string;
+  isUsable?: boolean;
+  orgCode?: string;
+  cardId?: number;
+  cardholderName?: string;
+  usagePercentage?: number;
+  currency?: string;
+  transactionCount?: number;
+  isExpired?: boolean;
+  cardNumber?: string;
+  cardStatus?: string;
+}
+
+export interface MemberCardBalanceApiResponse {
+  data: MemberCardBalanceData;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
 export interface MemberCardsPage {
   content: MemberCard[];
   pageNo: number;
@@ -355,6 +380,27 @@ export async function fetchMemberCardById(
 
   if (res.response === false) {
     throw new Error(res.message?.trim() || 'Failed to load member card details.');
+  }
+
+  return res;
+}
+
+/**
+ * GET `/api/v1/member-cards/{cardId}/balance`
+ */
+export async function fetchMemberCardBalanceById(
+  cardId: number
+): Promise<MemberCardBalanceApiResponse> {
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+
+  const res = (await membershipClient.get(
+    `/member-cards/${cardId}/balance`
+  )) as MemberCardBalanceApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to load member card balance.');
   }
 
   return res;

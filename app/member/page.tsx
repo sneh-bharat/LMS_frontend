@@ -52,6 +52,7 @@ import {
   getMemberCardType,
   getMemberCardUsedAmount,
   getMemberCardholderName,
+  MEMBER_CARD_TYPES,
   type MemberCard,
 } from '@/app/Apis/membership/membership';
 import {
@@ -61,6 +62,7 @@ import {
 } from '@/app/Apis/membership/useMembership';
 import AddMemberModal from './AddMemberModal';
 import MemberDetailsView from './details-view';
+import CardDetails from './card-details';
 import EditMemberCard from './edit-member';
 
 const PAGE_SIZE = 10;
@@ -356,6 +358,12 @@ export default function MembersPage() {
         cardId={selectedCardId}
         onEdit={handleEdit}
       />
+      <CardDetails
+        isOpen={detailsOpen}
+        onClose={closeDetails}
+        cardId={selectedCardId}
+        onEdit={handleEdit}
+      />
       <EditMemberCard
         isOpen={editOpen}
         onClose={closeEdit}
@@ -407,7 +415,7 @@ export default function MembersPage() {
             onClick={() => setIsModalOpen(true)}
           >
             <Plus size={16} aria-hidden />
-            New Member
+            New Membership Card
           </Button>
         </div>
       </div>
@@ -504,8 +512,11 @@ export default function MembersPage() {
                 disabled={tableLoading}
               >
                 <option value="All">All Types</option>
-                <option value="CORPORATE">Corporate</option>
-                <option value="INDIVIDUAL">Individual</option>
+                {MEMBER_CARD_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {formatMemberCardLabel(t)}
+                  </option>
+                ))}
               </select>
               <ChevronDown
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
@@ -557,7 +568,7 @@ export default function MembersPage() {
           </div>
         </div>
       </div> 
-
+ 
       <div className="w-full overflow-hidden rounded-[1.5rem] bg-white border border-slate-300 backdrop-blur-md shadow-sm">
         <Table className="border-collapse">
           <TableHeader className="bg-teal-600 border-b border-slate-100">
@@ -585,7 +596,7 @@ export default function MembersPage() {
                 Available Balance
               </TableHead>
               <TableHead className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest">
-                Status
+              Card Status
               </TableHead>
               <TableHead className="px-6 py-2.5 text-[10px] font-black text-white uppercase tracking-widest">
                 Expiry Date

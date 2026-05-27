@@ -122,7 +122,10 @@ export default function AddMemberModal({
   defaultBranchId = 1,
 }: AddMemberModalProps) {
   const createMutation = useCreateMemberCard();
-  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll({ size: 100 });
+  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll(
+    { size: 100 },
+    { enabled: isOpen }
+  );
   const [form, setForm] = useState(() => createEmptyForm(defaultBranchId));
 
   const parsedBranchId = useMemo(() => {
