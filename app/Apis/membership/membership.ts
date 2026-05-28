@@ -154,9 +154,14 @@ export interface MemberCardsListApiResponse {
 export interface FetchMemberCardsParams {
   pageNo?: number;
   pageSize?: number;
-   branchId?: number;
+  branchId?: number;
   /** When set, uses GET `/member-cards/search` (e.g. cardholder name). */
   searchTerm?: string;
+  /** When set, filters by low balance locally or on server (if supported). */
+  thresholdPercentage?: number;
+  /** When set, filters by expiry date range locally or on server (if supported). */
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface MemberCardStatisticsData {
@@ -408,7 +413,60 @@ export async function fetchAllMemberCards(
     );
   }
 
+  if (res.data && params.thresholdPercentage != null) {
+    const thresholdPercentage = params.thresholdPercentage;
+    const filtered = (res.data.content || []).filter((card) => {
+      const limit = getMemberCardLimitAmount(card) || 0;
+      const balance = getMemberCardAvailableBalance(card) || 0;
+      if (limit <= 0) return false;
+      const balancePercent = (balance / limit) * 100;
+      return balancePercent < thresholdPercentage;
+    });
+
+    res.data.content = filtered;
+    res.data.totalElements = filtered.length;
+    res.data.totalPages = 1;
+    res.data.last = true;
+  }
+
+  if (res.data && (params.startDate || params.endDate)) {
+    const start = params.startDate ? new Date(params.startDate) : null;
+    const end = params.endDate ? new Date(params.endDate) : null;
+
+    const filtered = (res.data.content || []).filter((card) => {
+      const expiryDateStr = getMemberCardExpiryDate(card);
+      if (!expiryDateStr) return false;
+      const expiry = new Date(expiryDateStr);
+      if (Number.isNaN(expiry.getTime())) return false;
+
+      if (start && expiry < start) return false;
+      if (end && expiry > end) return false;
+      return true;
+    });
+
+    res.data.content = filtered;
+    res.data.totalElements = filtered.length;
+    res.data.totalPages = 1;
+    res.data.last = true;
+  }
+
   return res;
+}
+
+/**
+ * Specifically fetches cards expiring within a range.
+ */
+export async function fetchExpiringMemberCards(
+  startDate: string,
+  endDate: string,
+  branchId?: number
+): Promise<MemberCardsListApiResponse> {
+  return fetchAllMemberCards({
+    pageSize: 1000,
+    branchId,
+    startDate,
+    endDate,
+  });
 }
 
 /**
@@ -679,6 +737,24 @@ export interface ActivateMemberCardApiResponse {
   timestamp?: string;
 }
 
+export interface SuspendMemberCardApiResponse {
+  cardId?: number;
+  data?: any;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface UnblockMemberCardApiResponse {
+  cardId?: number;
+  data?: any;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
 /**
  * PUT `/api/v1/member-cards/{cardId}/activate`
  */
@@ -729,6 +805,49 @@ export interface AllocateMemberCardLimitPayload {
   cardId: number;
   allocationAmount: number;
   remarks?: string;
+}
+
+/**
+ * PUT `/api/v1/member-cards/{cardId}/suspend?reason=...`
+ */
+export async function suspendMemberCard(
+  cardId: number,
+  reason: string = 'Payment overdue'
+): Promise<SuspendMemberCardApiResponse> {
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+
+  const res = (await membershipClient.put(
+    `/member-cards/${cardId}/suspend?reason=${encodeURIComponent(reason)}`
+  )) as SuspendMemberCardApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to suspend member card.');
+  }
+
+  return res;
+}
+
+/**
+ * PUT `/api/v1/member-cards/{cardId}/unblock`
+ */
+export async function unblockMemberCard(
+  cardId: number
+): Promise<UnblockMemberCardApiResponse> {
+  if (!cardId || cardId < 1) {
+    throw new Error('A valid member card ID is required.');
+  }
+
+  const res = (await membershipClient.put(
+    `/member-cards/${cardId}/unblock`
+  )) as UnblockMemberCardApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to unblock member card.');
+  }
+
+  return res;
 }
 
 export interface AllocateMemberCardLimitApiResponse {
@@ -944,4 +1063,18 @@ export async function fetchMemberCardTransactions(
     ...res,
     data: normalizeMemberCardTransactionsPage(res.data, pageNo, pageSize),
   };
+}
+
+/**
+ * Specifically fetches cards with low balance.
+ */
+export async function fetchLowBalanceMemberCards(
+  thresholdPercentage: number = 50,
+  branchId?: number
+): Promise<MemberCardsListApiResponse> {
+  return fetchAllMemberCards({
+    pageSize: 1000,
+    branchId,
+    thresholdPercentage,
+  });
 }

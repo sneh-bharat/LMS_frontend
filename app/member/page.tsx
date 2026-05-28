@@ -20,7 +20,9 @@ import {
   Trash2,
   TrendingDown,
   Wallet,
+  CalendarDays,
 } from 'lucide-react';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
@@ -73,6 +75,10 @@ import {
   useDeleteMemberCard,
   useMemberCardStatistics,
   useMemberCards,
+  useLowBalanceMemberCards,
+  useExpiringMemberCards,
+  useSuspendMemberCard,
+  useUnblockMemberCard,
 } from '@/app/Apis/membership/useMembership';
 import AddMemberModal from './AddMemberModal';
 import CardBalanceDetails from './card-details';
@@ -114,6 +120,8 @@ function MemberCardActions({
   onTransactions,
   onApprove,
   onEdit,
+  onSuspend,
+  onUnblock,
   onDelete,
 }: {
   row: MemberCard;
@@ -122,9 +130,12 @@ function MemberCardActions({
   onTransactions?: (row: MemberCard) => void;
   onApprove?: (row: MemberCard) => void;
   onEdit: (row: MemberCard) => void;
+  onSuspend?: (row: MemberCard) => void;
+  onUnblock?: (row: MemberCard) => void;
   onDelete: (row: MemberCard) => void;
 }) {
   const isPending = isMemberCardPendingActivation(row);
+  const cardStatus = normalizeMemberCardStatusKey(row.status ?? row.cardStatus ?? '');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -184,6 +195,24 @@ function MemberCardActions({
           <Pencil size={14} />
           Edit
         </DropdownMenuItem>
+        {onSuspend && cardStatus === 'ACTIVE' ? (
+          <DropdownMenuItem
+            onClick={() => onSuspend(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700"
+          >
+            <AlertCircle size={14} />
+            Suspend
+          </DropdownMenuItem>
+        ) : null}
+        {onUnblock && (cardStatus === 'INACTIVE' || cardStatus === 'EXPIRED' || cardStatus === 'BLOCKED' || cardStatus === 'SUSPENDED') ? (
+          <DropdownMenuItem
+            onClick={() => onUnblock(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+          >
+            <RefreshCw size={14} />
+            Unblock
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           onClick={() => onDelete(row)}
           className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
@@ -211,14 +240,29 @@ export default function MembersPage() {
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [selectedCard, setSelectedCard] = useState<MemberCard | null>(null);
-  const [editCardId, setEditCardId] = useState<number | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingCardId, setDeletingCardId] = useState<number | null>(null);
-  const [approveOpen, setApproveOpen] = useState(false);
-  const [cardToApprove, setCardToApprove] = useState<MemberCard | null>(null);
-
   const deleteMutation = useDeleteMemberCard();
   const activateMutation = useActivateMemberCard();
+  const suspendMutation = useSuspendMemberCard();
+  const unblockMutation = useUnblockMemberCard();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingCardId, setDeletingCardId] = useState<number | null>(null);
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [suspendingCard, setSuspendingCard] = useState<MemberCard | null>(null);
+  const [suspendReason, setSuspendReason] = useState('Payment overdue');
+  const [unblockDialogOpen, setUnblockDialogOpen] = useState(false);
+  const [unblockingCard, setUnblockingCard] = useState<MemberCard | null>(null);
+  const [editCardId, setEditCardId] = useState<number | null>(null);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [cardToApprove, setCardToApprove] = useState<MemberCard | null>(null);
+  const [isLowBalanceOnly, setIsLowBalanceOnly] = useState(false);
+  const [isExpiringOnly, setIsExpiringOnly] = useState(false);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const [dateRangeFilter, setDateRangeFilter] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
+
 
   const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll({ size: 100 });
   const branches = branchesData?.data?.content ?? [];
@@ -259,7 +303,7 @@ export default function MembersPage() {
 
   useEffect(() => {
     setPageNo(0);
-  }, [parsedBranchId, typeFilter, statusFilter, dateRange, debouncedSearchTerm]);
+  }, [parsedBranchId, typeFilter, statusFilter, dateRange, debouncedSearchTerm, isLowBalanceOnly, isExpiringOnly, dateRangeFilter]);
 
   const {
     data: statisticsRes,
@@ -276,6 +320,29 @@ export default function MembersPage() {
   const statistics = statisticsRes?.data ?? null;
 
   const {
+    data: lowBalanceRes,
+    isLoading: isLoadingLowBalance,
+    isFetching: isFetchingLowBalance,
+    refetch: refetchLowBalance,
+  } = useLowBalanceMemberCards(
+    { thresholdPercentage: 50, branchId: parsedBranchId ?? undefined },
+    { enabled: isLowBalanceOnly }
+  );
+
+  const {
+    data: expiringRes,
+    isLoading: isLoadingExpiring,
+    isFetching: isFetchingExpiring,
+  } = useExpiringMemberCards(
+    {
+      startDate: dateRangeFilter.from ? format(dateRangeFilter.from, 'yyyy-MM-dd') : '',
+      endDate: dateRangeFilter.to ? format(dateRangeFilter.to, 'yyyy-MM-dd') : '',
+      branchId: parsedBranchId ?? undefined,
+    },
+    { enabled: isExpiringOnly && !!dateRangeFilter.from && !!dateRangeFilter.to }
+  );
+
+  const {
     data,
     isLoading,
     isError,
@@ -289,10 +356,12 @@ export default function MembersPage() {
       branchId: isSearchActive ? undefined : (parsedBranchId ?? undefined),
       searchTerm: debouncedSearchTerm || undefined,
     },
-    { enabled: parsedBranchId != null || isSearchActive }
+    { enabled: (parsedBranchId != null || isSearchActive) && !isLowBalanceOnly && !isExpiringOnly }
   );
 
-  const page = data?.data;
+  const lowBalanceCardsCount = lowBalanceRes?.data?.totalElements ?? 0;
+  const expiringCardsCount = expiringRes?.data?.totalElements ?? 0;
+  const page = isExpiringOnly ? expiringRes?.data : isLowBalanceOnly ? lowBalanceRes?.data : data?.data;
   const memberCards = page?.content ?? [];
   const totalPages = page?.totalPages ?? 1;
   const totalElements = page?.totalElements ?? 0;
@@ -398,8 +467,18 @@ export default function MembersPage() {
         bg: 'bg-sky-100',
         valueColor: 'text-sky-700',
       },
+      // {
+      //   label: 'Low Balance',
+      //   value: isLoadingLowBalance ? '…' : String(lowBalanceCardsCount),
+      //   icon: AlertCircle,
+      //   tone: isLowBalanceOnly ? 'text-white' : 'text-rose-600',
+      //   bg: isLowBalanceOnly ? 'bg-rose-600' : 'bg-rose-100',
+      //   valueColor: isLowBalanceOnly ? 'text-white' : 'text-rose-700',
+      //   onClick: () => setIsLowBalanceOnly(!isLowBalanceOnly),
+      //   active: isLowBalanceOnly,
+      // },
     ],
-    [statistics]
+    [statistics, lowBalanceCardsCount, isLoadingLowBalance, isLowBalanceOnly]
   );
 
   const openViewDetails = (card: MemberCard) => {
@@ -516,10 +595,34 @@ export default function MembersPage() {
     }
   };
 
+  const handleConfirmSuspend = async () => {
+    if (!suspendingCard) return;
+    try {
+      await suspendMutation.mutateAsync({ cardId: suspendingCard.id, reason: suspendReason });
+      toast.success('Member card suspended successfully.');
+      setSuspendDialogOpen(false);
+      setSuspendingCard(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to suspend member card.');
+    }
+  };
+
+  const handleConfirmUnblock = async () => {
+    if (!unblockingCard) return;
+    try {
+      await unblockMutation.mutateAsync(unblockingCard.id);
+      toast.success('Member card unblocked successfully.');
+      setUnblockDialogOpen(false);
+      setUnblockingCard(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unblock member card.');
+    }
+  };
+
   const isDeleting = deleteMutation.isPending;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <MemberDetailsView
         isOpen={viewDetailsOpen}
         onClose={closeDetails}
@@ -597,15 +700,11 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {isStatisticsError ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-          {statisticsError instanceof Error
-            ? statisticsError.message
-            : 'Failed to load member card statistics.'}
-        </div>
-      ) : null}
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-2.5 border border-slate-200 shadow-sm relative overflow-hidden">
+        {/* Subtle decorative background elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-violet-500/5 rounded-full blur-2xl -ml-12 -mb-12 pointer-events-none" />
 
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 shadow-sm">
         {isStatisticsLoading ? (
           <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
             <Loader2 size={20} className="animate-spin" aria-hidden />
@@ -613,168 +712,227 @@ export default function MembersPage() {
           </div>
         ) : (
           <div className="flex flex-nowrap items-stretch gap-0 overflow-x-auto pb-1 scrollbar-thin">
-            {statCards.map((card, index) => {
+            {statCards.map((card: any, index) => {
               const Icon = card.icon;
               return (
-                <div
+                <button
+                  type="button"
                   key={card.label}
-                  className={`flex min-w-[9.5rem] flex-1 flex-col items-center justify-center px-3 py-1 text-center sm:min-w-0 ${index < statCards.length - 1 ? 'border-r border-slate-200/70' : ''
-                    }`}
+                  onClick={card.onClick}
+                  disabled={!card.onClick}
+                  className={`flex min-w-[8rem] flex-1 flex-col items-center justify-center px-2 py-1 text-center sm:min-w-0 transition-all hover:bg-slate-50 active:scale-95 ${index < statCards.length - 1 ? 'border-r border-slate-200/70' : ''
+                    } ${card.active ? 'ring-2 ring-inset ring-rose-500/20 bg-rose-50/30' : ''}`}
                 >
                   <div
-                    className={`mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}
+                    className={`mb-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${card.bg}`}
                   >
-                    <Icon size={18} className={card.tone} aria-hidden />
+                    <Icon size={16} className={card.tone} aria-hidden />
                   </div>
-                  <span className="mb-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
+                  <span className="mb-0.5 text-[9px] font-bold uppercase leading-tight tracking-wider text-slate-500">
                     {card.label}
                   </span>
-                  <span className={`text-lg font-black leading-none sm:text-xl ${card.valueColor}`}>
+                  <span className={`text-base font-black leading-none sm:text-lg transition-colors ${card.valueColor}`}>
                     {card.value}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
       </div>
 
-      <div className="w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white backdrop-blur-xl p-4 shadow-sm border-t-white/20">
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+      <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-3 shadow-sm border-t-white/30">
+        <div className="flex flex-wrap items-center gap-3">
 
           {/* Search */}
-          <div className="col-span-1 sm:col-span-6 lg:col-span-6 space-y-1.5">
-            <label className={filterLabelClass}>Search by cardholder name Or Card Number</label>
-            <div className="relative group">
-              <Search
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10"
-                size={18}
-                aria-hidden
-              />
-              <Input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="e.g. Jane"
-                className={`${inputClass} pl-11 pr-10 h-9 text-sm`}
-                disabled={tableLoading}
-              />
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
-                  aria-label="Clear search"
-                >
-                  <SearchX size={16} />
-                </button>
-              ) : null}
-            </div>
+          <div className="flex-1 min-w-[280px] relative group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10"
+              size={16}
+              aria-hidden
+            />
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or card #"
+              className={`${inputClass} pl-10 pr-10 h-9 text-xs font-bold`}
+              disabled={tableLoading}
+              title="Search by cardholder name or card number"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                aria-label="Clear search"
+              >
+                <SearchX size={14} />
+              </button>
+            ) : null}
           </div>
 
-          {/* Card Type - ~13% width */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-1.5">
-            <label className={`${filterLabelClass} text-xs`}>Card type</label>
-            <div className="relative group">
-              <Filter
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
-                size={14}
-                aria-hidden
-              />
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className={`${inputClass} w-full pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
-                disabled={tableLoading}
-              >
-                <option value="All">All Types</option>
-                {MEMBER_CARD_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {formatMemberCardLabel(t)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-                size={14}
-                aria-hidden
-              />
-            </div>
+          {/* Card Type */}
+          <div className="w-[140px] relative group">
+            <Filter
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
+              size={14}
+              aria-hidden
+            />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className={`${inputClass} w-full pl-9 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
+              disabled={tableLoading}
+              title="Filter by card type"
+            >
+              <option value="All">All Types</option>
+              {MEMBER_CARD_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatMemberCardLabel(t)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={12}
+              aria-hidden
+            />
           </div>
 
-          {/* Status - ~13% width */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-1.5">
-            <label className={`${filterLabelClass} text-xs`}>Status</label>
-            <div className="relative group">
-              <Filter
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
-                size={14}
-                aria-hidden
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className={`${inputClass} w-full pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
-                disabled={tableLoading}
-              >
-                <option value="All">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="PENDING ACTIVATION">Pending activation</option>
-              </select>
-              <ChevronDown
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-                size={14}
-                aria-hidden
-              />
-            </div>
+          {/* Status */}
+          <div className="w-[140px] relative group">
+            <Filter
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
+              size={14}
+              aria-hidden
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`${inputClass} w-full pl-9 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
+              disabled={tableLoading}
+              title="Filter by status"
+            >
+              <option value="All">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING ACTIVATION">Pending activation</option>
+            </select>
+            <ChevronDown
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={12}
+              aria-hidden
+            />
           </div>
 
           {/* Branch */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-1.5">
-            <label className={`${filterLabelClass} text-xs`}>Branch</label>
-            <div className="relative group">
-              <Building2
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
-                size={14}
-                aria-hidden
-              />
-              <Select
-                value={branchId}
-                onValueChange={(v) => setBranchId(v ?? '')}
-                disabled={(tableLoading && !isSearchActive) || isLoadingBranches || branches.length === 0}
+          <div className="w-[160px] relative group">
+            <Building2
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
+              size={14}
+              aria-hidden
+            />
+            <Select
+              value={branchId}
+              onValueChange={(v) => setBranchId(v ?? '')}
+              disabled={(tableLoading && !isSearchActive) || isLoadingBranches || branches.length === 0}
+            >
+              <SelectTrigger
+                className={`${inputClass} w-full h-9 pl-9 pr-8 text-[10px] font-bold uppercase`}
               >
-                <SelectTrigger
-                  className={`${inputClass} w-full h-9 pl-10 pr-10 text-xs font-bold`}
+                <SelectValue
+                  placeholder={
+                    isLoadingBranches ? 'Loading branches…' : 'Branch'
+                  }
                 >
-                  <SelectValue
-                    placeholder={
-                      isLoadingBranches ? 'Loading branches…' : 'Select branch'
-                    }
-                  >
-                    {selectedBranchName}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={String(branch.id)}>
-                      {branch.branchName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  {selectedBranchName}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={String(branch.id)}>
+                    {branch.branchName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          {/* select Date Range */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-1.5">
-            <label className={filterLabelClass}>Date Range</label>
-            <select className={inputClass} value={dateRange} onChange={(e) => setDateRange(e.target.value)}>
-              <option value="All">All</option>
+
+          {/* Date Range */}
+          <div className="w-[130px] relative group">
+            <Filter
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
+              size={14}
+              aria-hidden
+            />
+            <select
+              className={`${inputClass} w-full pl-9 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              title="Filter by expiry date range"
+            >
+              <option value="All">All Dates</option>
               <option value="1 week">1 week</option>
               <option value="1 month">1 month</option>
               <option value="3 months">3 months</option>
               <option value="6 months">6 months</option>
               <option value="1 year">1 year</option>
             </select>
+            <ChevronDown
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={12}
+              aria-hidden
+            />
+          </div>
+
+          {/* Expiring Soon Date Filter - Native HTML5 version */}
+          <div className="flex items-center gap-1.5 bg-slate-50/50 rounded-xl p-1 border border-slate-200/60">
+            <div className="flex items-center gap-1 pl-1">
+              <CalendarDays className="text-slate-400" size={14} />
+              <span className="text-[9px] font-black uppercase text-slate-400">Expiring:</span>
+            </div>
+
+            <input
+              type="date"
+              value={dateRangeFilter.from ? format(dateRangeFilter.from, 'yyyy-MM-dd') : ''}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : undefined;
+                setDateRangeFilter(prev => ({ ...prev, from: date }));
+                if (date) setIsExpiringOnly(true);
+              }}
+              min={todayStr}
+              className="h-7 w-28 px-2 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+              title="Filter by expiry start date"
+            />
+
+            <span className="text-slate-300">to</span>
+
+            <input
+              type="date"
+              value={dateRangeFilter.to ? format(dateRangeFilter.to, 'yyyy-MM-dd') : ''}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : undefined;
+                setDateRangeFilter(prev => ({ ...prev, to: date }));
+                if (date) setIsExpiringOnly(true);
+              }}
+              min={todayStr}
+              className="h-7 w-28 px-2 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+              title="Filter by expiry end date"
+            />
+
+            {isExpiringOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExpiringOnly(false);
+                  setDateRangeFilter({ from: undefined, to: undefined });
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors"
+                title="Clear expiry filter"
+              >
+                <SearchX size={12} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -936,6 +1094,8 @@ export default function MembersPage() {
                           onTransactions={openTransactions}
                           onApprove={handleApprove}
                           onEdit={handleEdit}
+                          onSuspend={(c) => { setSuspendingCard(c); setSuspendDialogOpen(true); }}
+                          onUnblock={(c) => { setUnblockingCard(c); setUnblockDialogOpen(true); }}
                           onDelete={handleDelete}
                         />
                       </TableCell>
@@ -1016,6 +1176,48 @@ export default function MembersPage() {
           isLoading={activateMutation.isPending}
           variant="success"
         />
+        <ConfirmAlertDialog
+          isOpen={suspendDialogOpen}
+          onClose={() => {
+            if (!suspendMutation.isPending) {
+              setSuspendDialogOpen(false);
+              setSuspendingCard(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmSuspend()}
+          title="Suspend Member Card"
+          description={`Are you sure you want to suspend "${suspendingCard ? getMemberCardholderName(suspendingCard) : ''}" (${suspendingCard ? getMemberCardNumber(suspendingCard) : ''})? This will temporarily block the card from being used.`}
+          confirmText="Suspend Member Card"
+          isLoading={suspendMutation.isPending}
+          variant="warning"
+        >
+          <div className="mt-4">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1 mb-2 block">
+              Reason for Suspension
+            </label>
+            <Input
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              placeholder="e.g. Payment overdue"
+              className="h-10 border-slate-200 focus:border-amber-500 focus:ring-amber-500/20"
+            />
+          </div>
+        </ConfirmAlertDialog>
+        <ConfirmAlertDialog
+          isOpen={unblockDialogOpen}
+          onClose={() => {
+            if (!unblockMutation.isPending) {
+              setUnblockDialogOpen(false);
+              setUnblockingCard(null);
+            }
+          }}
+          onConfirm={() => void handleConfirmUnblock()}
+          title="Unblock Member Card"
+          description={`Are you sure you want to unblock/reactivate "${unblockingCard ? getMemberCardholderName(unblockingCard) : ''}" (${unblockingCard ? getMemberCardNumber(unblockingCard) : ''})?`}
+          confirmText="Unblock Member Card"
+          isLoading={unblockMutation.isPending}
+          variant="success"
+        />
         <AddMemberModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
@@ -1027,5 +1229,5 @@ export default function MembersPage() {
         />
       </div>
     </div>
-      );
+  );
 }

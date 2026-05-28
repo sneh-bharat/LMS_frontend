@@ -11,8 +11,14 @@ import {
   fetchMemberCardById,
   fetchMemberCardStatistics,
   fetchMemberCardTransactions,
+  fetchLowBalanceMemberCards,
+  fetchExpiringMemberCards,
+  suspendMemberCard,
+  unblockMemberCard,
   updateMemberCard,
   type ActivateMemberCardApiResponse,
+  type SuspendMemberCardApiResponse,
+  type UnblockMemberCardApiResponse,
   type AllocateMemberCardLimitApiResponse,
   type AllocateMemberCardLimitPayload,
   type CreateMemberCardApiResponse,
@@ -99,6 +105,38 @@ export function useMemberCards(
     refetchOnWindowFocus: false,
     ...queryOptions,
     enabled: queryOptions?.enabled ?? enabled,
+  });
+}
+
+/** GET `/api/v1/member-cards/low-balance` — locally filtered or server-side if exists. */
+export function useLowBalanceMemberCards(
+  params: { thresholdPercentage?: number; branchId?: number } = {},
+  options?: { enabled?: boolean }
+) {
+  const threshold = params.thresholdPercentage ?? 50;
+  return useQuery({
+    queryKey: ['member-cards', 'low-balance', threshold, params.branchId ?? 'all'],
+    queryFn: () => fetchLowBalanceMemberCards(threshold, params.branchId),
+    enabled: options?.enabled ?? true,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/member-cards/expiring` — locally filtered or server-side if exists. */
+export function useExpiringMemberCards(
+  params: { startDate: string; endDate: string; branchId?: number },
+  options?: { enabled?: boolean }
+) {
+  const { startDate, endDate, branchId } = params;
+  return useQuery({
+    queryKey: ['member-cards', 'expiring', startDate, endDate, branchId ?? 'all'],
+    queryFn: () => fetchExpiringMemberCards(startDate, endDate, branchId),
+    enabled: options?.enabled !== false && !!startDate && !!endDate,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -235,3 +273,34 @@ export function useAllocateMemberCardLimit() {
   });
 }
 
+/** PUT `/api/v1/member-cards/{cardId}/suspend` */
+export function useSuspendMemberCard() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    SuspendMemberCardApiResponse,
+    Error,
+    { cardId: number; reason?: string }
+  >({
+    mutationFn: ({ cardId, reason }) => suspendMemberCard(cardId, reason),
+    onSuccess: (_, { cardId }) => {
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.detail(cardId) });
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.balance(cardId) });
+    },
+  });
+}
+
+/** PUT `/api/v1/member-cards/{cardId}/unblock` */
+export function useUnblockMemberCard() {
+  const queryClient = useQueryClient();
+
+  return useMutation<UnblockMemberCardApiResponse, Error, number>({
+    mutationFn: (cardId) => unblockMemberCard(cardId),
+    onSuccess: (_, cardId) => {
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.detail(cardId) });
+      void queryClient.invalidateQueries({ queryKey: memberCardQueryKeys.balance(cardId) });
+    },
+  });
+}

@@ -22,6 +22,7 @@ interface ConfirmAlertDialogProps {
     confirmText?: string
     cancelText?: string
     variant?: "default" | "success" | "warning" | "destructive"
+    children?: React.ReactNode
 }
 
 export function ConfirmAlertDialog({
@@ -34,6 +35,7 @@ export function ConfirmAlertDialog({
     confirmText = "Confirm",
     cancelText = "Cancel",
     variant = "success",
+    children,
 }: ConfirmAlertDialogProps) {
     const variantConfig = {
         default: {
@@ -78,6 +80,7 @@ export function ConfirmAlertDialog({
                         </DialogDescription>
                     </div>
                 </DialogHeader>
+                {children && <div className="px-4 pb-4">{children}</div>}
                 <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-2">
                     <Button
                         variant="outline"
