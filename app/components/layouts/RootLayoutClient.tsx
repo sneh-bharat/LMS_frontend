@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import DoctorSidebar from './DoctorSidebar';
+import DoctorTopbar from './DoctorTopbar';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { usePathname } from 'next/navigation';
 import RoleGuard from '../RoleGuard';
@@ -33,16 +35,16 @@ export default function RootLayoutClient({
         <main className="min-h-screen bg-[#eceff1]">
           {isDoctorRoute ? (
             <div className="flex flex-col h-screen overflow-hidden">
-              <Topbar onToggleSidebar={handleToggleSidebar} />
+              <DoctorTopbar onToggleSidebar={handleToggleSidebar} />
               <div className="flex flex-1 overflow-hidden">
                 <div className="hidden md:flex">
-                  <Sidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
+                  <DoctorSidebar isOpen={sidebarOpen} onExtendSidebar={() => setSidebarOpen(true)} />
                 </div>
 
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetContent side="left" className="p-0 w-full bg-gradient-to-b from-[#0C7372] via-[#0C7372] to-[#3A6172] border-none">
                     <div className="h-full flex flex-col ">
-                      <Sidebar isOpen={true} onExtendSidebar={() => { }} />
+                      <DoctorSidebar isOpen={true} onExtendSidebar={() => { }} />
                     </div>
                   </SheetContent>
                 </Sheet>

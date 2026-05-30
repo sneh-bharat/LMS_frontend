@@ -2,209 +2,25 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    Zap,
-    FlaskConical,
-    Microscope,
-    Stethoscope,
-    FileText,
-    Palette,
-    CreditCard,
     LayoutDashboard,
     ChevronDown,
-    Activity,
-    Scan,
-    User,
-    UserPlus,
-    Layers,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { Button } from '@/components/ui';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NAV DATA
+// DOCTOR NAV DATA
 // ─────────────────────────────────────────────────────────────────────────────
 const NAV = [
     {
-        id: 'dashboard',
+        id: 'doctor-dashboard',
         label: 'Dashboard',
         icon: <LayoutDashboard size={20} />,
-        href: '/dashboard',
+        href: '/forDoctors/dashboard',
     },
-    {
-        id: 'quick',
-        label: 'Quick Activity',
-        icon: <Zap size={20} />,
-        children: [
-
-            { label: 'Find Diagnostic Invoice', href: '/diagnosis/invoice-list' },
-            { label: 'Report Unlock Request', href: '/report-unlock' },
-            { label: 'Error Invoices', href: '#' },
-            { label: 'Daily Worksheet', href: '#' },
-            { label: 'Bulk Report Print', href: '/reports/BulkReport' },
-            { label: 'Invoice Journey', href: '#' },
-        ],
-    },
-    {
-        id: 'patient',
-        label: 'Patient',
-        icon: <User size={20} />,
-        children: [
-            { label: 'Find Register Patient', href: '/register-patient' },
-            // { label: 'Patient Family Link', href: '/patient-family-link' },
-        ]
-    },
-    {
-        id: 'booking', label: 'Booking & Registration',
-        icon: <UserPlus size={20} />,
-        children: [
-
-            { label: 'Online Booking Request', href: '/OnlineBooking' },
-            { label: 'Diagnostic Booking', href: '/diagnosis/diagnostic-booking' },
-            { label: 'Tracking Order', href: '/diagnosis/tracking-order' },
-            { label: 'Estimation', href: '/diagnosis/estimation' },
-            { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
-            { label: 'Find Register Patient', href: '/register-patient' },
-            { label: 'Appointments', href: '/Appointments' },
-            { label: 'Test Order', href: '/lab/test-order' },
-
-        ]
-    },
-    {
-        id: 'diagnostic',
-        label: 'Diagnostic',
-        icon: <FlaskConical size={20} />,
-        children: [
-
-            { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Referrers', href: '/referrer' },
-            { label: 'Sample Tracking', href: '/SampleTracking' },
-            { label: 'Bulk Report Download', href: '/reports/bulk-download' },
-        ],
-    },
-    {
-        id: 'radiology',
-        label: 'Radiology',
-        icon: <Scan size={20} />,
-        children: [
-
-            { label: 'Radiology Schedule', href: '#' },
-            { label: 'Radiology Reports', href: '#' },
-            { label: ' Radiology Invoice', href: '#' },
-        ],
-    },
-
-    {
-        id: 'lab',
-        label: 'Processing Lab',
-        icon: <Microscope size={20} />,
-        children: [
-            { label: 'Test Packages', href: '/lab/test-packages' },
-            { label: 'Units', href: '/lab/units' },
-            { label: 'Tests', href: '/lab/tests' },
-            { label: 'Test Categories', href: '/lab/categories' },
-            { label: 'Test Department', href: '/lab/department' },
-            { label: 'Reflex Rule', href: '/lab/reflex-rule' },
-            // { label: 'Test Sample ', href: '/lab/sample' },
-            { label: 'Sample Receipt', href: '/lab/sample-receipt' },
-            { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
-            { label: 'Test Result', href: '/lab/test-result' },
-        ],
-    },
-    {
-        id: 'polyclinic',
-        label: 'Polyclinic',
-        icon: <Stethoscope size={20} />,
-        children: [
-
-            { label: 'OPD Schedule', href: '/polyclinic/opdschedule' },
-            { label: 'Patient Queue', href: '/polyclinic/patientqueue' },
-            { label: 'Invoice List', href: '/reception' },
-
-        ],
-    },
-    {
-        id:'',
-        label: 'Daily Worksheet',
-        icon: <Activity size={20} />,
-        children: [
-            { label: 'Daily Worksheet', href: '/dailyworksheet' },
-        ]
-    },
-    {
-        id: 'masters', label: 'Masters',
-        icon: <Layers size={20} />,
-        children: [
-
-            { label: 'Doctors', href: '/doctor' },
-            { label: 'Collectors', href: '/collector' },
-            { label: 'Membership', href: '/member' },
-            { label: 'Organization', href: '/organization' },
-            { label: 'Referrers', href: '/referrer' },
-            { label: 'Branch & B2B', href: '/branches' },
-            { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
-            { label: 'Patient Code Prefix', href: '/patient-code-prefix' },
-        ]
-    },
-
-    {
-        id: 'report',
-        label: 'Report',
-        icon: <FileText size={20} />,
-        children: [
-            { label: 'Pathology Parameter', href: '/reports/pathology-parameter' },
-            { label: 'Signature', href: '/reports/Signature' },
-            { label: 'Result Verification', href: '/reports/result-verification' },
-            { label: 'Urine Sensitivity', href: '/reports/urineSensitivity' },
-            { label: 'Report Unlock', href: '/report-unlock' },
-            { label: 'MIS Reports', href: '/reports/MisReports' },
-        ],
-    },
-    {
-        id: 'branding',
-        label: 'Branding',
-        icon: <Palette size={20} />,
-        children: [
-            { label: 'Brand', href: '/brand' },
-            { label: 'Reference Value', href: '/brand/ReferenceValue' },
-            { label: 'Options Mapping', href: '/brand/OptionsMaping' }
-        ],
-    },
-    {
-        id: 'accounts',
-        label: 'Accounts',
-        icon: <CreditCard size={20} />,
-        children: [
-            { label: 'Cash Expense', href: '/accounts/cash-expense' },
-            { label: 'Bank Expense', href: '/accounts/bank-expense' },
-            { label: 'Bank Info', href: '/accounts/BankInfo' },
-            { label: 'Bank History', href: '/accounts/bank-history' },
-            { label: 'Payment History', href: '/accounts/payment-history' },
-            { label: 'Franchise Ledger', href: '/accounts/franchise-ledger' },
-            { label: 'Invoice', href: '/accounts/invoice' },
-            { label: 'Financial reports', href: '/accounts/financial-reports' },
-        ],
-    },
-    {
-        id: 'management',
-        label: 'Management',
-        icon: <LayoutDashboard size={20} />,
-        children: [
-            { label: 'User Management', href: '/user-management' },
-            { label: 'Concession Authority', href: '/ConcessionAuthority' },
-            { label: 'Lab Branchs', href: '/management/branch' },
-            { label: 'Branch Lab Test', href: '/management/branch-test' },
-            { label: 'User Access Control', href: '/management/userAccess' },
-            { label: 'Patient Information', href: '/register-patient' },
-            { label: 'Management Doctor', href: '/management/management-docotor' },
-            { label: 'Vendors & Suppliers', href: '/management/vendors' },
-            { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
-            { label: 'Settings', href: '/management/settings' }
-
-        ],
-    },
+    // Add more doctor specific items here as they are developed
 ];
 
-export default function Sidebar({ isOpen, onExtendSidebar }) {
+export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
     const pathname = usePathname();
 
     const getDefaultOpen = () => {
@@ -264,6 +80,11 @@ export default function Sidebar({ isOpen, onExtendSidebar }) {
                         />
                     )}
                 </div>
+                {isOpen && (
+                    <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-emerald-500 text-[8px] font-bold text-white rounded uppercase tracking-tighter">
+                        Doctor Portal
+                    </div>
+                )}
             </div>
 
             {/* ═══ NAV ════════════════════════════════════════════════ */}
@@ -369,9 +190,6 @@ export default function Sidebar({ isOpen, onExtendSidebar }) {
                 })}
                 <div className="h-24" />
             </nav>
-
-
-
         </aside>
     );
 }
