@@ -1065,6 +1065,68 @@ export async function fetchMemberCardTransactions(
   };
 }
 
+export interface SendMembershipCardOtpParams {
+  cardNumber: string;
+  cardholderName: string;
+  email: string;
+}
+
+export interface SendMembershipCardOtpApiResponse {
+  data?: unknown;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/**
+ * POST `/api/v1/otp/send?cardNumber=&email=&cardholderName=`
+ */
+export async function sendMembershipCardOtp(
+  params: SendMembershipCardOtpParams
+): Promise<SendMembershipCardOtpApiResponse> {
+  const query = new URLSearchParams({
+    cardNumber: params.cardNumber.trim(),
+    email: params.email.trim(),
+    cardholderName: params.cardholderName.trim(),
+  });
+
+  const res = (await membershipClient.post(
+    `/otp/send?${query.toString()}`
+  )) as SendMembershipCardOtpApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to send OTP.');
+  }
+
+  return res;
+}
+
+/** Resolves member card id by exact card number via search API. */
+export async function resolveMemberCardIdByNumber(
+  cardNumber: string
+): Promise<number | null> {
+  const normalized = cardNumber.trim();
+  if (!normalized) return null;
+
+  const res = await fetchAllMemberCards({
+    searchTerm: normalized,
+    pageSize: 50,
+  });
+
+  const cards = res.data?.content ?? [];
+  const exact = cards.find(
+    (card) => getMemberCardNumber(card).toLowerCase() === normalized.toLowerCase()
+  );
+  if (exact?.id) return exact.id;
+
+  const partial = cards.find((card) => {
+    const no = getMemberCardNumber(card).toLowerCase();
+    return no !== '—' && (no.includes(normalized.toLowerCase()) || normalized.toLowerCase().includes(no));
+  });
+  return partial?.id ?? null;
+}
+
 /**
  * Specifically fetches cards with low balance.
  */

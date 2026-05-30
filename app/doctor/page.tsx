@@ -5,12 +5,12 @@
  * List data: GET `/api/v1/referring-doctors` (paginated).
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import {
   Stethoscope,
   Search,
   Settings,
   UserPlus,
-  Pencil,
   ChevronDown,
   Filter,
   Phone,
@@ -20,17 +20,133 @@ import {
   RefreshCw,
   Database,
   AlertCircle,
-  Trash2,
+  Eye,
+  Percent,
+  Building2,
+  Wallet,
+  History,
+  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { Input, Label } from '@/components/ui';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useReferringDoctorsList, useDeleteReferringDoctor } from '@/app/Apis/doctor/useReferringDoctors';
+import type { ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
 import AddDoctor from './add_doctor';
+import { DoctorDetails } from './doctot-details';
+import Commission from './Commission';
+import ActiveDepartment from './ActiveDepartment';
+import GetTestCommission from './GetTestCommission';
+import SpecificDateRange from './SpecificDateRange';
+import GetPaymentHistory from './GetPaymentHistory';
+import { fetchDoctorCommissions, type DoctorCommission } from '@/app/Apis/Commission/commissionPrice';
+import { doctorCommissionQueryKeys } from '@/app/Apis/Commission/useDoctorCommission';
+
+type CommissionDrawerState = {
+  doctorId: number;
+  doctorName: string;
+  commissionId?: number | null;
+  initialCommission?: DoctorCommission;
+};
 
 const PAGE_SIZE = 10;
+
+function DoctorActions({
+  row,
+  hasCommission,
+  onView,
+  onDepartments,
+  onCommissionCreate,
+  onTestCommissions,
+  onCommissionPay,
+  onPaymentHistory,
+}: {
+  row: ReferringDoctor;
+  hasCommission: boolean;
+  onView: (row: ReferringDoctor) => void;
+  onDepartments: (row: ReferringDoctor) => void;
+  onCommissionCreate: (row: ReferringDoctor) => void;
+  onTestCommissions: (row: ReferringDoctor) => void;
+  onCommissionPay: (row: ReferringDoctor) => void;
+  onPaymentHistory: (row: ReferringDoctor) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+            aria-label="Doctor actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-52 p-1.5 rounded-2xl border-slate-100 shadow-2xl"
+      >
+        <DropdownMenuItem
+          onClick={() => onView(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+        >
+          <Eye size={14} />
+          View
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onDepartments(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-sky-600 focus:bg-sky-50 focus:text-sky-700"
+        >
+          <Building2 size={14} />
+          Departments
+        </DropdownMenuItem>
+        {!hasCommission ? (
+          <DropdownMenuItem
+            onClick={() => onCommissionCreate(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700"
+          >
+            <Percent size={14} />
+            Commission
+          </DropdownMenuItem>
+        ) : (
+          <>
+            <DropdownMenuItem
+              onClick={() => onTestCommissions(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+            >
+              <Percent size={14} />
+              Test Commissions
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onCommissionPay(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-violet-600 focus:bg-violet-50 focus:text-violet-700"
+            >
+              <Wallet size={14} />
+              Commission Pay
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onPaymentHistory(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-indigo-600 focus:bg-indigo-50 focus:text-indigo-700"
+            >
+              <History size={14} />
+              Payment History
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function DoctorsPage() {
   const [pageNo, setPageNo] = useState(0);
@@ -42,6 +158,18 @@ export default function DoctorsPage() {
   const [searchBy, setSearchBy] = useState<'Name' | 'Mobile'>('Name');
   const [searchText, setSearchText] = useState('');
   const [doctorToDelete, setDoctorToDelete] = useState<{ id: number; doctorName: string } | null>(null);
+  const [detailsDoctorId, setDetailsDoctorId] = useState<number | null>(null);
+  const [commissionDoctor, setCommissionDoctor] = useState<CommissionDrawerState | null>(null);
+  const [activeDeptDoctor, setActiveDeptDoctor] = useState<{ id: number; doctorName: string } | null>(null);
+  const [testCommissionDoctor, setTestCommissionDoctor] = useState<{ id: number; doctorName: string } | null>(
+    null
+  );
+  const [commissionPayDoctor, setCommissionPayDoctor] = useState<{ id: number; doctorName: string } | null>(
+    null
+  );
+  const [paymentHistoryDoctor, setPaymentHistoryDoctor] = useState<{ id: number; doctorName: string } | null>(
+    null
+  );
 
   const deleteMutation = useDeleteReferringDoctor();
 
@@ -81,16 +209,88 @@ export default function DoctorsPage() {
     return rows.filter((d) => {
       if (searchBy === 'Mobile') {
         const digits = t.replace(/\D/g, '');
-        const m = d.mobile.replace(/\D/g, '');
-        return m.includes(digits) || d.mobile.includes(searchText.trim());
+        const m = (d.doctorPhone ?? '').replace(/\D/g, '');
+        return m.includes(digits) || (d.doctorPhone ?? '').includes(searchText.trim());
       }
       return d.doctorName.toLowerCase().includes(t);
     });
   }, [rows, searchText, searchBy]);
 
+  const pageDoctorIds = useMemo(
+    () => filteredRows.map((d) => d.id).filter((id) => id > 0),
+    [filteredRows]
+  );
+
+  const commissionChecks = useQueries({
+    queries: pageDoctorIds.map((id) => ({
+      queryKey: doctorCommissionQueryKeys.byDoctor(id),
+      queryFn: () => fetchDoctorCommissions(id),
+      staleTime: 30_000,
+      enabled: !isLoading && id > 0,
+    })),
+  });
+
+  /** Doctors who already have at least one commission — hide create Commission button. */
+  const doctorIdsWithCommission = useMemo(() => {
+    const set = new Set<number>();
+    commissionChecks.forEach((query, index) => {
+      const id = pageDoctorIds[index];
+      if (id && (query.data?.data?.length ?? 0) > 0) {
+        set.add(id);
+      }
+    });
+    return set;
+  }, [commissionChecks, pageDoctorIds]);
+
   const openEdit = (doc: { id: number }) => {
+    setDetailsDoctorId(null);
     setDoctorDrawer({ open: true, id: doc.id });
   };
+
+  const openDetails = (doc: { id: number }) => {
+    setDetailsDoctorId(doc.id);
+  };
+
+  const closeDetails = () => setDetailsDoctorId(null);
+
+  const openCommissionCreate = (doc: { id: number; doctorName: string }) => {
+    setCommissionDoctor({ doctorId: doc.id, doctorName: doc.doctorName, commissionId: null });
+  };
+
+  const openCommissionEdit = (doc: { id: number; doctorName: string }, commission: DoctorCommission) => {
+    setCommissionDoctor({
+      doctorId: doc.id,
+      doctorName: doc.doctorName,
+      commissionId: commission.id,
+      initialCommission: commission,
+    });
+  };
+
+  const closeCommission = () => setCommissionDoctor(null);
+
+  const openActiveDepartments = (doc: { id: number; doctorName: string }) => {
+    setActiveDeptDoctor({ id: doc.id, doctorName: doc.doctorName });
+  };
+
+  const closeActiveDepartments = () => setActiveDeptDoctor(null);
+
+  const openTestCommissions = (doc: { id: number; doctorName: string }) => {
+    setTestCommissionDoctor({ id: doc.id, doctorName: doc.doctorName });
+  };
+
+  const closeTestCommissions = () => setTestCommissionDoctor(null);
+
+  const openCommissionPay = (doc: { id: number; doctorName: string }) => {
+    setCommissionPayDoctor({ id: doc.id, doctorName: doc.doctorName });
+  };
+
+  const closeCommissionPay = () => setCommissionPayDoctor(null);
+
+  const openPaymentHistory = (doc: { id: number; doctorName: string }) => {
+    setPaymentHistoryDoctor({ id: doc.id, doctorName: doc.doctorName });
+  };
+
+  const closePaymentHistory = () => setPaymentHistoryDoctor(null);
 
   const openAdd = () => setDoctorDrawer({ open: true, id: null });
 
@@ -136,16 +336,6 @@ export default function DoctorsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2 border-slate-200 px-5 font-bold text-slate-600"
-            title="Point configuration"
-          >
-            <Settings size={16} className="text-[#006D77]" aria-hidden />
-            Point configuration
-          </Button>
           <Button type="button" variant="gradient" size="sm" className="gap-2 shadow-sm px-8" onClick={openAdd}>
             <UserPlus size={16} aria-hidden />
             New doctor
@@ -275,27 +465,23 @@ export default function DoctorsPage() {
                                 <span className="font-semibold text-slate-500 ml-2">{doc.specialization}</span>
                               ) : null}
                             </div>
-                            <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 font-medium">
-                              <MapPin size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                              <span className="truncate">{doc.hospitalName || '—'}</span>
-                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-5 max-w-[200px]">
                         <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
                           <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                          <span className="truncate">{doc.email || '—'}</span>
+                          <span className="truncate">{doc.doctorEmail || '—'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
                           <Phone size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                          {doc.mobile}
+                          {doc.doctorPhone}
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center text-xs font-mono font-bold text-slate-600">
-                        {doc.branchId ?? '—'}
+                        {doc.branch?.branchName || '—'}
                       </td>
                       <td className="px-6 py-5 text-center">
                         <Badge
@@ -310,29 +496,16 @@ export default function DoctorsPage() {
                         </Badge>
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <div className="flex flex-wrap items-center justify-center gap-1.5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1 rounded-lg border-emerald-200 font-bold text-emerald-700 hover:bg-emerald-50"
-                            onClick={() => openEdit(doc)}
-                          >
-                            <Pencil size={12} aria-hidden />
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1 rounded-lg border-rose-200 font-bold text-rose-700 hover:bg-rose-50"
-                            title="Delete referring doctor"
-                            onClick={() => openDeleteDialog(doc)}
-                          >
-                            <Trash2 size={12} aria-hidden />
-                            Delete
-                          </Button>
-                        </div>
+                        <DoctorActions
+                          row={doc}
+                          hasCommission={doctorIdsWithCommission.has(doc.id)}
+                          onView={openDetails}
+                          onDepartments={openActiveDepartments}
+                          onCommissionCreate={openCommissionCreate}
+                          onTestCommissions={openTestCommissions}
+                          onCommissionPay={openCommissionPay}
+                          onPaymentHistory={openPaymentHistory}
+                        />
                       </td>
                     </tr>
                   ))
@@ -375,6 +548,76 @@ export default function DoctorsPage() {
           </div>
         </div>
       )}
+
+      <DoctorDetails
+        isOpen={detailsDoctorId != null}
+        doctorId={detailsDoctorId}
+        onClose={closeDetails}
+        onEdit={(id) => {
+          closeDetails();
+          setDoctorDrawer({ open: true, id });
+        }}
+        onDelete={(id) => {
+          const doc = rows.find((d) => d.id === id);
+          closeDetails();
+          if (doc) openDeleteDialog(doc);
+        }}
+      />
+
+      <ActiveDepartment
+        isOpen={activeDeptDoctor != null}
+        doctorId={activeDeptDoctor?.id ?? null}
+        doctorName={activeDeptDoctor?.doctorName}
+        onClose={closeActiveDepartments}
+        onAddCommission={() => {
+          if (!activeDeptDoctor) return;
+          const { id, doctorName } = activeDeptDoctor;
+          closeActiveDepartments();
+          setCommissionDoctor({ doctorId: id, doctorName, commissionId: null });
+        }}
+        onEditCommission={(commission) => {
+          if (!activeDeptDoctor) return;
+          const { id, doctorName } = activeDeptDoctor;
+          closeActiveDepartments();
+          openCommissionEdit({ id, doctorName }, commission);
+        }}
+        onViewTestCommissions={() => {
+          if (!activeDeptDoctor) return;
+          const { id, doctorName } = activeDeptDoctor;
+          closeActiveDepartments();
+          openTestCommissions({ id, doctorName });
+        }}
+      />
+
+      <GetTestCommission
+        isOpen={testCommissionDoctor != null}
+        doctorId={testCommissionDoctor?.id ?? null}
+        doctorName={testCommissionDoctor?.doctorName}
+        onClose={closeTestCommissions}
+      />
+
+      <SpecificDateRange
+        isOpen={commissionPayDoctor != null}
+        doctorId={commissionPayDoctor?.id ?? null}
+        doctorName={commissionPayDoctor?.doctorName}
+        onClose={closeCommissionPay}
+      />
+
+      <GetPaymentHistory
+        isOpen={paymentHistoryDoctor != null}
+        doctorId={paymentHistoryDoctor?.id ?? null}
+        doctorName={paymentHistoryDoctor?.doctorName}
+        onClose={closePaymentHistory}
+      />
+
+      <Commission
+        isOpen={commissionDoctor != null}
+        doctorId={commissionDoctor?.doctorId ?? null}
+        doctorName={commissionDoctor?.doctorName}
+        commissionId={commissionDoctor?.commissionId ?? null}
+        initialCommission={commissionDoctor?.initialCommission ?? null}
+        onClose={closeCommission}
+      />
 
       <AddDoctor
         isOpen={doctorDrawer.open}

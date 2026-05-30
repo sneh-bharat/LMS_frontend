@@ -132,6 +132,7 @@ body {
 }
 
 @theme {
+
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -182,6 +183,7 @@ body {
   --color-light-teal: var(--light-teal);
   --color-deep-teal: var(--deep-teal);
   --color-pale-teal: var(--pale-teal);
+  --spacing: 4px; /* this can cause side effects */
 }
 
 .dark {
@@ -217,6 +219,8 @@ body {
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+
 
 @layer base {
   * {

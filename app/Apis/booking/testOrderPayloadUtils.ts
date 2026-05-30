@@ -1,4 +1,8 @@
-import type { CreateTestOrderPayload } from './testOrderApi';
+import {
+  MEMBERSHIP_CARD_PAYMENT_MODE,
+  MEMBERSHIP_CARD_PAYMENT_MODE_API,
+  type CreateTestOrderPayload,
+} from './testOrderApi';
 
 /** API expects `HH:mm` (e.g. `"09:00"`). */
 export function formatCollectionTime(time: string): string {
@@ -13,9 +17,13 @@ export function formatCollectionTime(time: string): string {
  * Ensures POST body matches ThinkLAB contract (no `referringDoctorId`, `collectionTime` as HH:mm).
  */
 export function normalizeCreateTestOrderPayload(
-  payload: CreateTestOrderPayload & { referringDoctorId?: number | null }
+  payload: CreateTestOrderPayload & {
+    referringDoctorId?: number | null;
+    /** Legacy alias from booking form — mapped to `otpCode`. */
+    membershipCardOtp?: string;
+  }
 ): CreateTestOrderPayload {
-  const { referringDoctorId, ...rest } = payload;
+  const { referringDoctorId, membershipCardOtp, ...rest } = payload;
   const normalized = { ...rest } as CreateTestOrderPayload;
 
   if (
@@ -28,6 +36,18 @@ export function normalizeCreateTestOrderPayload(
 
   if (normalized.collectionTime) {
     normalized.collectionTime = formatCollectionTime(normalized.collectionTime);
+  }
+
+  if (normalized.paymentMode === MEMBERSHIP_CARD_PAYMENT_MODE) {
+    normalized.paymentMode = MEMBERSHIP_CARD_PAYMENT_MODE_API;
+  }
+
+  if (!normalized.otpCode && membershipCardOtp?.trim()) {
+    normalized.otpCode = membershipCardOtp.trim();
+  }
+
+  if (normalized.paymentMode === MEMBERSHIP_CARD_PAYMENT_MODE_API) {
+    normalized.requiresOtpVerification = true;
   }
 
   return normalized;

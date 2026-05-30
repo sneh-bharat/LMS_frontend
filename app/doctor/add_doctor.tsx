@@ -15,7 +15,7 @@ import { useCreateReferringDoctor, useReferringDoctor, useUpdateReferringDoctor,
 export interface AddDoctorProps {
   isOpen: boolean;
   onClose: () => void;
-  /** When set, loads `GET /referring-doctors/:id` and submits `PUT` for update. */
+  /** When set, loads `GET /api/v1/doctors/:id` and submits `PUT` for update. */
   doctorId?: number | null;
   /**
    * Current list slice (e.g. same page) used to block duplicate email / mobile before submit.
@@ -29,8 +29,12 @@ const initialForm = {
   branchId: 0,
   specialization: '',
   hospitalName: '',
-  mobile: '',
-  email: '',
+  username: '',
+  password: '',
+  doctorEmail: '',
+  doctorPhone: '',
+  isVerified: true,
+  role: 'DOCTOR',
   isActive: true,
 };
 
@@ -75,11 +79,11 @@ function mapApiErrorToDuplicateFields(
 
   let touched = false;
   if (lower.includes('email') && looksDuplicate) {
-    setErrors((prev) => ({ ...prev, email: DUPLICATE_EMAIL_MSG }));
+    setErrors((prev) => ({ ...prev, doctorEmail: DUPLICATE_EMAIL_MSG }));
     touched = true;
   }
   if ((lower.includes('mobile') || lower.includes('phone')) && looksDuplicate) {
-    setErrors((prev) => ({ ...prev, mobile: DUPLICATE_MOBILE_MSG }));
+    setErrors((prev) => ({ ...prev, doctorPhone: DUPLICATE_MOBILE_MSG }));
     touched = true;
   }
   return touched;
@@ -151,8 +155,12 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
       branchId: doc.branchId != null && doc.branchId > 0 ? doc.branchId : 0,
       specialization: doc.specialization ?? '',
       hospitalName: doc.hospitalName ?? '',
-      mobile: doc.mobile ?? '',
-      email: doc.email ?? '',
+      username: '',
+      password: '',
+      doctorEmail: doc.doctorEmail ?? '',
+      doctorPhone: doc.doctorPhone ?? '',
+      isVerified: true,
+      role: 'DOCTOR',
       isActive: doc.isActive,
     });
   }, [isOpen, isEdit, doctorId, detailQuery.data?.data]);
@@ -181,32 +189,38 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
       if (!formData.branchId || formData.branchId < 1) next.branchId = 'Branch is required';
       if (!formData.specialization.trim()) next.specialization = 'Specialization is required';
       if (!formData.hospitalName.trim()) next.hospitalName = 'Hospital name is required';
-      if (!formData.mobile.trim()) next.mobile = 'Mobile is required';
-      const email = formData.email.trim();
-      if (!email) next.email = 'Email is required';
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email';
+      if (!formData.username.trim()) next.username = 'Username is required';
+      if (!formData.password) next.password = 'Password is required';
+      else if (formData.password.length < 6) next.password = 'Password must be at least 6 characters';
+      if (!formData.doctorPhone.trim()) next.doctorPhone = 'Phone is required';
+      const email = formData.doctorEmail.trim();
+      if (!email) next.doctorEmail = 'Email is required';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.doctorEmail = 'Enter a valid email';
     } else {
-      const email = formData.email.trim();
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email';
+      const email = formData.doctorEmail.trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.doctorEmail = 'Enter a valid email';
     }
 
     const others = doctorsForDuplicateCheck?.filter((d) => !isEdit || d.id !== doctorId) ?? [];
-    const emailTrim = formData.email.trim();
-    if (emailTrim && !next.email) {
+    const emailTrim = formData.doctorEmail.trim();
+    if (emailTrim && !next.doctorEmail) {
       const em = normalizeEmail(emailTrim);
       const emailDup = others.some(
-        (d) => d.email != null && String(d.email).trim() !== '' && normalizeEmail(String(d.email)) === em
+        (d) =>
+          d.doctorEmail != null &&
+          String(d.doctorEmail).trim() !== '' &&
+          normalizeEmail(String(d.doctorEmail)) === em
       );
-      if (emailDup) next.email = DUPLICATE_EMAIL_MSG;
+      if (emailDup) next.doctorEmail = DUPLICATE_EMAIL_MSG;
     }
 
-    const mobDigits = normalizeMobileDigits(formData.mobile);
-    if (mobDigits.length > 0 && !next.mobile) {
+    const mobDigits = normalizeMobileDigits(formData.doctorPhone);
+    if (mobDigits.length > 0 && !next.doctorPhone) {
       const mobDup = others.some((d) => {
-        const od = normalizeMobileDigits(String(d.mobile ?? ''));
+        const od = normalizeMobileDigits(String(d.doctorPhone ?? ''));
         return od.length > 0 && od === mobDigits;
       });
-      if (mobDup) next.mobile = DUPLICATE_MOBILE_MSG;
+      if (mobDup) next.doctorPhone = DUPLICATE_MOBILE_MSG;
     }
 
     setErrors(next);
@@ -222,8 +236,8 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
         doctorName: formData.doctorName.trim(),
         specialization: formData.specialization.trim(),
         hospitalName: formData.hospitalName.trim(),
-        mobile: formData.mobile.trim(),
-        email: formData.email.trim(),
+        mobile: formData.doctorPhone.trim(),
+        email: formData.doctorEmail.trim(),
         isActive: formData.isActive,
         branchId: formData.branchId > 0 ? formData.branchId : null,
       };
@@ -248,8 +262,12 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
       branchId: formData.branchId,
       specialization: formData.specialization.trim(),
       hospitalName: formData.hospitalName.trim(),
-      mobile: formData.mobile.trim(),
-      email: formData.email.trim(),
+      username: formData.username.trim(),
+      password: formData.password,
+      doctorEmail: formData.doctorEmail.trim(),
+      doctorPhone: formData.doctorPhone.trim(),
+      isVerified: formData.isVerified,
+      role: formData.role,
       isActive: formData.isActive,
     };
 
@@ -270,7 +288,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
 
   const specializationLabel = useMemo(() => (isEdit ? 'Specialization' : 'Specialization *'), [isEdit]);
   const hospitalLabel = useMemo(() => (isEdit ? 'Hospital name' : 'Hospital name *'), [isEdit]);
-  const mobileLabel = useMemo(() => (isEdit ? 'Mobile' : 'Mobile *'), [isEdit]);
+  const phoneLabel = useMemo(() => (isEdit ? 'Phone' : 'Phone *'), [isEdit]);
   const emailLabel = useMemo(() => (isEdit ? 'Email' : 'Email *'), [isEdit]);
   const branchLabel = useMemo(() => (isEdit ? 'Branch' : 'Branch *'), [isEdit]);
 
@@ -445,43 +463,90 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
             </div>
           </div>
 
+          {!isEdit ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                  Username *
+                </Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="dr.smith"
+                  autoComplete="username"
+                  className={`border-slate-200 ${errors.username ? 'border-rose-300' : ''}`}
+                  disabled={pending}
+                />
+                {errors.username ? (
+                  <p className="text-xs text-rose-600 flex items-center gap-1">
+                    <AlertCircle size={12} aria-hidden /> {errors.username}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                  Password *
+                </Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  className={`border-slate-200 ${errors.password ? 'border-rose-300' : ''}`}
+                  disabled={pending}
+                />
+                {errors.password ? (
+                  <p className="text-xs text-rose-600 flex items-center gap-1">
+                    <AlertCircle size={12} aria-hidden /> {errors.password}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="mobile" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
-                {mobileLabel}
+              <Label htmlFor="doctorPhone" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                {phoneLabel}
               </Label>
               <Input
-                id="mobile"
-                name="mobile"
-                value={formData.mobile}
+                id="doctorPhone"
+                name="doctorPhone"
+                value={formData.doctorPhone}
                 onChange={handleChange}
                 placeholder="9876543221"
-                className={`border-slate-200 ${errors.mobile ? 'border-rose-300' : ''}`}
+                className={`border-slate-200 ${errors.doctorPhone ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
-              {errors.mobile ? (
+              {errors.doctorPhone ? (
                 <p className="text-xs text-rose-600 flex items-center gap-1">
-                  <AlertCircle size={12} aria-hidden /> {errors.mobile}
+                  <AlertCircle size={12} aria-hidden /> {errors.doctorPhone}
                 </p>
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+              <Label htmlFor="doctorEmail" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
                 {emailLabel}
               </Label>
               <Input
-                id="email"
-                name="email"
+                id="doctorEmail"
+                name="doctorEmail"
                 type="email"
-                value={formData.email}
+                value={formData.doctorEmail}
                 onChange={handleChange}
                 placeholder="dr.sara@hospital.com"
-                className={`border-slate-200 ${errors.email ? 'border-rose-300' : ''}`}
+                autoComplete="email"
+                className={`border-slate-200 ${errors.doctorEmail ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
-              {errors.email ? (
+              {errors.doctorEmail ? (
                 <p className="text-xs text-rose-600 flex items-center gap-1">
-                  <AlertCircle size={12} aria-hidden /> {errors.email}
+                  <AlertCircle size={12} aria-hidden /> {errors.doctorEmail}
                 </p>
               ) : null}
             </div>

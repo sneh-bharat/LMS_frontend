@@ -15,7 +15,7 @@ function doctorSubtitle(doctor: ReferringDoctor) {
   const parts: string[] = [];
   if (doctor.specialization?.trim()) parts.push(doctor.specialization.trim());
   if (doctor.hospitalName?.trim()) parts.push(doctor.hospitalName.trim());
-  if (doctor.mobile?.trim()) parts.push(doctor.mobile.trim());
+  if (doctor.doctorPhone?.trim()) parts.push(doctor.doctorPhone.trim());
   return parts.join(' · ') || 'Referring doctor';
 }
 

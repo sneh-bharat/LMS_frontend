@@ -1,17 +1,17 @@
 import axios from 'axios';
 
 /**
- * Referring doctor API client — `NEXT_PUBLIC_API_URL1` (lims-patient).
+ * Commission API client — `NEXT_PUBLIC_API_Test`.
  * Bearer token from localStorage when present.
  */
-const referringDoctorAxios = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_AUTH,
+const commissionAxios = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_Test,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-referringDoctorAxios.interceptors.request.use(
+commissionAxios.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
@@ -24,7 +24,7 @@ referringDoctorAxios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-referringDoctorAxios.interceptors.response.use(
+commissionAxios.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
@@ -40,4 +40,4 @@ referringDoctorAxios.interceptors.response.use(
   }
 );
 
-export default referringDoctorAxios;
+export default commissionAxios;

@@ -1,5 +1,10 @@
 import { BOOKING_DISEASES } from '@/app/diagnosis/diagnostic-booking/patientFormUtils';
-import type { CreateTestOrderPayload, TestOrderItemPayload } from './testOrderApi';
+import {
+  MEMBERSHIP_CARD_PAYMENT_MODE,
+  MEMBERSHIP_CARD_PAYMENT_MODE_API,
+  type CreateTestOrderPayload,
+  type TestOrderItemPayload,
+} from './testOrderApi';
 import { isEmergencyPriority, normalizeOrderPriority } from './orderPriority';
 import { formatCollectionTime, normalizeCreateTestOrderPayload } from './testOrderPayloadUtils';
 
@@ -35,6 +40,9 @@ export interface BookingFormSnapshot {
   paymentMode: string;
   paymentReference: string;
   createdByName: string;
+  membershipCardNumber?: string;
+  membershipCardHolderEmail?: string;
+  membershipCardOtp?: string;
 }
 
 export interface MapBookingToTestOrderInput {
@@ -201,6 +209,10 @@ export function mapBookingToTestOrderPayload(
   const expectedReportDate =
     form.expectedReportDate?.trim() || form.collectionDate?.trim() || collectionDate;
 
+  const uiPaymentMode = form.paymentMode?.trim() || 'Cash';
+  const isMembershipPayment = uiPaymentMode === MEMBERSHIP_CARD_PAYMENT_MODE;
+  const paymentMode = isMembershipPayment ? MEMBERSHIP_CARD_PAYMENT_MODE_API : uiPaymentMode;
+
   const payload: CreateTestOrderPayload = {
     patientId: form.patientId,
     orderDate: toLocalIsoDate(today),
@@ -221,11 +233,21 @@ export function mapBookingToTestOrderPayload(
     netAmount: financials.netAmount,
     actualPayable: financials.actualPayable,
     paidAmount: financials.paidAmount,
-    paymentMode: form.paymentMode || 'Cash',
+    paymentMode,
     createdByName:
       form.createdByName?.trim() || createdByName?.trim() || 'Diagnostic Booking',
     branchId,
   };
+
+  if (isMembershipPayment) {
+    payload.requiresOtpVerification = true;
+    const membershipCardNumber = form.membershipCardNumber?.trim();
+    const cardholderEmail = form.membershipCardHolderEmail?.trim();
+    const otpCode = form.membershipCardOtp?.trim();
+    if (membershipCardNumber) payload.membershipCardNumber = membershipCardNumber;
+    if (cardholderEmail) payload.cardholderEmail = cardholderEmail;
+    if (otpCode) payload.otpCode = otpCode;
+  }
 
   const referrerName = form.referrer?.trim();
   if (referrerName) payload.referrerName = referrerName;

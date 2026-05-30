@@ -1,143 +1,442 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import Button from '@/components/ui/button';
+import { Input, Label } from '@/components/ui';
+import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import {
-  InlineButton as Button,
-  InlineInput as Input,
-  InlineFormGroup as FormGroup,
-} from '@/components/ui';
-import { Referrer } from './types';
+  getReferrerName,
+  getReferrerPhone,
+  showOnReportToFormValue,
+} from '@/app/Apis/Referrer/referrerApi';
+import {
+  useCreateReferrer,
+  useReferrerById,
+  useUpdateReferrer,
+} from '@/app/Apis/Referrer/useReferrer';
 
-interface AddReferrerProps {
-  onAdd: (referrer: Referrer) => void;
+export interface AddReferrerProps {
+  isOpen?: boolean;
+  /** When set, loads GET `/api/v1/referrers/{id}` and submits PUT on save. */
+  referrerId?: number | null;
+  onSuccess?: () => void;
   onClose: () => void;
 }
 
-export default function AddReferrer({ onAdd, onClose }: AddReferrerProps) {
-  const [form, setForm] = useState({
-    name: '',
-    mobile: '',
-    address: '',
-    centre: 'HO(IP)',
-    marketingAssociate: '',
-    status: 'Active' as 'Active' | 'Inactive',
-    showOnPrint: 'Hide All' as 'Hide All' | 'Show All',
-  });
+const initialForm = {
+  branchId: 0,
+  name: '',
+  mobile: '',
+  address: '',
+  email: '',
+  phone: '',
+  showOnReport: 'Yes' as 'Yes' | 'No',
+  isActive: true,
+  username: '',
+  password: '',
+};
 
-  const handleAdd = () => {
-    if (!form.name.trim()) {
-      alert('Please enter a name');
-      return;
+function getErrorMessage(err: unknown, isEdit: boolean): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return isEdit ? 'Failed to update referrer.' : 'Failed to create referrer.';
+}
+
+export default function AddReferrer({
+  isOpen = true,
+  referrerId,
+  onSuccess,
+  onClose,
+}: AddReferrerProps) {
+  const isEdit = Boolean(referrerId != null && referrerId > 0);
+
+  const [form, setForm] = useState(initialForm);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
+  const detailQuery = useReferrerById(referrerId, { enabled: isOpen && isEdit });
+  const createMutation = useCreateReferrer();
+  const updateMutation = useUpdateReferrer();
+
+  useEffect(() => {
+    if (!isOpen) {
+      setForm(initialForm);
+      setErrors({});
     }
-    onAdd({ id: Date.now(), ...form });
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    setLoadingBranches(true);
+    branchApi
+      .getAllBranches({ pageNo: 0, pageSize: 200 })
+      .then((res) => {
+        if (cancelled) return;
+        const list = res?.data?.content ?? [];
+        setBranches(list);
+        if (!isEdit && list[0]?.id) {
+          setForm((prev) => (prev.branchId ? prev : { ...prev, branchId: list[0].id }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load branches.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingBranches(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isEdit]);
+
+  useEffect(() => {
+    if (!isOpen || !isEdit || !referrerId) return;
+    const referrer = detailQuery.data?.data;
+    if (!referrer || referrer.id !== referrerId) return;
+
+    const phone = getReferrerPhone(referrer);
+    setForm({
+      branchId: referrer.branchId != null && referrer.branchId > 0 ? referrer.branchId : 0,
+      name: getReferrerName(referrer) === '—' ? '' : getReferrerName(referrer),
+      mobile: referrer.mobile?.trim() || (phone === '—' ? '' : phone),
+      address: referrer.address?.trim() ?? '',
+      email: referrer.email?.trim() ?? '',
+      phone: phone === '—' ? '' : phone,
+      showOnReport: showOnReportToFormValue(referrer.showOnReport ?? referrer.showOnPrint),
+      isActive: referrer.isActive ?? /^active$/i.test(referrer.status ?? ''),
+      username: referrer.username?.trim() ?? '',
+      password: '',
+    });
+  }, [isOpen, isEdit, referrerId, detailQuery.data?.data]);
+
+  const validate = (): boolean => {
+    const next: Record<string, string> = {};
+    if (!form.branchId || form.branchId < 1) next.branchId = 'Branch is required.';
+    if (!form.name.trim()) next.name = 'Name is required.';
+    if (!form.email.trim()) next.email = 'Email is required.';
+    if (!form.username.trim()) next.username = 'Username is required.';
+
+    if (isEdit) {
+      if (!form.phone.trim() && !form.mobile.trim()) {
+        next.phone = 'Phone is required.';
+      }
+      if (form.password.trim() && form.password.length < 6) {
+        next.password = 'Password must be at least 6 characters.';
+      }
+    } else {
+      if (!form.mobile.trim()) next.mobile = 'Mobile is required.';
+      if (!form.password.trim()) next.password = 'Password is required.';
+      else if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  return (
-    <div>
-      {/* Content */}
-      <div style={{ display: 'grid', gap: 16 }}>
-        <FormGroup label="Name">
-          <Input
-            value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="Enter referrer name"
-          />
-        </FormGroup>
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
 
-        <FormGroup label="Mobile Number">
-          <Input
-            value={form.mobile}
-            onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))}
-            placeholder="10-digit mobile number"
-          />
-        </FormGroup>
+    const phone = form.phone.trim() || form.mobile.trim();
 
-        <FormGroup label="Address">
-          <Input
-            value={form.address}
-            onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-            placeholder="Enter address"
-          />
-        </FormGroup>
+    if (isEdit && referrerId) {
+      const payload = {
+        branchId: form.branchId,
+        name: form.name.trim(),
+        address: form.address.trim(),
+        email: form.email.trim(),
+        phone,
+        showOnReport: form.showOnReport,
+        username: form.username.trim(),
+        ...(form.password.trim() ? { password: form.password } : {}),
+      };
 
-        <FormGroup label="Associated Centre">
-          <select
-            value={form.centre}
-            onChange={e => setForm(f => ({ ...f, centre: e.target.value }))}
-            style={{
-              width: '100%',
-              border: '1.5px solid #d1d5db',
-              borderRadius: 5,
-              padding: '8px 10px',
-              fontSize: 13,
-              color: '#444',
-              outline: 'none',
-            }}
-          >
-            <option>HO(IP)</option>
-            <option>HO(OP)</option>
-            <option>Branch A</option>
-          </select>
-        </FormGroup>
+      updateMutation.mutate(
+        { id: referrerId, payload },
+        {
+          onSuccess: (res) => {
+            toast.success(res?.message?.trim() || 'Referrer updated successfully.');
+            onSuccess?.();
+            onClose();
+          },
+          onError: (err) => {
+            toast.error(getErrorMessage(err, true));
+          },
+        }
+      );
+      return;
+    }
 
-        <FormGroup label="Marketing Associate">
-          <select
-            value={form.marketingAssociate}
-            onChange={e => setForm(f => ({ ...f, marketingAssociate: e.target.value }))}
-            style={{
-              width: '100%',
-              border: '1.5px solid #d1d5db',
-              borderRadius: 5,
-              padding: '8px 10px',
-              fontSize: 13,
-              color: '#444',
-              outline: 'none',
-            }}
-          >
-            <option value="">Select Associate</option>
-            <option>Associate 1</option>
-            <option>Associate 2</option>
-          </select>
-        </FormGroup>
+    createMutation.mutate(
+      {
+        branchId: form.branchId,
+        name: form.name.trim(),
+        mobile: form.mobile.trim(),
+        address: form.address.trim(),
+        email: form.email.trim(),
+        phone,
+        showOnReport: form.showOnReport === 'Yes' ? 'true' : 'false',
+        isActive: form.isActive,
+        username: form.username.trim(),
+        password: form.password,
+        role: 'REFERRER',
+      },
+      {
+        onSuccess: (res) => {
+          toast.success(res?.message?.trim() || 'Referrer created successfully.');
+          onSuccess?.();
+          onClose();
+        },
+        onError: (err) => {
+          toast.error(getErrorMessage(err, false));
+        },
+      }
+    );
+  };
 
-        <FormGroup label="Status">
-          <select
-            value={form.status}
-            onChange={e => setForm(f => ({ ...f, status: e.target.value as any }))}
-            style={{
-              width: '100%',
-              border: '1.5px solid #d1d5db',
-              borderRadius: 5,
-              padding: '8px 10px',
-              fontSize: 13,
-              color: '#444',
-              outline: 'none',
-            }}
-          >
-            <option>Active</option>
-            <option>Inactive</option>
-          </select>
-        </FormGroup>
+  const pending = createMutation.isPending || updateMutation.isPending;
+  const loadingDetail = isEdit && (detailQuery.isLoading || (detailQuery.isFetching && !detailQuery.data?.data));
 
-        <FormGroup label="Show on Print">
-          <select
-            value={form.showOnPrint}
-            onChange={e => setForm(f => ({ ...f, showOnPrint: e.target.value as any }))}
-            style={{
-              width: '100%',
-              border: '1.5px solid #d1d5db',
-              borderRadius: 5,
-              padding: '8px 10px',
-              fontSize: 13,
-              color: '#444',
-              outline: 'none',
-            }}
-          >
-            <option>Hide All</option>
-            <option>Show All</option>
-          </select>
-        </FormGroup>
+  if (loadingDetail) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-600">
+        <Loader2 className="animate-spin text-emerald-600" size={32} aria-hidden />
+        <p className="text-sm font-medium">Loading referrer…</p>
       </div>
-    </div>
+    );
+  }
+
+  if (isEdit && detailQuery.isError) {
+    return (
+      <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-800 flex flex-col items-center gap-3 text-center">
+        <AlertCircle size={24} aria-hidden />
+        <p className="font-medium">
+          {detailQuery.error instanceof Error ? detailQuery.error.message : 'Failed to load referrer.'}
+        </p>
+        <Button type="button" variant="outline" size="sm" className="font-bold" onClick={() => detailQuery.refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Branch *</Label>
+        <select
+          value={form.branchId || ''}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, branchId: Number(e.target.value) }));
+            if (errors.branchId) setErrors((prev) => ({ ...prev, branchId: '' }));
+          }}
+          className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-semibold ${
+            errors.branchId ? 'border-rose-300' : 'border-input'
+          }`}
+          disabled={pending || loadingBranches}
+        >
+          <option value="">Select branch</option>
+          {branches.map((branch) => (
+            <option key={branch.id} value={branch.id}>
+              {branch.branchName}
+            </option>
+          ))}
+        </select>
+        {errors.branchId ? (
+          <p className="text-xs text-rose-600 flex items-center gap-1">
+            <AlertCircle size={12} aria-hidden /> {errors.branchId}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Referrer name *</Label>
+        <Input
+          value={form.name}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, name: e.target.value }));
+            if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+          }}
+          placeholder="Dr. John Smith"
+          disabled={pending}
+          className={errors.name ? 'border-rose-300' : ''}
+        />
+        {errors.name ? (
+          <p className="text-xs text-rose-600 flex items-center gap-1">
+            <AlertCircle size={12} aria-hidden /> {errors.name}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Username *</Label>
+          <Input
+            value={form.username}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, username: e.target.value }));
+              if (errors.username) setErrors((prev) => ({ ...prev, username: '' }));
+            }}
+            placeholder="referrer_john"
+            disabled={pending}
+            className={errors.username ? 'border-rose-300' : ''}
+          />
+          {errors.username ? (
+            <p className="text-xs text-rose-600 flex items-center gap-1">
+              <AlertCircle size={12} aria-hidden /> {errors.username}
+            </p>
+          ) : null}
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+            Password {isEdit ? '(optional)' : '*'}
+          </Label>
+          <Input
+            type="password"
+            value={form.password}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, password: e.target.value }));
+              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+            }}
+            placeholder={isEdit ? 'Leave blank to keep current' : '••••••••'}
+            disabled={pending}
+            className={errors.password ? 'border-rose-300' : ''}
+          />
+          {errors.password ? (
+            <p className="text-xs text-rose-600 flex items-center gap-1">
+              <AlertCircle size={12} aria-hidden /> {errors.password}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {!isEdit ? (
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Mobile *</Label>
+            <Input
+              value={form.mobile}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, mobile: e.target.value }));
+                if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: '' }));
+              }}
+              placeholder="+1234567890"
+              disabled={pending}
+              className={errors.mobile ? 'border-rose-300' : ''}
+            />
+            {errors.mobile ? (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle size={12} aria-hidden /> {errors.mobile}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <div className={`space-y-2 ${isEdit ? 'sm:col-span-2' : ''}`}>
+          <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+            Phone {isEdit ? '*' : ''}
+          </Label>
+          <Input
+            value={form.phone}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, phone: e.target.value }));
+              if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+            }}
+            placeholder={isEdit ? '+1234567899' : 'Same as mobile if empty'}
+            disabled={pending}
+            className={errors.phone ? 'border-rose-300' : ''}
+          />
+          {errors.phone ? (
+            <p className="text-xs text-rose-600 flex items-center gap-1">
+              <AlertCircle size={12} aria-hidden /> {errors.phone}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Email *</Label>
+        <Input
+          type="email"
+          value={form.email}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, email: e.target.value }));
+            if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+          }}
+          placeholder="john.smith@hospital.com"
+          disabled={pending}
+          className={errors.email ? 'border-rose-300' : ''}
+        />
+        {errors.email ? (
+          <p className="text-xs text-rose-600 flex items-center gap-1">
+            <AlertCircle size={12} aria-hidden /> {errors.email}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Address</Label>
+        <Input
+          value={form.address}
+          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+          placeholder="Enter address"
+          disabled={pending}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Show on report</Label>
+        <select
+          value={form.showOnReport}
+          onChange={(e) => setForm((f) => ({ ...f, showOnReport: e.target.value as 'Yes' | 'No' }))}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
+          disabled={pending}
+        >
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+
+      {!isEdit ? (
+        <div className="space-y-2">
+          <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Status</Label>
+          <select
+            value={form.isActive ? 'active' : 'inactive'}
+            onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.value === 'active' }))}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
+            disabled={pending}
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      ) : null}
+
+      <div className="flex gap-3 pt-2">
+        <Button type="button" variant="outline" className="flex-1 font-bold" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="gradient" className="flex-1 font-bold" disabled={pending}>
+          {pending ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="animate-spin" size={16} aria-hidden />
+              Saving…
+            </span>
+          ) : isEdit ? (
+            'Update referrer'
+          ) : (
+            'Create referrer'
+          )}
+        </Button>
+      </div>
+    </form>
   );
 }
