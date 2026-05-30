@@ -7,30 +7,30 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
-import { fetchReferrerById, getReferrerName } from '@/app/Apis/Referrer/referrerApi';
+import { fetchReferringDoctorById } from '@/app/Apis/doctor/referringDoctorApi';
 import type {
-  CreateReferrerCommissionPayload,
-  ReferrerCommission,
-} from '@/app/Apis/Referrer/ReferrerCommission';
+  CreateDoctorCommissionPayload,
+  DoctorCommission,
+} from '@/app/Apis/Commission/commissionPrice';
 import {
-  useCreateReferrerCommission,
-  useUpdateReferrerCommission,
-} from '@/app/Apis/Referrer/useReferrerCommission';
+  useCreateDoctorCommission,
+  useUpdateDoctorCommission,
+} from '@/app/Apis/Commission/useDoctorCommission';
 
-export interface ReferrerCommissionProps {
+export interface CommissionProps {
   isOpen: boolean;
   onClose: () => void;
-  referrerId: number | null;
-  referrerName?: string;
+  doctorId: number | null;
+  doctorName?: string;
   /** When set, form runs in edit mode (PUT). Omit for create (POST). */
   commissionId?: number | null;
   /** Prefill for edit; avoids extra fetch when opened from department list. */
-  initialCommission?: ReferrerCommission | null;
+  initialCommission?: DoctorCommission | null;
 }
 
 const initialForm = {
-  referrerId: 0,
-  referrerName: '',
+  doctorId: 0,
+  doctorName: '',
   departmentId: 0,
   departmentName: '',
   commissionPercentage: '',
@@ -47,10 +47,10 @@ function getErrorMessage(err: unknown): string {
   return 'Could not save commission. Please try again.';
 }
 
-function buildPayload(formData: typeof initialForm): CreateReferrerCommissionPayload {
+function buildPayload(formData: typeof initialForm): CreateDoctorCommissionPayload {
   return {
-    referrerId: formData.referrerId,
-    referrerName: formData.referrerName.trim(),
+    doctorId: formData.doctorId,
+    doctorName: formData.doctorName.trim(),
     departmentId: formData.departmentId,
     departmentName: formData.departmentName.trim(),
     commissionPercentage: parseFloat(formData.commissionPercentage),
@@ -62,21 +62,21 @@ function buildPayload(formData: typeof initialForm): CreateReferrerCommissionPay
 export default function Commission({
   isOpen,
   onClose,
-  referrerId,
-  referrerName,
+  doctorId,
+  doctorName,
   commissionId,
   initialCommission,
-}: ReferrerCommissionProps) {
+}: CommissionProps) {
   const isEdit = Boolean(commissionId != null && commissionId > 0);
 
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
-  const [loadingReferrer, setLoadingReferrer] = useState(false);
+  const [loadingDoctor, setLoadingDoctor] = useState(false);
 
-  const createMutation = useCreateReferrerCommission();
-  const updateMutation = useUpdateReferrerCommission();
+  const createMutation = useCreateDoctorCommission();
+  const updateMutation = useUpdateDoctorCommission();
 
   useEffect(() => {
     if (!isOpen) {
@@ -91,8 +91,8 @@ export default function Commission({
         departments.find((d) => d.id === initialCommission.departmentId)?.departmentName ||
         '';
       setFormData({
-        referrerId: initialCommission.referrerId,
-        referrerName: initialCommission.referrerName?.trim() || referrerName?.trim() || '',
+        doctorId: initialCommission.doctorId,
+        doctorName: initialCommission.doctorName?.trim() || doctorName?.trim() || '',
         departmentId: initialCommission.departmentId,
         departmentName: deptName,
         commissionPercentage: String(initialCommission.commissionPercentage),
@@ -102,45 +102,42 @@ export default function Commission({
       return;
     }
 
-    if (referrerId == null || referrerId < 1) {
+    if (doctorId == null || doctorId < 1) {
       setFormData(initialForm);
       return;
     }
 
     setFormData({
       ...initialForm,
-      referrerId,
-      referrerName: referrerName?.trim() || '',
+      doctorId,
+      doctorName: doctorName?.trim() || '',
     });
-  }, [isOpen, isEdit, initialCommission, referrerId, referrerName]);
+  }, [isOpen, isEdit, initialCommission, doctorId, doctorName]);
 
   useEffect(() => {
-    if (!isOpen || referrerId == null || referrerId < 1) return;
-    if (formData.referrerName.trim()) return;
-    if (referrerName?.trim()) return;
+    if (!isOpen || doctorId == null || doctorId < 1) return;
+    if (formData.doctorName.trim()) return;
+    if (doctorName?.trim()) return;
 
     let cancelled = false;
-    setLoadingReferrer(true);
+    setLoadingDoctor(true);
     (async () => {
       try {
-        const res = await fetchReferrerById(referrerId);
-        if (!cancelled && res?.data) {
-          const name = getReferrerName(res.data);
-          if (name !== '—') {
-            setFormData((prev) => ({ ...prev, referrerName: name }));
-          }
+        const res = await fetchReferringDoctorById(doctorId);
+        if (!cancelled && res?.data?.doctorName) {
+          setFormData((prev) => ({ ...prev, doctorName: res.data.doctorName }));
         }
       } catch {
-        if (!cancelled) toast.error('Failed to load referrer name.');
+        if (!cancelled) toast.error('Failed to load doctor name.');
       } finally {
-        if (!cancelled) setLoadingReferrer(false);
+        if (!cancelled) setLoadingDoctor(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isOpen, referrerId, referrerName, formData.referrerName]);
+  }, [isOpen, doctorId, doctorName, formData.doctorName]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -205,8 +202,8 @@ export default function Commission({
 
   const validate = (): boolean => {
     const next: Record<string, string> = {};
-    if (!formData.referrerId || formData.referrerId < 1) next.referrerId = 'Referrer is required';
-    if (!formData.referrerName.trim()) next.referrerName = 'Referrer name is required';
+    if (!formData.doctorId || formData.doctorId < 1) next.doctorId = 'Doctor is required';
+    if (!formData.doctorName.trim()) next.doctorName = 'Doctor name is required';
     if (!formData.departmentId || formData.departmentId < 1) next.departmentId = 'Department is required';
     if (!formData.departmentName.trim()) next.departmentId = 'Department is required';
 
@@ -255,7 +252,7 @@ export default function Commission({
 
   const pending = createMutation.isPending || updateMutation.isPending;
   const loadingMeta =
-    loadingReferrer || ((loadingDepartments && departments.length === 0) && !isEdit);
+    loadingDoctor || ((loadingDepartments && departments.length === 0) && !isEdit);
 
   const footer = (
     <div className="flex gap-3 w-full">
@@ -264,10 +261,10 @@ export default function Commission({
       </Button>
       <Button
         type="submit"
-        form="referrer-commission-form"
+        form="doctor-commission-form"
         variant="gradient"
         className="flex-1 font-bold"
-        disabled={pending || loadingMeta || !formData.referrerId}
+        disabled={pending || loadingMeta || !formData.doctorId}
       >
         {pending ? (
           <span className="inline-flex items-center justify-center gap-2">
@@ -300,8 +297,8 @@ export default function Commission({
       }
       description={
         isEdit
-          ? 'Update department commission for this referrer'
-          : 'Set department commission for this referrer'
+          ? 'Update department commission for this referring doctor'
+          : 'Set department commission for this referring doctor'
       }
       footer={footer}
       maxWidth="md"
@@ -312,24 +309,24 @@ export default function Commission({
           <p className="text-sm font-medium">Loading form…</p>
         </div>
       ) : (
-        <form id="referrer-commission-form" onSubmit={handleSubmit} className="space-y-5">
-          <input type="hidden" name="referrerId" value={formData.referrerId || ''} />
+        <form id="doctor-commission-form" onSubmit={handleSubmit} className="space-y-5">
+          <input type="hidden" name="doctorId" value={formData.doctorId || ''} />
 
           <div className="space-y-2">
-            <Label htmlFor="referrerName" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
-              Referrer name
+            <Label htmlFor="doctorName" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+              Doctor name
             </Label>
             <Input
-              id="referrerName"
-              name="referrerName"
-              value={formData.referrerName}
+              id="doctorName"
+              name="doctorName"
+              value={formData.doctorName}
               readOnly
               className="border-slate-200 bg-slate-50 text-slate-700"
               disabled={pending}
             />
-            {errors.referrerName ? (
+            {errors.doctorName ? (
               <p className="text-xs text-rose-600 flex items-center gap-1">
-                <AlertCircle size={12} aria-hidden /> {errors.referrerName}
+                <AlertCircle size={12} aria-hidden /> {errors.doctorName}
               </p>
             ) : null}
           </div>

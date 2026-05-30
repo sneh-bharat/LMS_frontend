@@ -742,7 +742,7 @@ export default function MembersPage() {
       </div>
 
       <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-3 shadow-sm border-t-white/30">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 pb-4 pt-1">
 
           {/* Search */}
           <div className="flex-1 min-w-[280px] relative group">
@@ -857,34 +857,6 @@ export default function MembersPage() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Date Range */}
-          <div className="w-[130px] relative group">
-            <Filter
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
-              size={14}
-              aria-hidden
-            />
-            <select
-              className={`${inputClass} w-full pl-9 pr-8 text-[10px] font-bold uppercase tracking-wider appearance-none cursor-pointer h-9`}
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              title="Filter by expiry date range"
-            >
-              <option value="All">All Dates</option>
-              <option value="1 week">1 week</option>
-              <option value="1 month">1 month</option>
-              <option value="3 months">3 months</option>
-              <option value="6 months">6 months</option>
-              <option value="1 year">1 year</option>
-            </select>
-            <ChevronDown
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-              size={12}
-              aria-hidden
-            />
-          </div>
-
           {/* Expiring Soon Date Filter - Native HTML5 version */}
           <div className="flex items-center gap-1.5 bg-slate-50/50 rounded-xl p-1 border border-slate-200/60">
             <div className="flex items-center gap-1 pl-1">
@@ -936,7 +908,7 @@ export default function MembersPage() {
           </div>
         </div>
 
-        <div className="w-full overflow-hidden rounded-[1.5rem] bg-white border border-slate-300 backdrop-blur-md shadow-sm">
+        <div className="w-full overflow-hidden rounded-[1.5rem] bg-white border border-slate-300 backdrop-blur-md shadow-sm ">
           <Table className="border-collapse">
             <TableHeader className="bg-teal-600 border-b border-slate-100">
               <TableRow className="hover:bg-transparent border-none">

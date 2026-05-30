@@ -81,6 +81,7 @@ export interface TestOrder {
   updatedAt: string;
   turnaroundTimeHours?: number;
   branchId?: number;
+  requiresOtpVerification?: boolean;
 }
 
 export interface TestOrdersPage {
@@ -114,6 +115,12 @@ export interface TestOrderItemPayload {
   discountPercentage: number;
   netPrice: number;
 }
+
+/** Payment mode label in booking UI dropdown. */
+export const MEMBERSHIP_CARD_PAYMENT_MODE = 'Membership Card';
+
+/** Payment mode value sent to POST `/api/v1/test-orders`. */
+export const MEMBERSHIP_CARD_PAYMENT_MODE_API = 'MEMBERSHIP_CARD';
 
 /** POST `/api/v1/test-orders` request body (ThinkLAB booking contract). */
 export interface CreateTestOrderPayload {
@@ -155,6 +162,16 @@ export interface CreateTestOrderPayload {
   paymentReference?: string;
   createdByName?: string;
   branchId: number;
+  /**
+   * Membership card payment (sent only when available).
+   * API examples:
+   * - paymentMode: "MEMBERSHIP_CARD"
+   * - membershipCardNumber, cardholderEmail, otpCode
+   */
+  membershipCardNumber?: string;
+  cardholderEmail?: string;
+  otpCode?: string;
+  requiresOtpVerification?: boolean;
 }
 
 export interface TestOrderResponseData {
@@ -211,7 +228,7 @@ export interface UpdateTestOrderFinancialPayload {
 
 /**
  * POST `/api/v1/test-orders` — create diagnostic test booking.
- * Auth: `Authorization: Bearer <token>` from `localStorage.token` (see `booking/axios.ts`).
+ * Auth: `Authorization: Bearer <token>` from `localStorage.token` (see `axios.ts`).
  */
 export async function createTestOrder(
   payload: CreateTestOrderPayload

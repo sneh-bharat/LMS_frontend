@@ -6,6 +6,7 @@ import type { TestOrderApiResponse } from './testOrderApi';
 import {
   cancelTestOrder,
   fetchCancellationDetails,
+  fetchTrackOrderLifecycle,
   processOrderPayment,
   type CancelTestOrderPayload,
   type ProcessOrderPaymentApiResponse,
@@ -16,6 +17,8 @@ export const orderLifecycleQueryKeys = {
   all: ['order-lifecycle'] as const,
   cancellation: (orderId: number) =>
     [...orderLifecycleQueryKeys.all, 'cancellation', orderId] as const,
+  track: (orderId: number) =>
+    [...orderLifecycleQueryKeys.all, 'track', orderId] as const,
 };
 
 /** GET `/api/v1/order-lifecycle/{orderId}/cancellation` */
@@ -26,6 +29,21 @@ export function useCancellationDetails(orderId: number | null, enabled = true) {
         ? orderLifecycleQueryKeys.cancellation(orderId)
         : ['order-lifecycle', 'cancellation', 'idle'],
     queryFn: () => fetchCancellationDetails(orderId!),
+    enabled: enabled && orderId != null && orderId > 0,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/order-lifecycle/{orderId}/track` */
+export function useTrackOrderLifecycle(orderId: number | null, enabled = true) {
+  return useQuery({
+    queryKey:
+      orderId != null && orderId > 0
+        ? orderLifecycleQueryKeys.track(orderId)
+        : ['order-lifecycle', 'track', 'idle'],
+    queryFn: () => fetchTrackOrderLifecycle(orderId!),
     enabled: enabled && orderId != null && orderId > 0,
     staleTime: 30 * 1000,
     retry: 1,

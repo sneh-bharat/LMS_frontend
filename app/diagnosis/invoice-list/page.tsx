@@ -18,6 +18,7 @@ import CancelOrder, { type CancelOrderFormValues } from './cancel-order';
 import ProcessPayment, { type ProcessPaymentFormValues } from './payment';
 import { TransactionDetails } from './transaction';
 import { CancelDetails } from './cancel-details';
+import { TrackLifecycle } from './track-lifecycle';
 import AddNewReceipt from './AddNewReceipt';
 import type { Invoice } from './types';
 import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
@@ -88,10 +89,12 @@ export default function InvoiceListPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [cancelDetailsOpen, setCancelDetailsOpen] = useState(false);
+  const [trackOpen, setTrackOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<TestOrder | null>(null);
   const [orderToPay, setOrderToPay] = useState<TestOrder | null>(null);
   const [orderForTransactions, setOrderForTransactions] = useState<TestOrder | null>(null);
   const [orderForCancelDetails, setOrderForCancelDetails] = useState<TestOrder | null>(null);
+  const [orderForTrack, setOrderForTrack] = useState<TestOrder | null>(null);
   const [deleteMode, setDeleteMode] = useState<DeleteMode>('single');
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -536,7 +539,13 @@ export default function InvoiceListPage() {
   };
 
   const handleTrackOrderLifecycle = (invoice: Invoice) => {
-    router.push(`/diagnosis/tracking-order?orderId=${encodeURIComponent(String(invoice.id))}`);
+    const order = orders.find((o) => o.id === invoice.id) ?? null;
+    if (!order) {
+      toast.error('Could not load order for lifecycle tracking.');
+      return;
+    }
+    setOrderForTrack(order);
+    setTrackOpen(true);
   };
 
   const handleViewPaymentSummary = (invoice: Invoice) => {
@@ -916,6 +925,15 @@ export default function InvoiceListPage() {
           setOrderForCancelDetails(null);
         }}
         order={orderForCancelDetails}
+      />
+
+      <TrackLifecycle
+        isOpen={trackOpen}
+        onClose={() => {
+          setTrackOpen(false);
+          setOrderForTrack(null);
+        }}
+        order={orderForTrack}
       />
 
       <AddNewReceipt

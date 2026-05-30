@@ -131,7 +131,7 @@ function referringDoctorMeta(doctor: ReferringDoctor) {
   const parts: string[] = [];
   if (doctor.specialization?.trim()) parts.push(doctor.specialization.trim());
   if (doctor.hospitalName?.trim()) parts.push(doctor.hospitalName.trim());
-  if (doctor.mobile?.trim()) parts.push(doctor.mobile.trim());
+  if (doctor.doctorPhone?.trim()) parts.push(doctor.doctorPhone.trim());
   return parts.join(' · ') || 'Referring doctor';
 }
 
@@ -893,6 +893,27 @@ function DiagnosticBookingContent() {
       setSubmitError(msg);
       toast.error(msg);
       return;
+    }
+
+    if (form.paymentMode === MEMBERSHIP_CARD_PAYMENT_MODE) {
+      if (!form.membershipCardNumber.trim()) {
+        const msg = 'Enter the membership card number.';
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (!form.membershipCardHolderEmail.trim()) {
+        const msg = 'Enter the cardholder email for OTP verification.';
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (!form.membershipCardOtp.trim()) {
+        const msg = 'Enter the OTP sent to the cardholder email.';
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
     }
 
     const selectedReferringDoctorId =

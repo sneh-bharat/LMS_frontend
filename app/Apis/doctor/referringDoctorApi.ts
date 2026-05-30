@@ -3,13 +3,21 @@ import referringDoctorAxios from './axios';
 export interface ReferringDoctor {
   id: number;
   doctorName: string;
-  mobile: string;
-  email?: string | null;
+  doctorEmail: string;
+  doctorPhone: string;
   hospitalName?: string | null;
   specialization?: string | null;
   branchId: number | null;
+  branchName?: string | null;
   tenantId?: number;
   isActive: boolean;
+  isVerified?: boolean;
+  role?: string;
+  username?: string;
+  deviceId?: string | null;
+  deviceTypes?: string | null;
+  /** Present on some list responses when `branchName` is omitted. */
+  branch?: { branchName?: string } | null;
 }
 
 export interface ReferringDoctorsPage {
@@ -59,18 +67,22 @@ export function extractReferringDoctorsList(
   return data.content ?? [];
 }
 
-/** POST `/api/v1/referring-doctors` request body (matches backend contract). */
+/** POST `/api/v1/doctors/register` request body (matches backend contract). */
 export interface CreateReferringDoctorPayload {
   doctorName: string;
   branchId: number;
   specialization: string;
   hospitalName: string;
-  mobile: string;
-  email: string;
   isActive: boolean;
+  username: string;
+  password: string;
+  doctorEmail: string;
+  doctorPhone: string;
+  isVerified: boolean;
+  role: string;
 }
 
-/** GET `/api/v1/referring-doctors/:id` — single doctor envelope. */
+/** GET `/api/v1/doctors/:doctorId` — single doctor envelope. */
 export interface ReferringDoctorDetailResponse {
   data: ReferringDoctor;
   message: string;
@@ -94,7 +106,7 @@ export interface UpdateReferringDoctorPayload {
 }
 
 /**
- * GET `/api/v1/referring-doctors?pageNo=0&pageSize=10&branchId=`
+ * GET `/api/v1/doctors?pageNo=0&pageSize=10&branchId=`
  * Base: `NEXT_PUBLIC_API_URL1` (lims-patient)
  */
 export async function fetchReferringDoctors(
@@ -105,7 +117,7 @@ export async function fetchReferringDoctors(
   if (branchId != null && Number.isFinite(branchId)) {
     queryParams.branchId = branchId;
   }
-  return referringDoctorAxios.get('/api/v1/referring-doctors', {
+  return referringDoctorAxios.get('/api/v1/doctors/all', {
     params: queryParams,
   }) as Promise<ReferringDoctorsApiResponse>;
 }
@@ -117,23 +129,23 @@ export async function fetchReferringDoctors(
 export async function searchReferringDoctors(
   params: SearchReferringDoctorsParams
 ): Promise<ReferringDoctorsSearchApiResponse> {
-  return referringDoctorAxios.get('/api/v1/referring-doctors/search', {
+  return referringDoctorAxios.get('/api/v1/doctors/search', {
     params: { searchKey: params.searchKey.trim() },
   }) as Promise<ReferringDoctorsSearchApiResponse>;
 }
 
 /**
- * POST `/api/v1/referring-doctors` — create a referring doctor.
+ * POST `/api/v1/doctors/register` — create a new doctor.
  */
 export async function createReferringDoctor(
   payload: CreateReferringDoctorPayload
 ): Promise<unknown> {
-  return referringDoctorAxios.post('/api/v1/referring-doctors', payload);
+  return referringDoctorAxios.post('/api/v1/doctors/register', payload);
 }
 
-/** GET `/api/v1/referring-doctors/:id` */
+/** GET `/api/v1/doctors/:doctorId` */
 export async function fetchReferringDoctorById(id: number): Promise<ReferringDoctorDetailResponse> {
-  return referringDoctorAxios.get(`/api/v1/referring-doctors/${id}`) as Promise<ReferringDoctorDetailResponse>;
+  return referringDoctorAxios.get(`/api/v1/doctors/${id}`) as Promise<ReferringDoctorDetailResponse>;
 }
 
 /** PUT `/api/v1/referring-doctors/:id` — switch to `patch` if your backend uses PATCH. */
@@ -141,10 +153,10 @@ export async function updateReferringDoctor(
   id: number,
   payload: UpdateReferringDoctorPayload
 ): Promise<unknown> {
-  return referringDoctorAxios.put(`/api/v1/referring-doctors/${id}`, payload);
+  return referringDoctorAxios.put(`/api/v1/doctors/${id}`, payload);
 }
 
-/** DELETE `/api/v1/referring-doctors/:id` */
+/** DELETE `/api/v1/doctors/:id` */
 export async function deleteReferringDoctor(id: number): Promise<unknown> {
-  return referringDoctorAxios.delete(`/api/v1/referring-doctors/${id}`);
+  return referringDoctorAxios.delete(`/api/v1/doctors/${id}`);
 }

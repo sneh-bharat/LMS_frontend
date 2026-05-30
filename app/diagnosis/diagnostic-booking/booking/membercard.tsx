@@ -11,6 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { sendMembershipCardOtp } from '@/app/Apis/membership/membership';
 import { Button, Card, Input, Label, RightDrawer } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -35,16 +36,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FIELD_LABEL =
   'text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1';
 const FIELD_INPUT = 'pl-10 border-gray-300 h-10 font-semibold bg-white shadow-sm';
-
-/** Derive a 6-digit OTP from the holder email (used until a send-OTP API exists). */
-export async function generateOtpFromEmail(email: string): Promise<string> {
-  const normalized = email.trim().toLowerCase();
-  const payload = new TextEncoder().encode(`${normalized}:${Date.now()}`);
-  const digest = await crypto.subtle.digest('SHA-256', payload);
-  const bytes = Array.from(new Uint8Array(digest));
-  const seed = bytes.reduce((sum, byte, index) => sum + byte * (index + 1), 0);
-  return String(100000 + (seed % 900000));
-}
 
 interface MemberCardFieldProps {
   label: string;
@@ -97,7 +88,18 @@ export default function MemberCardForm({
   };
 
   const handleGenerateOtp = async () => {
+    const cardNumber = value.membershipCardNumber.trim();
+    const cardholderName = value.holderName.trim();
     const email = value.holderEmail.trim();
+
+    if (!cardNumber) {
+      toast.error('Enter membership card number first.');
+      return;
+    }
+    if (!cardholderName) {
+      toast.error('Enter membership card holder name first.');
+      return;
+    }
     if (!email) {
       toast.error('Enter membership card holder email first.');
       return;
@@ -109,12 +111,15 @@ export default function MemberCardForm({
 
     setGeneratingOtp(true);
     try {
-      const otp = await generateOtpFromEmail(email);
-      patch({ otp });
+      const res = await sendMembershipCardOtp({ cardNumber, cardholderName, email });
+
+      patch({ otp: '' });
       setOtpFieldVisible(true);
-      toast.success(`OTP generated and sent to ${email}.`);
-    } catch {
-      toast.error('Could not generate OTP. Please try again.');
+      toast.success(res.message?.trim() || `OTP sent to ${email}.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not send OTP. Please try again.';
+      toast.error(message);
     } finally {
       setGeneratingOtp(false);
     }
@@ -132,7 +137,10 @@ export default function MemberCardForm({
       >
         <Input
           value={value.membershipCardNumber}
-          onChange={(e) => patch({ membershipCardNumber: e.target.value })}
+          onChange={(e) => {
+            patch({ membershipCardNumber: e.target.value, otp: '' });
+            setOtpFieldVisible(false);
+          }}
           placeholder="Enter membership card number"
           disabled={disabled}
           className={FIELD_INPUT}
@@ -219,7 +227,7 @@ export default function MemberCardForm({
               />
             </MemberCardField>
             <p className="text-[10px] font-bold text-emerald-800/80 leading-relaxed pl-1">
-              OTP was generated from the holder email and sent to{' '}
+              Enter the OTP sent to{' '}
               <span className="font-black text-emerald-900">
                 {value.holderEmail.trim() || 'the registered email'}
               </span>
@@ -228,7 +236,7 @@ export default function MemberCardForm({
           </div>
         ) : (
           <p className="text-[10px] font-semibold text-slate-500 pl-1">
-            Click Generate OTP after entering the holder email. The OTP field will appear here.
+            Enter card number, holder name, and email, then click Generate OTP. The OTP field will appear here.
           </p>
         )}
       </div>
