@@ -19,7 +19,8 @@ export default function RootLayoutClient({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const isLoginPage = pathname === '/login' || pathname === '/doctor-login';
-  const isDoctorRoute = pathname.startsWith('/forDoctors');
+  const isDoctorRoute =
+    pathname.startsWith('/forDoctors') || pathname.startsWith('/doctor-profile');
 
   const handleToggleSidebar = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {

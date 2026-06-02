@@ -1,4 +1,6 @@
 import referrerAxios from './axios';
+import commissionAxios from '../Commission/axios';
+import { DoctorTestCommission } from '../Commission/commissionPrice';
 
 /** Single referrer record from auth service. */
 export interface Referrer {
@@ -140,6 +142,27 @@ export interface ReferrerMutationApiResponse {
   timestamp?: string;
 }
 
+/** Single record from GET `/api/v1/commissions/referrer/{referrerId}`. */
+export interface ReferrerCommissionItem {
+  applyToAllTests: boolean;
+  commissionPercentage: number;
+  departmentId: number;
+  departmentName: string;
+  description?: string | null;
+  id: number;
+  isActive: boolean;
+  referrerId: number;
+  referrerName: string;
+}
+
+export interface ReferrerCommissionByReferrerResponse {
+  data: ReferrerCommissionItem[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
 /** POST `/api/v1/referrers/register` request body. */
 export interface CreateReferrerPayload {
   branchId: number;
@@ -193,6 +216,33 @@ export async function deleteReferrer(id: number): Promise<ReferrerMutationApiRes
   return referrerAxios.delete(`/api/v1/referrers/${id}`) as Promise<ReferrerMutationApiResponse>;
 }
 
+/** GET `{NEXT_PUBLIC_API_Test}/api/v1/commissions/referrer/{referrerId}` */
+export async function fetchCommissionsByReferrer(
+  referrerId: number
+): Promise<ReferrerCommissionByReferrerResponse> {
+  return commissionAxios.get(
+    `/api/v1/commissions/referrer/${referrerId}`
+  ) as Promise<ReferrerCommissionByReferrerResponse>;
+}
+
 export function showOnReportToFormValue(value: Referrer['showOnReport']): 'Yes' | 'No' {
   return getShowOnReportLabel({ id: 0, showOnReport: value }) === 'Yes' ? 'Yes' : 'No';
+}
+
+export interface ReferrerCommissionItem {
+  testId: number;
+  testCode: string;
+  testName: string;
+  mrpPrice: number;
+  finalPrice: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+}
+
+export interface ReferrerTestCommissionListApiResponse {
+  data: ReferrerCommissionItem[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
 }

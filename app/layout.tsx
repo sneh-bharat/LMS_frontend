@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className="m-0 p-0 font-sans">
+    <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
+      <body className="m-0 p-0 font-sans" suppressHydrationWarning>
         <RootLayoutClient>
           {children}
         </RootLayoutClient>

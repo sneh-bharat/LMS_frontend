@@ -28,17 +28,23 @@ export default function LoginPage() {
     const router = useRouter();
     const deviceId = useDeviceId();
 
+    const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     // Redirect if already logged in
     useEffect(() => {
+        if (!mounted) return;
         const token = localStorage.getItem('doctor-token');
         if (token) {
             router.replace('/forDoctors/dashboard');
         }
-    }, [router]);
+    }, [router, mounted]);
 
     const loginMutation = useMutation({
         mutationFn: authApi.login,
@@ -49,6 +55,12 @@ export default function LoginPage() {
                 localStorage.setItem('doctor-token', token);
                 localStorage.setItem('doctor-refreshToken', refreshToken);
                 localStorage.setItem('role', loginDetails.role);
+                if (loginDetails.id != null) {
+                    localStorage.setItem('doctor-id', String(loginDetails.id));
+                }
+                if (loginDetails.fullName?.trim()) {
+                    localStorage.setItem('doctor-name', loginDetails.fullName.trim());
+                }
 
                 toast.success(result.message || 'Login successful');
                 router.push('/forDoctors/dashboard');
@@ -105,6 +117,12 @@ export default function LoginPage() {
                         />
                     </div>
 
+                    {!mounted ? (
+                        <div className="flex flex-col items-center justify-center gap-4 py-12" aria-busy="true">
+                            <Loader2 className="animate-spin text-[#00ac80]" size={36} aria-hidden />
+                            <p className="text-sm font-medium text-slate-500">Loading…</p>
+                        </div>
+                    ) : (
                     <form className="space-y-8" onSubmit={handleLogin}>
                         {/* Username */}
                         <div className="space-y-2">
@@ -174,6 +192,7 @@ export default function LoginPage() {
                             )}
                         </Button>
                     </form>
+                    )}
 
                     {/* Footer Branding */}
                     <div className="pt-8 flex flex-col items-center space-y-6">

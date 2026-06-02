@@ -45,6 +45,7 @@ import {
 import { useDeleteReferrer, useReferrersList } from '@/app/Apis/Referrer/useReferrer';
 import AddReferrer from './AddReferrer';
 import ReferrerDetailsView from './details-view';
+import GetTestCommission from './GetTestCommission';
 
 const PAGE_SIZE = 10;
 
@@ -65,6 +66,7 @@ function ReferrerActions({
   onEdit,
   onDelete,
   onCommissionCreate,
+  onTestCommissions,
 }: {
   row: Referrer;
   hasCommission: boolean;
@@ -72,6 +74,7 @@ function ReferrerActions({
   onEdit: (id: number) => void;
   onDelete: (row: Referrer) => void;
   onCommissionCreate: (row: Referrer) => void;
+  onTestCommissions: (row: Referrer) => void;
 }) {
   return (
     <DropdownMenu>
@@ -113,7 +116,15 @@ function ReferrerActions({
             <Percent size={14} />
             Commission
           </DropdownMenuItem>
-        ) : null}
+        ) : 
+        <DropdownMenuItem
+          onClick={() => onTestCommissions(row)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+        >
+          <Percent size={14} />
+          Test Commissions
+        </DropdownMenuItem>
+        }
         <DropdownMenuItem
           onClick={() => onDelete(row)}
           className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
@@ -136,8 +147,7 @@ export default function ReferrerListPage() {
   const [viewReferrerId, setViewReferrerId] = useState<number | null>(null);
   const [editReferrerId, setEditReferrerId] = useState<number | null>(null);
   const [referrerToDelete, setReferrerToDelete] = useState<{ id: number; name: string } | null>(null);
-  const [commissionReferrer, setCommissionReferrer] = useState<CommissionDrawerState | null>(null);
-
+ 
   const deleteMutation = useDeleteReferrer();
   const { data, isLoading, isError, error, refetch, isFetching } = useReferrersList({
     pageNo,
@@ -210,6 +220,9 @@ export default function ReferrerListPage() {
   const totalElements = page?.totalElements ?? 0;
   const canPrev = pageNo > 0;
   const canNext = page ? !page.last : false;
+  // Separate state for each drawer
+const [commissionReferrer, setCommissionReferrer] = useState<CommissionDrawerState | null>(null);
+const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerId: number; referrerName: string } | null>(null);
 
   const openEditFromView = (referrer: Referrer) => {
     setViewReferrerId(null);
@@ -232,6 +245,13 @@ export default function ReferrerListPage() {
     setReferrerToDelete(null);
   };
 
+  const openTestCommissions = (referrer: Referrer) => {
+    setTestCommissionReferrer({
+      referrerId: referrer.id,
+      referrerName: getReferrerName(referrer),
+    });
+  };
+  
   const handleConfirmDelete = () => {
     if (!referrerToDelete) return;
     const { id, name } = referrerToDelete;
@@ -517,6 +537,7 @@ export default function ReferrerListPage() {
                               onEdit={setEditReferrerId}
                               onDelete={openDeleteDialog}
                               onCommissionCreate={openCommissionCreate}
+                              onTestCommissions={openTestCommissions}
                             />
                           </td>
                         </tr>
@@ -563,14 +584,21 @@ export default function ReferrerListPage() {
         )}
       </div>
 
-      <Commission
-        isOpen={commissionReferrer != null}
-        referrerId={commissionReferrer?.referrerId ?? null}
-        referrerName={commissionReferrer?.referrerName}
-        commissionId={commissionReferrer?.commissionId ?? null}
-        initialCommission={commissionReferrer?.initialCommission ?? null}
-        onClose={closeCommission}
-      />
+          <Commission
+      isOpen={commissionReferrer != null}
+      referrerId={commissionReferrer?.referrerId ?? null}
+      referrerName={commissionReferrer?.referrerName}
+      commissionId={commissionReferrer?.commissionId ?? null}
+      initialCommission={commissionReferrer?.initialCommission ?? null}
+      onClose={closeCommission}
+    />
+
+    <GetTestCommission
+      isOpen={testCommissionReferrer != null}
+      referrerId={testCommissionReferrer?.referrerId ?? null}
+      referrerName={testCommissionReferrer?.referrerName}
+      onClose={() => setTestCommissionReferrer(null)}
+    />
 
       <DeleteAlertDialog
         isOpen={Boolean(referrerToDelete)}

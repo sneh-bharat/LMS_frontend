@@ -49,6 +49,7 @@ import SpecificDateRange from './SpecificDateRange';
 import GetPaymentHistory from './GetPaymentHistory';
 import { fetchDoctorCommissions, type DoctorCommission } from '@/app/Apis/Commission/commissionPrice';
 import { doctorCommissionQueryKeys } from '@/app/Apis/Commission/useDoctorCommission';
+import PayDoctorCommission from './PayDoctorCommission';
 
 type CommissionDrawerState = {
   doctorId: number;
@@ -68,6 +69,7 @@ function DoctorActions({
   onTestCommissions,
   onCommissionPay,
   onPaymentHistory,
+  
 }: {
   row: ReferringDoctor;
   hasCommission: boolean;
@@ -77,6 +79,7 @@ function DoctorActions({
   onTestCommissions: (row: ReferringDoctor) => void;
   onCommissionPay: (row: ReferringDoctor) => void;
   onPaymentHistory: (row: ReferringDoctor) => void;
+  
 }) {
   return (
     <DropdownMenu>
@@ -141,6 +144,13 @@ function DoctorActions({
               <History size={14} />
               Payment History
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>onCommissionPay(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-indigo-600 focus:bg-indigo-50 focus:text-indigo-700"
+            >
+              <Wallet size={14} />
+              Pay Commission
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -160,10 +170,15 @@ export default function DoctorsPage() {
   const [doctorToDelete, setDoctorToDelete] = useState<{ id: number; doctorName: string } | null>(null);
   const [detailsDoctorId, setDetailsDoctorId] = useState<number | null>(null);
   const [commissionDoctor, setCommissionDoctor] = useState<CommissionDrawerState | null>(null);
+  const [payCommissionDoctor, setPayCommissionDoctor] = useState<{ id: number; doctorName: string } | null>(null);
   const [activeDeptDoctor, setActiveDeptDoctor] = useState<{ id: number; doctorName: string } | null>(null);
   const [testCommissionDoctor, setTestCommissionDoctor] = useState<{ id: number; doctorName: string } | null>(
     null
   );
+  const openPayCommission = (doc: { id: number; doctorName: string }) => {
+    setPayCommissionDoctor({ id: doc.id, doctorName: doc.doctorName });
+  };
+  const closePayCommission = () => setPayCommissionDoctor(null);
   const [commissionPayDoctor, setCommissionPayDoctor] = useState<{ id: number; doctorName: string } | null>(
     null
   );
@@ -503,7 +518,7 @@ export default function DoctorsPage() {
                           onDepartments={openActiveDepartments}
                           onCommissionCreate={openCommissionCreate}
                           onTestCommissions={openTestCommissions}
-                          onCommissionPay={openCommissionPay}
+                          onCommissionPay={openPayCommission}  
                           onPaymentHistory={openPaymentHistory}
                         />
                       </td>
@@ -625,6 +640,13 @@ export default function DoctorsPage() {
         onClose={closeDoctorDrawer}
         doctorsForDuplicateCheck={rows}
       />
+      <PayDoctorCommission
+          isOpen={payCommissionDoctor != null}
+          onClose={closePayCommission}
+          doctorId={payCommissionDoctor?.id ?? null}
+          doctorName={payCommissionDoctor?.doctorName}
+        />
+      
 
       <DeleteAlertDialog
         isOpen={Boolean(doctorToDelete)}
