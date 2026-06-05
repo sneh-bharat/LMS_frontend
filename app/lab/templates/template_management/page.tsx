@@ -1,59 +1,13 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import TextAlign from '@tiptap/extension-text-align';
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  ArrowLeft,
-  Bold,
-  Heading1,
-  Heading2,
-  Italic,
-  List,
-  ListOrdered,
-  Save,
-  Underline as UnderlineIcon,
-} from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
+import AdvancedTemplateEditor from '@/app/components/editor/AdvancedTemplateEditor';
 
 const APPLICABLE_OPTIONS = ['Male', 'Female', 'Both'];
 
-const editorContent = `
-  <p>Enter report template content here...</p>
-`;
-
-function ToolbarButton({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-lg border px-3 py-2 text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        active
-          ? 'border-[#006D77] bg-[#006D77]/10 text-[#006D77]'
-          : 'border-slate-200 bg-white hover:bg-slate-50'
-      }`}
-      suppressHydrationWarning
-    >
-      {children}
-    </button>
-  );
-}
+const INITIAL_CONTENT = '<p>Enter report template content here...</p>';
 
 export default function TemplateManagementPage() {
   const router = useRouter();
@@ -62,28 +16,7 @@ export default function TemplateManagementPage() {
   const testId = searchParams.get('testId') || '';
   const [templateTitle, setTemplateTitle] = useState(testName ? `${testName} Template` : '');
   const [applicableFor, setApplicableFor] = useState('Both');
-  const [content, setContent] = useState(editorContent);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-    ],
-    content: editorContent,
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class:
-          'min-h-[320px] px-5 py-4 text-sm text-slate-700 outline-none focus:outline-none',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
-    },
-  });
+  const [content, setContent] = useState(INITIAL_CONTENT);
 
   const handleSaveTemplate = () => {
     const payload = {
@@ -159,98 +92,8 @@ export default function TemplateManagementPage() {
           </div>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3">
-            <ToolbarButton
-              active={editor?.isActive('bold')}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-            >
-              <Bold size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive('italic')}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-            >
-              <Italic size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive('underline')}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleUnderline().run()}
-            >
-              <UnderlineIcon size={16} />
-            </ToolbarButton>
-
-            <div className="mx-1 h-7 w-px bg-slate-200" />
-
-            <ToolbarButton
-              active={editor?.isActive('heading', { level: 1 })}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-            >
-              <Heading1 size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive('heading', { level: 2 })}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            >
-              <Heading2 size={16} />
-            </ToolbarButton>
-
-            <div className="mx-1 h-7 w-px bg-slate-200" />
-
-            <ToolbarButton
-              active={editor?.isActive('bulletList')}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            >
-              <List size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive('orderedList')}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-            >
-              <ListOrdered size={16} />
-            </ToolbarButton>
-
-            <div className="mx-1 h-7 w-px bg-slate-200" />
-
-            <ToolbarButton
-              active={editor?.isActive({ textAlign: 'left' })}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-            >
-              <AlignLeft size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive({ textAlign: 'center' })}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-            >
-              <AlignCenter size={16} />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor?.isActive({ textAlign: 'right' })}
-              disabled={!editor}
-              onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-            >
-              <AlignRight size={16} />
-            </ToolbarButton>
-          </div>
-
-          <EditorContent
-            editor={editor}
-            className="bg-white [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h2]:text-xl [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6"
-          />
-
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            <span>Rich Text Editor</span>
-            <span>{content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length} Words</span>
-          </div>
+        <div className="mt-6">
+          <AdvancedTemplateEditor content={content} onChange={setContent} />
         </div>
 
         <div className="mt-6 flex justify-end">
