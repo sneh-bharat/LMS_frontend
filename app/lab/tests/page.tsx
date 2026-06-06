@@ -121,6 +121,7 @@ function PackageActions({
   onDelete,
   onB2BPrice,
   onTemplate,
+  onCreateTemplate,
 }: {
   pkg: Test;
   onView: (pkg: Test) => void;
@@ -129,6 +130,7 @@ function PackageActions({
   onDelete: (testId: number) => void;
   onB2BPrice: (pkg: Test) => void;
   onTemplate: (pkg: Test) => void;
+  onCreateTemplate: (pkg: Test) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -198,6 +200,15 @@ function PackageActions({
             className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
           >
             <FileText size={14} /> View Template
+          </button>
+            <button
+            onClick={() => {
+              onCreateTemplate(pkg);
+              setOpen(false);
+            }}
+            className="w-full text-left px-5 py-2.5 text-xs font-black uppercase text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+          >
+            <FileText size={14} /> Create Template
           </button>
         </div>
       )}
@@ -365,6 +376,18 @@ export default function TestPackagePage() {
   const handleViewTemplate = (pkg: Test) => {
     setSelectedTestForTemplate(pkg);
     setTemplateViewOpen(true);
+  };
+
+  const handleCreateTemplate = (pkg: Test) => {
+    const params = new URLSearchParams({
+      testId: String(pkg.id),
+      testName: pkg.testName,
+      testCode: pkg.testCode,
+      departmentId: String(pkg.departmentId),
+      departmentName: pkg.departmentName,
+      branchId: String(pkg.branchId),
+    });
+    router.push(`/lab/templates/template_management?${params.toString()}`);
   };
 
   const handleNewTestSubmit = async () => {
@@ -782,6 +805,7 @@ export default function TestPackagePage() {
                           setIsB2BDrawerOpen(true);
                         }}
                         onTemplate={handleViewTemplate}
+                        onCreateTemplate={handleCreateTemplate}
                       />
                     </td>
                   </tr>

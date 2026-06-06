@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Loader, Save } from 'lucide-react';
+import { toast } from 'sonner';
+import Badge from '@/components/ui/badge';
 import AdvancedTemplateEditor from '@/app/components/editor/AdvancedTemplateEditor';
+import { useCreateReportTemplate } from '@/app/Apis/lab/TemplateMgmt/useReportTemplates';
+import { mapApplicableForToApi } from '@/app/Apis/lab/reportTemplateApi';
 
 const APPLICABLE_OPTIONS = ['Male', 'Female', 'Both'];
 
@@ -12,21 +16,61 @@ const INITIAL_CONTENT = '<p>Enter report template content here...</p>';
 export default function TemplateManagementPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Params passed from the tests page (hidden, used in payload)
   const testName = searchParams.get('testName') || '';
-  const testId = searchParams.get('testId') || '';
+  const testIdParam = searchParams.get('testId') || '';
+  const testCode = searchParams.get('testCode') || '';
+  const departmentIdParam = searchParams.get('departmentId') || '';
+  const departmentName = searchParams.get('departmentName') || '';
+  const branchIdParam = searchParams.get('branchId') || '1';
+
+  const createMutation = useCreateReportTemplate();
+
   const [templateTitle, setTemplateTitle] = useState(testName ? `${testName} Template` : '');
   const [applicableFor, setApplicableFor] = useState('Both');
   const [content, setContent] = useState(INITIAL_CONTENT);
 
   const handleSaveTemplate = () => {
+    const parsedTestId = Number(testIdParam);
+    const parsedDeptId = Number(departmentIdParam);
+    const parsedBranchId = Number(branchIdParam);
+
+    if (!templateTitle.trim()) {
+      toast.error('Please enter a template title.');
+      return;
+    }
+    if (!testIdParam || !Number.isFinite(parsedTestId)) {
+      toast.error('Test ID is required.');
+      return;
+    }
+
     const payload = {
-      testId,
-      templateTitle,
-      applicableFor,
-      content,
+      templateName: templateTitle.trim(),
+      testId: parsedTestId,
+      testName: testName,
+      testCode: testCode,
+      departmentId: parsedDeptId,
+      departmentName: departmentName,
+      allTests: false,
+      allDepartments: false,
+      templateContent: content,
+      applicableFor: mapApplicableForToApi(applicableFor),
+      isActive: true,
+      allowedTemplateTypes: 'STANDARD',
+      branchId: parsedBranchId,
     };
 
-    console.log('Save template:', payload);
+    createMutation.mutate(payload, {
+      onSuccess: (res) => {
+        toast.success(res?.message?.trim() || 'Report template created successfully.');
+        router.back();
+      },
+      onError: (err) => {
+        const msg = err instanceof Error ? err.message : 'Failed to create report template.';
+        toast.error(msg);
+      },
+    });
   };
 
   return (
@@ -59,6 +103,7 @@ export default function TemplateManagementPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {/* Row 1: Template Title + Applicable For */}
         <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
           <div className="space-y-2">
             <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -92,19 +137,50 @@ export default function TemplateManagementPage() {
           </div>
         </div>
 
+        {/* Row 2: Read-only info from test (testCode, departmentId, branchId are hidden) */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {departmentName && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Department
+              </label>
+              <Badge variant="primary" className="px-3 py-1.5 text-[10px] font-bold">
+                {departmentName}
+              </Badge>
+            </div>
+          )}
+          {testCode && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Test Code
+              </label>
+              <Badge variant="outline" className="px-3 py-1.5 text-[10px] font-bold font-mono">
+                {testCode}
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Editor */}
         <div className="mt-6">
           <AdvancedTemplateEditor content={content} onChange={setContent} />
         </div>
 
+        {/* Save Button */}
         <div className="mt-6 flex justify-end">
           <button
             type="button"
             onClick={handleSaveTemplate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#006D77] to-[#00AC80] px-8 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-opacity hover:opacity-90"
+            disabled={createMutation.isPending}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#006D77] to-[#00AC80] px-8 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             suppressHydrationWarning
           >
-            <Save size={16} />
-            Save Template
+            {createMutation.isPending ? (
+              <Loader size={16} className="animate-spin" />
+            ) : (
+              <Save size={16} />
+            )}
+            {createMutation.isPending ? 'Saving…' : 'Save Template'}
           </button>
         </div>
       </div>
