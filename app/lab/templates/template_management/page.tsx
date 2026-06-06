@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -10,7 +10,6 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  AlertCircle,
   ArrowLeft,
   Bold,
   Heading1,
@@ -18,21 +17,15 @@ import {
   Italic,
   List,
   ListOrdered,
-  Loader2,
   Save,
   Underline as UnderlineIcon,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import Badge from '@/components/ui/badge';
-import {
-  fetchReportTemplateByTestId,
-  mapApplicableForFromApi,
-  type ReportTemplate,
-} from '@/app/Apis/lab/reportTemplateApi';
 
 const APPLICABLE_OPTIONS = ['Male', 'Female', 'Both'];
 
-const EMPTY_EDITOR = '<p>Enter report template content here...</p>';
+const editorContent = `
+  <p>Enter report template content here...</p>
+`;
 
 function ToolbarButton({
   active,
@@ -77,11 +70,7 @@ export default function TemplateManagementPage() {
     testNameParam ? `${testNameParam} Template` : ''
   );
   const [applicableFor, setApplicableFor] = useState('Both');
-  const [content, setContent] = useState(EMPTY_EDITOR);
-  const [templateMeta, setTemplateMeta] = useState<ReportTemplate | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'editor' | 'preview'>('editor');
+  const [content, setContent] = useState(editorContent);
 
   const editor = useEditor({
     extensions: [
@@ -91,74 +80,18 @@ export default function TemplateManagementPage() {
         types: ['heading', 'paragraph'],
       }),
     ],
-    content: EMPTY_EDITOR,
+    content: editorContent,
     immediatelyRender: false,
-    editable: !isViewMode,
     editorProps: {
       attributes: {
         class:
           'min-h-[320px] px-5 py-4 text-sm text-slate-700 outline-none focus:outline-none',
       },
     },
-    onUpdate: ({ editor: ed }) => {
-      setContent(ed.getHTML());
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML());
     },
   });
-
-  useEffect(() => {
-    if (!editor) return;
-    editor.setEditable(!isViewMode);
-  }, [editor, isViewMode]);
-
-  useEffect(() => {
-    if (!testId) {
-      setTemplateMeta(null);
-      setLoadError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
-
-    (async () => {
-      try {
-        const res = await fetchReportTemplateByTestId(testId);
-        if (cancelled) return;
-
-        if (res?.data) {
-          const data = res.data;
-          setTemplateMeta(data);
-          setTemplateTitle(data.templateName);
-          setApplicableFor(mapApplicableForFromApi(data.applicableFor));
-          setContent(data.templateContent);
-          editor?.commands.setContent(data.templateContent);
-          if (isViewMode) setPanel('preview');
-        } else {
-          setLoadError(res?.message?.trim() || 'Template not found for this test.');
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const msg =
-            err instanceof Error
-              ? err.message
-              : typeof err === 'object' &&
-                  err !== null &&
-                  'message' in err &&
-                  typeof (err as { message: unknown }).message === 'string'
-                ? (err as { message: string }).message
-                : 'Failed to load template.';
-          setLoadError(msg);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [testId, isViewMode, editor]);
 
   const handleSaveTemplate = () => {
     const payload = {
@@ -272,139 +205,99 @@ export default function TemplateManagementPage() {
             </div>
           </div>
 
-          {isViewMode ? (
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPanel('preview')}
-                className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wider ${
-                  panel === 'preview'
-                    ? 'bg-[#006D77] text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Live preview
-              </button>
-              <button
-                type="button"
-                onClick={() => setPanel('editor')}
-                className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wider ${
-                  panel === 'editor'
-                    ? 'bg-[#006D77] text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Editor
-              </button>
-            </div>
-          ) : null}
+        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3">
+            <ToolbarButton
+              active={editor?.isActive('bold')}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
+              <Bold size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive('italic')}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
+              <Italic size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive('underline')}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            >
+              <UnderlineIcon size={16} />
+            </ToolbarButton>
 
-          {isViewMode && panel === 'preview' && templateMeta ? (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-              <iframe
-                title={`Template preview — ${templateMeta.templateName}`}
-                srcDoc={templateMeta.templateContent}
-                className="w-full min-h-[520px] border-0 bg-white"
-                sandbox="allow-same-origin"
-              />
-            </div>
-          ) : (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3">
-                <ToolbarButton
-                  active={editor?.isActive('bold')}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleBold().run()}
-                >
-                  <Bold size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive('italic')}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleItalic().run()}
-                >
-                  <Italic size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive('underline')}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                >
-                  <UnderlineIcon size={16} />
-                </ToolbarButton>
+            <div className="mx-1 h-7 w-px bg-slate-200" />
 
-                <div className="mx-1 h-7 w-px bg-slate-200" />
+            <ToolbarButton
+              active={editor?.isActive('heading', { level: 1 })}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+            >
+              <Heading1 size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive('heading', { level: 2 })}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            >
+              <Heading2 size={16} />
+            </ToolbarButton>
 
-                <ToolbarButton
-                  active={editor?.isActive('heading', { level: 1 })}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                >
-                  <Heading1 size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive('heading', { level: 2 })}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                >
-                  <Heading2 size={16} />
-                </ToolbarButton>
+            <div className="mx-1 h-7 w-px bg-slate-200" />
 
-                <div className="mx-1 h-7 w-px bg-slate-200" />
+            <ToolbarButton
+              active={editor?.isActive('bulletList')}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            >
+              <List size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive('orderedList')}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered size={16} />
+            </ToolbarButton>
 
-                <ToolbarButton
-                  active={editor?.isActive('bulletList')}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                >
-                  <List size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive('orderedList')}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                >
-                  <ListOrdered size={16} />
-                </ToolbarButton>
+            <div className="mx-1 h-7 w-px bg-slate-200" />
 
-                <div className="mx-1 h-7 w-px bg-slate-200" />
+            <ToolbarButton
+              active={editor?.isActive({ textAlign: 'left' })}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+            >
+              <AlignLeft size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive({ textAlign: 'center' })}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+            >
+              <AlignCenter size={16} />
+            </ToolbarButton>
+            <ToolbarButton
+              active={editor?.isActive({ textAlign: 'right' })}
+              disabled={!editor}
+              onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+            >
+              <AlignRight size={16} />
+            </ToolbarButton>
+          </div>
 
-                <ToolbarButton
-                  active={editor?.isActive({ textAlign: 'left' })}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-                >
-                  <AlignLeft size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive({ textAlign: 'center' })}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-                >
-                  <AlignCenter size={16} />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={editor?.isActive({ textAlign: 'right' })}
-                  disabled={!editor || isViewMode}
-                  onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-                >
-                  <AlignRight size={16} />
-                </ToolbarButton>
-              </div>
+          <EditorContent
+            editor={editor}
+            className="bg-white [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h2]:text-xl [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6"
+          />
 
-              <EditorContent
-                editor={editor}
-                className="bg-white [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h2]:text-xl [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6"
-              />
-
-              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                <span>Rich Text Editor</span>
-                <span>
-                  {content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length} Words
-                </span>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <span>Rich Text Editor</span>
+            <span>{content.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length} Words</span>
+          </div>
+        </div>
 
           {!isViewMode ? (
             <div className="mt-6 flex justify-end">
