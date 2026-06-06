@@ -118,6 +118,22 @@ export async function fetchActiveReferrers(
   }) as Promise<ReferrersApiResponse>;
 }
 
+/**
+ * Search active referrers by name (client-side filter).
+ * Fetches a large page and filters by keyword — used by the ReferrerSelect dropdown.
+ */
+export async function searchReferrers(searchKey: string): Promise<Referrer[]> {
+  const res = await fetchActiveReferrers({ pageNo: 0, pageSize: 200 });
+  const all = res?.data?.content ?? [];
+  const key = searchKey.trim().toLowerCase();
+  if (!key) return all;
+  return all.filter((r) => {
+    const name = getReferrerName(r).toLowerCase();
+    const phone = getReferrerPhone(r).toLowerCase();
+    return name.includes(key) || phone.includes(key);
+  });
+}
+
 /** GET `/api/v1/referrers/{id}` — single referrer envelope. */
 export interface ReferrerDetailResponse {
   data: Referrer;

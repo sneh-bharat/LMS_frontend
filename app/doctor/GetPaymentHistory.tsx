@@ -17,7 +17,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { useDoctorPaymentHistory } from '@/app/Apis/Commission/useDoctorCommission';
-import PayDoctorCommission from './PayDoctorCommission';
+
 
 const PAGE_SIZE = 10;
 

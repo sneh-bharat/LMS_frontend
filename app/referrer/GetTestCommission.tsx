@@ -27,8 +27,7 @@ export interface GetTestCommissionProps {
   onClose: () => void;
   referrerId?: number | null;
   referrerName?: string;
-  doctorId?: number | null;
-  doctorName?: string;
+
 }
 
 export default function CommissionReferrer({
@@ -36,8 +35,7 @@ export default function CommissionReferrer({
   onClose,
   referrerId,
   referrerName,
-  doctorId,
-  doctorName,
+
 }: GetTestCommissionProps) {
   const [searchText, setSearchText] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -46,7 +44,7 @@ export default function CommissionReferrer({
   const [commissions, setCommissions] = useState<ReferrerCommissionItem[]>(EMPTY_COMMISSIONS);
 
   const activeReferrerId = referrerId != null && referrerId > 0 ? referrerId : null;
-  const activeReferrerName = referrerName?.trim() || doctorName?.trim() || 'Referrer';
+  const activeReferrerName = referrerName?.trim() || 'Referrer';
   const canLoad = activeReferrerId != null && activeReferrerId > 0;
 
   useEffect(() => {

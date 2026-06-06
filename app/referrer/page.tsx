@@ -13,8 +13,10 @@ import {
   MoreHorizontal,
   Pencil,
   Percent,
+  History,
   Phone,
   RefreshCw,
+  Wallet,
   Search,
   Trash2,
   UserCheck,
@@ -46,6 +48,8 @@ import { useDeleteReferrer, useReferrersList } from '@/app/Apis/Referrer/useRefe
 import AddReferrer from './AddReferrer';
 import ReferrerDetailsView from './details-view';
 import GetTestCommission from './GetTestCommission';
+import GetPaymentHistory from './GetPaymentHistory';
+import  PayReferrerCommission from './ReferrerCommissionpay';
 
 const PAGE_SIZE = 10;
 
@@ -67,6 +71,8 @@ function ReferrerActions({
   onDelete,
   onCommissionCreate,
   onTestCommissions,
+  onPaymentHistory,
+  onCommissionPay,
 }: {
   row: Referrer;
   hasCommission: boolean;
@@ -75,6 +81,8 @@ function ReferrerActions({
   onDelete: (row: Referrer) => void;
   onCommissionCreate: (row: Referrer) => void;
   onTestCommissions: (row: Referrer) => void;
+  onPaymentHistory: (row: Referrer) => void;
+  onCommissionPay: (row: Referrer) => void;
 }) {
   return (
     <DropdownMenu>
@@ -116,15 +124,31 @@ function ReferrerActions({
             <Percent size={14} />
             Commission
           </DropdownMenuItem>
-        ) : 
-        <DropdownMenuItem
-          onClick={() => onTestCommissions(row)}
-          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
-        >
-          <Percent size={14} />
-          Test Commissions
-        </DropdownMenuItem>
+        ) :
+          <DropdownMenuItem
+            onClick={() => onTestCommissions(row)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+          >
+            <Percent size={14} />
+            Test Commissions
+          </DropdownMenuItem>
+      
+
         }
+        <DropdownMenuItem
+         onClick={() => onPaymentHistory(row)}
+         className="rounded-lg py-2.5 text-xs font-black uppercase text-sky-600 focus:bg-sky-50 focus:text-sky-700"
+       >
+         <History size={14} />
+         Payment history
+       </DropdownMenuItem>
+       <DropdownMenuItem
+              onClick={() => onCommissionPay(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-violet-600 focus:bg-violet-50 focus:text-violet-700"
+            >
+              <Wallet size={14} />
+              Commission Pay
+            </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onDelete(row)}
           className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
@@ -147,7 +171,7 @@ export default function ReferrerListPage() {
   const [viewReferrerId, setViewReferrerId] = useState<number | null>(null);
   const [editReferrerId, setEditReferrerId] = useState<number | null>(null);
   const [referrerToDelete, setReferrerToDelete] = useState<{ id: number; name: string } | null>(null);
- 
+
   const deleteMutation = useDeleteReferrer();
   const { data, isLoading, isError, error, refetch, isFetching } = useReferrersList({
     pageNo,
@@ -221,8 +245,25 @@ export default function ReferrerListPage() {
   const canPrev = pageNo > 0;
   const canNext = page ? !page.last : false;
   // Separate state for each drawer
-const [commissionReferrer, setCommissionReferrer] = useState<CommissionDrawerState | null>(null);
-const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerId: number; referrerName: string } | null>(null);
+  const [commissionReferrer, setCommissionReferrer] = useState<CommissionDrawerState | null>(null);
+  const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerId: number; referrerName: string } | null>(null);
+  const openPaymentHistory = (referrer: Referrer) => { setPaymentHistoryReferrer({ referrerId: referrer.id, referrerName: getReferrerName(referrer),
+    });
+  };
+  const [payCommissionReferrer, setPayCommissionReferrer] = useState<{
+    referrerId: number;
+    referrerName: string;
+  } | null>(null);
+  
+  const openPayCommission = (referrer: Referrer) => {
+    setPayCommissionReferrer({
+      referrerId: referrer.id,
+      referrerName: getReferrerName(referrer),
+    });
+  };
+  const closePaymentHistory = () => { setPaymentHistoryReferrer(null); };
+
+  const [paymentHistoryReferrer, setPaymentHistoryReferrer] = useState<{ referrerId: number; referrerName: string; } | null>(null);
 
   const openEditFromView = (referrer: Referrer) => {
     setViewReferrerId(null);
@@ -251,7 +292,7 @@ const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerI
       referrerName: getReferrerName(referrer),
     });
   };
-  
+
   const handleConfirmDelete = () => {
     if (!referrerToDelete) return;
     const { id, name } = referrerToDelete;
@@ -538,6 +579,8 @@ const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerI
                               onDelete={openDeleteDialog}
                               onCommissionCreate={openCommissionCreate}
                               onTestCommissions={openTestCommissions}
+                              onPaymentHistory={openPaymentHistory}
+                              onCommissionPay={openPayCommission}  
                             />
                           </td>
                         </tr>
@@ -584,21 +627,35 @@ const [testCommissionReferrer, setTestCommissionReferrer] = useState<{ referrerI
         )}
       </div>
 
-          <Commission
-      isOpen={commissionReferrer != null}
-      referrerId={commissionReferrer?.referrerId ?? null}
-      referrerName={commissionReferrer?.referrerName}
-      commissionId={commissionReferrer?.commissionId ?? null}
-      initialCommission={commissionReferrer?.initialCommission ?? null}
-      onClose={closeCommission}
-    />
+      <Commission
+        isOpen={commissionReferrer != null}
+        referrerId={commissionReferrer?.referrerId ?? null}
+        referrerName={commissionReferrer?.referrerName}
+        commissionId={commissionReferrer?.commissionId ?? null}
+        initialCommission={commissionReferrer?.initialCommission ?? null}
+        onClose={closeCommission}
+      />
 
-    <GetTestCommission
-      isOpen={testCommissionReferrer != null}
-      referrerId={testCommissionReferrer?.referrerId ?? null}
-      referrerName={testCommissionReferrer?.referrerName}
-      onClose={() => setTestCommissionReferrer(null)}
-    />
+      <GetTestCommission
+        isOpen={testCommissionReferrer != null}
+        referrerId={testCommissionReferrer?.referrerId ?? null}
+        referrerName={testCommissionReferrer?.referrerName}
+        onClose={() => setTestCommissionReferrer(null)}
+      />
+
+      <GetPaymentHistory
+        isOpen={paymentHistoryReferrer != null}
+        referrerId={paymentHistoryReferrer?.referrerId ?? null}
+        referrerName={paymentHistoryReferrer?.referrerName}
+        onClose={closePaymentHistory}
+      />
+
+      <PayReferrerCommission
+        isOpen={payCommissionReferrer != null}
+        referrerId={payCommissionReferrer?.referrerId ?? null}
+        referrerName={payCommissionReferrer?.referrerName}
+        onClose={() => setPayCommissionReferrer(null)}
+      />
 
       <DeleteAlertDialog
         isOpen={Boolean(referrerToDelete)}
