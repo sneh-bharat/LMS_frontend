@@ -1,4 +1,5 @@
 import bookingAxios from '@/app/Apis/booking/axios';
+import labClient from '@/app/Apis/lab/axios';
 
 /**
  * GET /api/v1/test-orders/result-list
@@ -60,6 +61,9 @@ export interface ParameterResultEntry {
   unit: string;
   referenceLow?: number | null;
   referenceHigh?: number | null;
+  referenceRange?: string | null;
+  criticalLow?: number | null;
+  criticalHigh?: number | null;
 }
 
 export interface EnterBulkResultsPayload {
@@ -71,8 +75,17 @@ export interface EnterBulkResultsPayload {
   parameterResults: ParameterResultEntry[];
 }
 
+export interface EnterBulkResultsData {
+  flaggedCount: number;
+  totalParameters: number;
+  autoVerifiedCount: number;
+  orderItemId: number;
+  criticalCount: number;
+  skippedParameters: string[];
+}
+
 export interface EnterBulkResultsApiResponse {
-  data: unknown;
+  data: EnterBulkResultsData;
   message: string;
   response: boolean;
   status: string;
@@ -85,3 +98,41 @@ export async function enterBulkResults(
   const res = await bookingAxios.post('/results/enter-bulk', payload) as unknown as EnterBulkResultsApiResponse;
   return res;
 }
+
+// ─── Get Parameters with Reference for Result ─────────────────────────────────
+
+export interface ParameterWithReference {
+  criticalHigh: number | null;
+  criticalLow: number | null;
+  gender: string;
+  parameterId: number;
+  parameterName: string;
+  patientAge: number | null;
+  patientGender: string | null;
+  referenceMax: number | null;
+  referenceMin: number | null;
+  referenceRange: string | null;
+  resultType: 'NUMERIC' | 'TEXT' | 'SELECT';
+  unit: string;
+}
+
+export interface ParameterWithReferenceApiResponse {
+  data: ParameterWithReference[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export async function fetchParametersWithReference(
+  testId: number,
+  gender: string,
+  age: number,
+): Promise<ParameterWithReferenceApiResponse> {
+  const params = new URLSearchParams({ gender, age: String(age) });
+  const res = await labClient.get(
+    `/api/v1/tests/report/${testId}?${params.toString()}`,
+  ) as unknown as ParameterWithReferenceApiResponse;
+  return res;
+}
+

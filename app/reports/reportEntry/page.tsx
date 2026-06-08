@@ -109,7 +109,6 @@ function normalizeStatus (raw: string): ResultStatus {
 }
 
 // ─── Row Actions ─────────────────────────────────────────────────────────────
-
 function ResultActions ({
   row,
   onView,
@@ -120,7 +119,7 @@ function ResultActions ({
 }: {
   row: ResultEntry
   onView: (row: ResultEntry) => void
-  onEnter: (row: ResultEntry) => void
+  onEnter: (row: ResultEntry, test: ResultEntry['tests'][number]) => void
   onEdit: (row: ResultEntry) => void
   onVerify: (row: ResultEntry) => void
   onPrint: (row: ResultEntry) => void
@@ -156,16 +155,20 @@ function ResultActions ({
           View Result
         </DropdownMenuItem>
 
-        {/* Enter — any test is PENDING/DRAFT */}
-        {hasPending && (
-          <DropdownMenuItem
-            onClick={() => onEnter(row)}
-            className='rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700'
-          >
-            <ClipboardEdit size={14} />
-            Enter Result
-          </DropdownMenuItem>
-        )}
+        {/* Enter — show each PENDING/DRAFT test as a sub-item */}
+        {hasPending && row.tests
+          .filter(t => t.resultStatus === 'PENDING' || t.resultStatus === 'DRAFT')
+          .map((t) => (
+            <DropdownMenuItem
+              key={t.orderItemId}
+              onClick={() => onEnter(row, t)}
+              className='rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700'
+            >
+              <ClipboardEdit size={14} />
+              Enter: {t.testNameShort || t.testName}
+            </DropdownMenuItem>
+          ))
+        }
 
         {/* Edit — any test is COMPLETED */}
         {hasCompleted && (
@@ -216,9 +219,13 @@ export default function ResultEntryPage () {
   const [statusFilter, setStatusFilter] = useState<ResultStatus | 'ALL'>('ALL')
 
   // ── drawer / dialog state ──────────────────────────────────────────────────
+ 
   const [viewRow, setViewRow] = useState<ResultEntry | null>(null)
   const [enterRow, setEnterRow] = useState<ResultEntry | null>(null)
+  const [enterTest, setEnterTest] = useState<ResultEntry['tests'][number] | null>(null)
   const [editRow, setEditRow] = useState<ResultEntry | null>(null)
+
+
   // ── API query ──────────────────────────────────────────────────────────────
   const {
     data: apiResponse,
@@ -309,13 +316,15 @@ const rows: ResultEntry[] = useMemo(() => {
 
   // ── action handlers ───────────────────────────────────────────────────────
   const handleView = (row: ResultEntry) => setViewRow(row)
-  const handleEnter = (row: ResultEntry) => setEnterRow(row)
+  const handleEnter = (row: ResultEntry, test: ResultEntry['tests'][number]) => {
+    setEnterRow(row)
+    setEnterTest(test)
+  }
   const handleEdit = (row: ResultEntry) => setEditRow(row)
   const handleVerify = (row: ResultEntry) =>
     toast.success(`Verified: ${row.patientName} — ${row.testName}`)
   const handlePrint = (row: ResultEntry) =>
-    toast.info(`Printing report for ${row.patientName}`)
-
+  toast.info(`Printing report for ${row.patientName}`)
   // ── render ────────────────────────────────────────────────────────────────
   return (
     <div className='space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
@@ -616,8 +625,9 @@ const rows: ResultEntry[] = useMemo(() => {
       {/* ── Enter Result Drawer ── */}
       <EnterResultDrawer
         isOpen={!!enterRow}
-        onClose={() => setEnterRow(null)}
+        onClose={() => { setEnterRow(null); setEnterTest(null) }}
         row={enterRow}
+        selectedTest={enterTest}
       />
     </div>
   )
