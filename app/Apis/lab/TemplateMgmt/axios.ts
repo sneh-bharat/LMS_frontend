@@ -5,7 +5,7 @@ import axios from 'axios';
  * Centralized HTTP client with authentication interceptors for lab / test-catalog APIs
  */
 const labClient = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_Test,
+    baseURL: process.env.NEXT_PUBLIC_API_Report,
     headers: {
         'Content-Type': 'application/json',
     },

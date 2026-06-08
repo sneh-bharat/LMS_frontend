@@ -78,7 +78,7 @@ const NAV = [
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
-            { label: 'Bulk Report Download', href: '/reports/bulk-download' },
+            { label: 'Report Entry', href: '/reports/reportEntry' },
         ],
     },
     {
@@ -139,6 +139,7 @@ const NAV = [
             { label: 'Collectors', href: '/collector' },
             { label: 'Membership', href: '/member' },
             { label: 'Organization', href: '/organization' },
+            { label: 'Lab Technicians', href: '/LabTechnician' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },

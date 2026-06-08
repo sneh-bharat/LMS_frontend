@@ -857,7 +857,19 @@ export async function createTestParameter(
     console.log('📥 Response:', response);
     return response;
   } catch (error: any) {
-    console.error('❌ Error creating parameter:');
+    const status = error?.response?.status;
+    const serverMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Unknown error';
+    console.error(
+      `❌ Error creating parameter [testId=${testId}, branchId=${branchId}]:`,
+      `\n  Status: ${status || 'N/A'}`,
+      `\n  Message: ${serverMessage}`,
+      error?.response?.data ? `\n  Response: ${JSON.stringify(error.response.data)}` : '',
+      error
+    );
     throw error;
   }
 }
@@ -925,7 +937,19 @@ export async function updateTestParameter(
     console.log('📥 Response:', response);
     return response;
   } catch (error: any) {
-    console.error('❌ Error updating parameter:');
+    const status = error?.response?.status;
+    const serverMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Unknown error';
+    console.error(
+      `❌ Error updating parameter [parameterId=${parameterId}, branchId=${branchId}]:`,
+      `\n  Status: ${status || 'N/A'}`,
+      `\n  Message: ${serverMessage}`,
+      error?.response?.data ? `\n  Response: ${JSON.stringify(error.response.data)}` : '',
+      error
+    );
     throw error;
   }
 }

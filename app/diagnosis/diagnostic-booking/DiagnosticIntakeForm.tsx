@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Building2,
   CreditCard,
   Droplets,
   FlaskConical,
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 import PatientSearchSelect from './PatientSearchSelect';
 import PreExistingDynamics from './PreExistingDynamics';
 import PatientLastVisit from './booking/patient_last_visit';
+import type { Referrer } from '@/app/Apis/Referrer/referrerApi';
 import {
   computeBookingFinancials,
   type BookingInvestigation,
@@ -58,6 +60,15 @@ function referringDoctorMeta(doctor: ReferringDoctor) {
   return parts.join(' · ') || 'Referring doctor';
 }
 
+function referrerMeta(referrer: Referrer) {
+  const parts: string[] = [];
+  if (referrer.centre?.trim()) parts.push(referrer.centre.trim());
+  if (referrer.branchName?.trim()) parts.push(referrer.branchName.trim());
+  const phone = referrer.phone?.trim() || referrer.mobile?.trim() || referrer.phoneNumber?.trim();
+  if (phone) parts.push(phone);
+  return parts.join(' · ') || 'Referrer';
+}
+
 export interface DiagnosticIntakeFormProps {
   form: DiagnosticBookingFormState;
   setForm: React.Dispatch<React.SetStateAction<DiagnosticBookingFormState>>;
@@ -72,6 +83,9 @@ export interface DiagnosticIntakeFormProps {
   onClearPatient: () => void;
   onOpenAddTests: () => void;
   onOpenAddDoctor: () => void;
+  onOpenAddReferrer: () => void;
+  selectedReferrer?: Referrer | null;
+  onRemoveReferrer: () => void;
   variant?: 'booking' | 'estimation';
   estimationMeta?: EstimationMetaState;
   setEstimationMeta?: React.Dispatch<React.SetStateAction<EstimationMetaState>>;
@@ -91,6 +105,9 @@ export default function DiagnosticIntakeForm({
   onClearPatient,
   onOpenAddTests,
   onOpenAddDoctor,
+  onOpenAddReferrer,
+  selectedReferrer,
+  onRemoveReferrer,
   variant = 'booking',
   estimationMeta,
   setEstimationMeta,
@@ -311,21 +328,12 @@ export default function DiagnosticIntakeForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Clinical Notes</Label>
                 <Input
                   value={form.diagnosis}
                   onChange={set('diagnosis')}
                   placeholder="Routine blood workup"
-                  className="border-gray-300"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Referrer Name</Label>
-                <Input
-                  value={form.referrer}
-                  onChange={set('referrer')}
-                  placeholder="Medical Center Referral"
                   className="border-gray-300"
                 />
               </div>
@@ -338,28 +346,96 @@ export default function DiagnosticIntakeForm({
                   className="border-gray-300"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">
-                  Referring Hospital ID
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.referringHospitalId ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setForm((f) => ({
-                      ...f,
-                      referringHospitalId: v === '' ? null : Number(v),
-                    }));
-                  }}
-                  placeholder="Hospital ID"
-                  className="border-gray-300"
-                />
-              </div>
             </div>
           </div>
         </Card>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-black text-slate-800 tracking-tight">Referrer</h3>
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] px-2.5">
+                {selectedReferrer ? '1 SELECTED' : 'NONE'}
+              </Badge>
+            </div>
+            <Button
+              type="button"
+              onClick={onOpenAddReferrer}
+              className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10 shrink-0"
+            >
+              <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Referrer
+            </Button>
+          </div>
+
+          {selectedReferrer ? (
+            <Card className="overflow-hidden border-gray-300 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Referrer Name
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Details
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 border border-gray-200">
+                            <Building2 size={16} />
+                          </div>
+                          <div className="text-sm font-bold text-slate-900">
+                            {selectedReferrer.referrerName?.trim() ||
+                              selectedReferrer.fullName?.trim() ||
+                              selectedReferrer.name?.trim() ||
+                              '—'}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge
+                          variant="secondary"
+                          className="bg-slate-100 text-slate-500 text-[9px] font-black border-gray-200 max-w-xs truncate"
+                        >
+                          {referrerMeta(selectedReferrer)}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          type="button"
+                          onClick={onRemoveReferrer}
+                          className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <div
+              className="bg-white rounded-3xl border-2 border-dashed border-gray-200 h-52 flex flex-col items-center justify-center text-center p-8 transition-all hover:bg-slate-50 group cursor-pointer"
+              onClick={onOpenAddReferrer}
+            >
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-200 mb-4 group-hover:scale-110 group-hover:bg-emerald-50 group-hover:text-emerald-400 transition-all border border-gray-100">
+                <Building2 size={32} />
+              </div>
+              <p className="text-slate-400 text-sm font-bold">No referrer added yet.</p>
+              <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                Start by clicking &quot;Add Referrer&quot;
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

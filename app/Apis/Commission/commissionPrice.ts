@@ -216,6 +216,7 @@ export async function fetchDoctorCommissionPayByRange({
   ) as Promise<DoctorCommissionPayApiResponse>;
 }
 
+
 /** Single doctor commission payment record. */
 export interface DoctorPaymentHistoryRecord {
   id: number;

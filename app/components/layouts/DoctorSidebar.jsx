@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
     ChevronDown,
+    User,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,12 @@ const NAV = [
         label: 'Dashboard',
         icon: <LayoutDashboard size={20} />,
         href: '/forDoctors/dashboard',
+    },
+    {
+        id: 'doctor-profile',
+        label: 'My Profile',
+        icon: <User size={20} />,
+        href: '/doctor-profile',
     },
     // Add more doctor specific items here as they are developed
 ];

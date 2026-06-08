@@ -17,7 +17,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { useDoctorPaymentHistory } from '@/app/Apis/Commission/useDoctorCommission';
-import PayDoctorCommission from './PayDoctorCommission';
+
 
 const PAGE_SIZE = 10;
 
@@ -217,17 +217,7 @@ export default function GetPaymentHistory({
                 ) : null}
               </div>
             </div>
-            <Button
-              type="button"
-              variant="gradient"
-              size="sm"
-              className="font-bold gap-1.5 shrink-0"
-              disabled={!doctorId || doctorId < 1}
-              onClick={() => setPayDrawerOpen(true)}
-            >
-              <Wallet size={14} aria-hidden />
-              Pay Doctor Commission
-            </Button>
+          
           </div>
 
           {/* {summary ? (
@@ -350,17 +340,7 @@ export default function GetPaymentHistory({
       )}
     </RightDrawer>
 
-    <PayDoctorCommission
-      isOpen={payDrawerOpen}
-      onClose={() => setPayDrawerOpen(false)}
-      doctorId={doctorId}
-      doctorName={doctorName}
-      suggestedAmount={summary?.totalPending}
-      onPaid={() => {
-        setPageNo(0);
-        void historyQuery.refetch();
-      }}
-    />
+   
     </>
   );
 }

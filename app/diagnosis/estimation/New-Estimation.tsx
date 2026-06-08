@@ -14,6 +14,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import SelectBranch from '@/app/diagnosis/diagnostic-booking/select-branch';
 import AddInvestigationsModal from '@/app/diagnosis/diagnostic-booking/AddInvestigationsModal';
 import AddReferringDoctorModal from '@/app/diagnosis/diagnostic-booking/booking/AddReferringDoctorModal';
+import AddReferrerModal from '@/app/diagnosis/diagnostic-booking/booking/AddReferrerModal';
 import DiagnosticIntakeForm from '@/app/diagnosis/diagnostic-booking/DiagnosticIntakeForm';
 import {
   BLANK_BOOKING_FORM,
@@ -25,6 +26,7 @@ import { mapPatientToBookingForm } from '@/app/diagnosis/diagnostic-booking/pati
 import type { Branch } from '@/app/Apis/branch/branchApi';
 import { fetchPatientById, type Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import { fetchReferringDoctorById, type ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
+import type { Referrer } from '@/app/Apis/Referrer/referrerApi';
 import { useCreateEstimation } from '@/app/Apis/booking/useEstimations';
 import { mapBookingFormToEstimationPayload } from '@/app/Apis/booking/mapBookingFormToEstimation';
 import type { BookingInvestigation } from '@/app/Apis/booking/mapBookingToTestOrder';
@@ -56,6 +58,8 @@ export default function NewEstimation({ isOpen, onClose, onSuccess }: NewEstimat
   const [referringDoctors, setReferringDoctors] = useState<ReferringDoctor[]>([]);
   const [addInvOpen, setAddInvOpen] = useState(false);
   const [addDoctorOpen, setAddDoctorOpen] = useState(false);
+  const [addReferrerOpen, setAddReferrerOpen] = useState(false);
+  const [selectedReferrer, setSelectedReferrer] = useState<Referrer | null>(null);
   const [mobileLookupMessage, setMobileLookupMessage] = useState<string | null>(null);
   const [apiDynamicsOptions, setApiDynamicsOptions] = useState<string[]>([]);
 
@@ -67,8 +71,10 @@ export default function NewEstimation({ isOpen, onClose, onSuccess }: NewEstimat
     setEstimationMeta(createEstimationMetaDefaults());
     setInvestigations([]);
     setReferringDoctors([]);
+    setSelectedReferrer(null);
     setAddInvOpen(false);
     setAddDoctorOpen(false);
+    setAddReferrerOpen(false);
     setMobileLookupMessage(null);
     setApiDynamicsOptions([]);
   };
@@ -230,6 +236,23 @@ export default function NewEstimation({ isOpen, onClose, onSuccess }: NewEstimat
           });
         }}
       />
+      <AddReferrerModal
+        isOpen={addReferrerOpen}
+        onClose={() => setAddReferrerOpen(false)}
+        selectedReferrerId={selectedReferrer?.id}
+        onSelect={(referrer) => {
+          setSelectedReferrer(referrer);
+          setForm((f) => ({
+            ...f,
+            referringHospitalId: referrer.id,
+            referrer:
+              referrer.referrerName?.trim() ||
+              referrer.fullName?.trim() ||
+              referrer.name?.trim() ||
+              '',
+          }));
+        }}
+      />
 
       <RightDrawer
         isOpen={isOpen}
@@ -378,6 +401,16 @@ export default function NewEstimation({ isOpen, onClose, onSuccess }: NewEstimat
                 setAddInvOpen(true);
               }}
               onOpenAddDoctor={() => setAddDoctorOpen(true)}
+              onOpenAddReferrer={() => setAddReferrerOpen(true)}
+              selectedReferrer={selectedReferrer}
+              onRemoveReferrer={() => {
+                setSelectedReferrer(null);
+                setForm((f) => ({
+                  ...f,
+                  referringHospitalId: null,
+                  referrer: '',
+                }));
+              }}
               variant="estimation"
               estimationMeta={estimationMeta}
               setEstimationMeta={setEstimationMeta}

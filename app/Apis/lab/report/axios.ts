@@ -4,12 +4,6 @@ import axios from 'axios';
  * Lab API Client - Axios Instance
  * Centralized HTTP client with authentication interceptors for lab / test-catalog APIs
  */
-const labClient = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_Test,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
 const reportClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_Report,
     headers: {
@@ -18,7 +12,7 @@ const reportClient = axios.create({
 });
 
 // Request Interceptor: Attach token from localStorage
-labClient.interceptors.request.use(
+reportClient.interceptors.request.use(
     (config) => {
         if (typeof window !== 'undefined') {
             const token = localStorage.getItem('token');
@@ -32,7 +26,7 @@ labClient.interceptors.request.use(
 );
 
 // Response Interceptor: Global error handling
-labClient.interceptors.response.use(
+reportClient.interceptors.response.use(
     (response) => response.data,
     (error) => {
         // Handle 401 Unauthorized globally (redirect to login)
@@ -49,5 +43,5 @@ labClient.interceptors.response.use(
     }
 );
 
-export default labClient;
+export default reportClient;
 

@@ -1,10 +1,5 @@
-import React from 'react'
-import LoginPage from './Login'
+import LoginPage from './Login';
 
-export default function page() {
-  return (
-   <>
-   <LoginPage/>
-   </>
-  )
+export default function DoctorLoginPage() {
+  return <LoginPage />;
 }

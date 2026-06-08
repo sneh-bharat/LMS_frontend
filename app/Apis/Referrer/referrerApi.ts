@@ -1,4 +1,6 @@
 import referrerAxios from './axios';
+import commissionAxios from '../Commission/axios';
+import { DoctorTestCommission } from '../Commission/commissionPrice';
 
 /** Single referrer record from auth service. */
 export interface Referrer {
@@ -116,6 +118,22 @@ export async function fetchActiveReferrers(
   }) as Promise<ReferrersApiResponse>;
 }
 
+/**
+ * Search active referrers by name (client-side filter).
+ * Fetches a large page and filters by keyword — used by the ReferrerSelect dropdown.
+ */
+export async function searchReferrers(searchKey: string): Promise<Referrer[]> {
+  const res = await fetchActiveReferrers({ pageNo: 0, pageSize: 200 });
+  const all = res?.data?.content ?? [];
+  const key = searchKey.trim().toLowerCase();
+  if (!key) return all;
+  return all.filter((r) => {
+    const name = getReferrerName(r).toLowerCase();
+    const phone = getReferrerPhone(r).toLowerCase();
+    return name.includes(key) || phone.includes(key);
+  });
+}
+
 /** GET `/api/v1/referrers/{id}` — single referrer envelope. */
 export interface ReferrerDetailResponse {
   data: Referrer;
@@ -134,6 +152,27 @@ export async function fetchReferrerById(id: number): Promise<ReferrerDetailRespo
 
 export interface ReferrerMutationApiResponse {
   data?: Referrer;
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+/** Single record from GET `/api/v1/commissions/referrer/{referrerId}`. */
+export interface ReferrerCommissionItem {
+  applyToAllTests: boolean;
+  commissionPercentage: number;
+  departmentId: number;
+  departmentName: string;
+  description?: string | null;
+  id: number;
+  isActive: boolean;
+  referrerId: number;
+  referrerName: string;
+}
+
+export interface ReferrerCommissionByReferrerResponse {
+  data: ReferrerCommissionItem[];
   message: string;
   response: boolean;
   status: string;
@@ -193,6 +232,33 @@ export async function deleteReferrer(id: number): Promise<ReferrerMutationApiRes
   return referrerAxios.delete(`/api/v1/referrers/${id}`) as Promise<ReferrerMutationApiResponse>;
 }
 
+/** GET `{NEXT_PUBLIC_API_Test}/api/v1/commissions/referrer/{referrerId}` */
+export async function fetchCommissionsByReferrer(
+  referrerId: number
+): Promise<ReferrerCommissionByReferrerResponse> {
+  return commissionAxios.get(
+    `/api/v1/commissions/referrer/${referrerId}`
+  ) as Promise<ReferrerCommissionByReferrerResponse>;
+}
+
 export function showOnReportToFormValue(value: Referrer['showOnReport']): 'Yes' | 'No' {
   return getShowOnReportLabel({ id: 0, showOnReport: value }) === 'Yes' ? 'Yes' : 'No';
+}
+
+export interface ReferrerCommissionItem {
+  testId: number;
+  testCode: string;
+  testName: string;
+  mrpPrice: number;
+  finalPrice: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+}
+
+export interface ReferrerTestCommissionListApiResponse {
+  data: ReferrerCommissionItem[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
 }
