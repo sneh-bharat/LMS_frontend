@@ -16,6 +16,7 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import { Patient, fetchPatientImage } from '../Apis/Patients/Patient_Service_API';
+import { sanitizeMiddleName } from '../Apis/Patients/patientDisplayUtils';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { getBase64ImageSource } from '../functions/getBase64';
@@ -114,7 +115,7 @@ export function PatientDetails({ isOpen, onClose, patient, onDelete, onViewInvoi
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
-                                {patient.firstName} {patient.middleName || ''} {patient.lastName}
+                                {patient.firstName} {sanitizeMiddleName(patient.middleName) || ''} {patient.lastName}
                             </h3>
                             <div className="flex items-center gap-3 mt-1">
                                 <Badge variant={patient.isActive ? 'success' : 'secondary'}>

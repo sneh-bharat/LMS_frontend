@@ -94,7 +94,7 @@ export default function PreExistingDynamics({
   return (
     <div className={cn('space-y-4 pt-2', className)}>
       <Label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">
-        Pre-Existing Dynamics
+      Disease
       </Label>
 
       <div className="flex flex-wrap gap-2">

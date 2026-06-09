@@ -154,7 +154,6 @@ export interface MemberCardsListApiResponse {
 export interface FetchMemberCardsParams {
   pageNo?: number;
   pageSize?: number;
-  branchId?: number;
   /** When set, uses GET `/member-cards/search` (e.g. cardholder name). */
   searchTerm?: string;
   /** When set, filters by low balance locally or on server (if supported). */
@@ -176,6 +175,8 @@ export interface MemberCardStatisticsData {
   averageUsage?: number;
   averageUsagePercent?: number;
   averageUsagePercentage?: number;
+  /** Some backends return per-branch stats in a content array */
+  content?: Array<Record<string, unknown>>;
 }
 
 export interface MemberCardStatisticsApiResponse {
@@ -187,7 +188,6 @@ export interface MemberCardStatisticsApiResponse {
 }
 
 export interface FetchMemberCardStatisticsParams {
-  branchId?: number;
 }
 
 export interface NormalizedMemberCardStatistics {
@@ -208,6 +208,38 @@ function pickStatNumber(...values: (number | undefined)[]): number {
 export function normalizeMemberCardStatistics(
   data: MemberCardStatisticsData
 ): NormalizedMemberCardStatistics {
+  // If the backend returns a content array (per-branch stats), sum them up
+  const content = data.content;
+  if (Array.isArray(content) && content.length > 0) {
+    return {
+      totalCards: pickStatNumber(
+        data.totalCards,
+        data.totalCardsCount,
+        content.length
+      ),
+      totalLimit: pickStatNumber(
+        data.totalLimit,
+        data.totalLimitAmount,
+        sumContentField(content, 'totalLimit', 'totalLimitAmount', 'cardLimit')
+      ),
+      totalUsed: pickStatNumber(
+        data.totalUsed,
+        data.totalUsedAmount,
+        sumContentField(content, 'totalUsed', 'totalUsedAmount', 'usedAmount')
+      ),
+      availableBalance: pickStatNumber(
+        data.availableBalance,
+        data.totalAvailableBalance,
+        sumContentField(content, 'availableBalance', 'totalAvailableBalance', 'balance')
+      ),
+      averageUsage: pickStatNumber(
+        data.averageUsage,
+        data.averageUsagePercent,
+        data.averageUsagePercentage
+      ),
+    };
+  }
+
   return {
     totalCards: pickStatNumber(data.totalCards, data.totalCardsCount),
     totalLimit: pickStatNumber(data.totalLimit, data.totalLimitAmount),
@@ -219,6 +251,26 @@ export function normalizeMemberCardStatistics(
       data.averageUsagePercentage
     ),
   };
+}
+
+/** Sum a numeric field across all items in a content array */
+function sumContentField(
+  content: Array<Record<string, unknown>>,
+  ...fieldNames: string[]
+): number | undefined {
+  let sum = 0;
+  let found = false;
+  for (const item of content) {
+    for (const field of fieldNames) {
+      const val = item[field];
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        sum += val;
+        found = true;
+        break;
+      }
+    }
+  }
+  return found ? sum : undefined;
 }
 
 function normalizeMemberCardsPage(
@@ -393,8 +445,6 @@ export async function fetchAllMemberCards(
 
   if (isSearch) {
     query.set('searchTerm', searchTerm);
-  } else if (params.branchId != null && params.branchId > 0) {
-    query.set('branchId', String(params.branchId));
   }
 
   const res = (await membershipClient.get(
@@ -458,12 +508,10 @@ export async function fetchAllMemberCards(
  */
 export async function fetchExpiringMemberCards(
   startDate: string,
-  endDate: string,
-  branchId?: number
+  endDate: string
 ): Promise<MemberCardsListApiResponse> {
   return fetchAllMemberCards({
     pageSize: 1000,
-    branchId,
     startDate,
     endDate,
   });
@@ -475,11 +523,8 @@ export async function fetchExpiringMemberCards(
 export async function fetchMemberCardStatistics(
   params: FetchMemberCardStatisticsParams = {}
 ): Promise<MemberCardStatisticsApiResponse> {
-  const query = new URLSearchParams();
-
-  const qs = query.toString();
   const res = (await membershipClient.get(
-    `/member-cards/statistics${qs ? `?${qs}` : ''}`
+    `/member-cards/statistics`
   )) as Omit<MemberCardStatisticsApiResponse, 'data'> & {
     data: MemberCardStatisticsData;
   };
@@ -566,7 +611,6 @@ export interface CreateMemberCardPayload {
   emergencyContactPhone?: string;
   emergencyContactEmail?: string;
   autoRenewal?: boolean;
-  branchId?: number;
 }
 
 export interface CreateMemberCardApiResponse {
@@ -619,7 +663,6 @@ export function buildCreateMemberCardPayload(
     payload.emergencyContactEmail = input.emergencyContactEmail.trim();
   }
   if (input.autoRenewal != null) payload.autoRenewal = Boolean(input.autoRenewal);
-  if (input.branchId != null && input.branchId > 0) payload.branchId = input.branchId;
 
   return payload;
 }
@@ -1131,12 +1174,10 @@ export async function resolveMemberCardIdByNumber(
  * Specifically fetches cards with low balance.
  */
 export async function fetchLowBalanceMemberCards(
-  thresholdPercentage: number = 50,
-  branchId?: number
+  thresholdPercentage: number = 50
 ): Promise<MemberCardsListApiResponse> {
   return fetchAllMemberCards({
     pageSize: 1000,
-    branchId,
     thresholdPercentage,
   });
 }

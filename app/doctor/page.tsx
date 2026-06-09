@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Eye,
   Percent,
+  Pencil,
   Building2,
   Wallet,
   History,
@@ -66,20 +67,24 @@ function DoctorActions({
   onView,
   onDepartments,
   onCommissionCreate,
+  onCommissionEdit,
   onTestCommissions,
   onCommissionPay,
+  onPayCommission,
   onPaymentHistory,
-  
 }: {
   row: ReferringDoctor;
   hasCommission: boolean;
   onView: (row: ReferringDoctor) => void;
   onDepartments: (row: ReferringDoctor) => void;
   onCommissionCreate: (row: ReferringDoctor) => void;
+  onCommissionEdit: (row: ReferringDoctor) => void;
   onTestCommissions: (row: ReferringDoctor) => void;
+  /** Opens date-range commission calculation (`fetchDoctorCommissionPayByRange`). */
   onCommissionPay: (row: ReferringDoctor) => void;
+  /** Opens mark-paid commission form. */
+  onPayCommission: (row: ReferringDoctor) => void;
   onPaymentHistory: (row: ReferringDoctor) => void;
-  
 }) {
   return (
     <DropdownMenu>
@@ -124,6 +129,13 @@ function DoctorActions({
         ) : (
           <>
             <DropdownMenuItem
+              onClick={() => onCommissionEdit(row)}
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700"
+            >
+              <Pencil size={14} />
+              Edit Commission %
+            </DropdownMenuItem>
+            <DropdownMenuItem
               onClick={() => onTestCommissions(row)}
               className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
             >
@@ -132,10 +144,10 @@ function DoctorActions({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onCommissionPay(row)}
-              className="rounded-lg py-2.5 text-xs font-black uppercase text-violet-600 focus:bg-violet-50 focus:text-violet-700"
+              className="rounded-lg py-2.5 text-xs font-black uppercase text-[#ff671f] focus:bg-violet-50 focus:text-violet-700"
             >
               <Wallet size={14} />
-              Commission Pay
+              Calculate to Commission 
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onPaymentHistory(row)}
@@ -145,7 +157,7 @@ function DoctorActions({
               Payment History
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() =>onCommissionPay(row)}
+              onClick={() => onPayCommission(row)}
               className="rounded-lg py-2.5 text-xs font-black uppercase text-indigo-600 focus:bg-indigo-50 focus:text-indigo-700"
             >
               <Wallet size={14} />
@@ -279,6 +291,17 @@ export default function DoctorsPage() {
       commissionId: commission.id,
       initialCommission: commission,
     });
+  };
+
+  const openCommissionEditFromRow = (doc: ReferringDoctor) => {
+    const index = pageDoctorIds.indexOf(doc.id);
+    const rules = index >= 0 ? commissionChecks[index]?.data?.data : undefined;
+    const first = rules?.[0];
+    if (!first) {
+      toast.error('No commission rule found for this doctor.');
+      return;
+    }
+    openCommissionEdit({ id: doc.id, doctorName: doc.doctorName }, first);
   };
 
   const closeCommission = () => setCommissionDoctor(null);
@@ -496,7 +519,7 @@ export default function DoctorsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center text-xs font-mono font-bold text-slate-600">
-                        {doc.branch?.branchName || '—'}
+                        {doc.branchName}
                       </td>
                       <td className="px-6 py-5 text-center">
                         <Badge
@@ -517,8 +540,10 @@ export default function DoctorsPage() {
                           onView={openDetails}
                           onDepartments={openActiveDepartments}
                           onCommissionCreate={openCommissionCreate}
+                          onCommissionEdit={openCommissionEditFromRow}
                           onTestCommissions={openTestCommissions}
-                          onCommissionPay={openPayCommission}  
+                          onCommissionPay={openCommissionPay}
+                          onPayCommission={openPayCommission}
                           onPaymentHistory={openPaymentHistory}
                         />
                       </td>

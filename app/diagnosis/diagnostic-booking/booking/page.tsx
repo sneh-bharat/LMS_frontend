@@ -29,6 +29,7 @@ import {
   Loader2,
   Info,
   Lock,
+  Building2,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -52,7 +53,14 @@ import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import PatientSearchSelect from '../PatientSearchSelect';
 import { mapPatientToBookingForm } from '../patientFormUtils';
 import PreExistingDynamics from '../PreExistingDynamics';
+import ReferrerSelect from '../ReferrerSelect';
 import AddReferringDoctorModal from './AddReferringDoctorModal';
+import {
+  fetchReferrerById,
+  getReferrerName,
+  getReferrerPhone,
+  type Referrer,
+} from '@/app/Apis/Referrer/referrerApi';
 import {
   BLANK_MEMBER_CARD,
   MEMBERSHIP_CARD_PAYMENT_MODE,
@@ -133,6 +141,15 @@ function referringDoctorMeta(doctor: ReferringDoctor) {
   if (doctor.hospitalName?.trim()) parts.push(doctor.hospitalName.trim());
   if (doctor.doctorPhone?.trim()) parts.push(doctor.doctorPhone.trim());
   return parts.join(' · ') || 'Referring doctor';
+}
+
+function referrerMeta(referrer: Referrer) {
+  const parts: string[] = [];
+  if (referrer.centre?.trim()) parts.push(referrer.centre.trim());
+  if (referrer.branchName?.trim()) parts.push(referrer.branchName.trim());
+  const phone = getReferrerPhone(referrer);
+  if (phone !== '—') parts.push(phone);
+  return parts.join(' · ') || 'Referrer';
 }
 
 function extractPaginatedTests(
@@ -238,6 +255,7 @@ function formatBookingSubmitError(err: unknown): string {
 const TITLES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Smt.', 'Baby', 'M/s'];
 const GENDERS = ['Male', 'Female', 'Other'];
 const PAY_MODES = ['Cash', 'Card', 'UPI', 'Online', 'Credit', 'Membership Card'];
+const PAYMENT_MODES_WITH_REFERENCE = new Set(['Card', 'UPI', 'Online', 'Credit']);
 const DISC_TYPES = ['%', 'Flat'];
 
 const BLANK: FormState = {
@@ -521,6 +539,8 @@ function DiagnosticBookingContent() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [addInvOpen, setAddInvOpen] = useState(false);
   const [addReferringDoctorOpen, setAddReferringDoctorOpen] = useState(false);
+  const [addReferrerOpen, setAddReferrerOpen] = useState(false);
+  const [selectedReferrer, setSelectedReferrer] = useState<Referrer | null>(null);
   const [memberCardDrawerOpen, setMemberCardDrawerOpen] = useState(false);
   const [referringDoctors, setReferringDoctors] = useState<ReferringDoctor[]>([]);
   const [mobileLookupMessage, setMobileLookupMessage] = useState<string | null>(null);
@@ -626,6 +646,14 @@ function DiagnosticBookingContent() {
         .catch(() => setReferringDoctors([]));
     }
 
+    if (medical.referringHospitalId && medical.referringHospitalId > 0) {
+      fetchReferrerById(medical.referringHospitalId)
+        .then((res) => {
+          if (res?.data) setSelectedReferrer(res.data);
+        })
+        .catch(() => setSelectedReferrer(null));
+    }
+
     fetchPatientById(order.patientId)
       .then((res) => {
         if (!res.data) return;
@@ -697,17 +725,19 @@ function DiagnosticBookingContent() {
   const handlePaymentModeChange = (mode: string | null) => {
     if (!mode) return;
     const isMembershipCard = mode === MEMBERSHIP_CARD_PAYMENT_MODE;
+    const needsPaymentReference = PAYMENT_MODES_WITH_REFERENCE.has(mode);
     setForm((f) => ({
       ...f,
       paymentMode: mode,
+      ...(!needsPaymentReference ? { paymentReference: '' } : {}),
       ...(isMembershipCard
         ? {}
         : {
-            membershipCardNumber: BLANK_MEMBER_CARD.membershipCardNumber,
-            membershipCardHolderName: BLANK_MEMBER_CARD.holderName,
-            membershipCardHolderEmail: BLANK_MEMBER_CARD.holderEmail,
-            membershipCardOtp: BLANK_MEMBER_CARD.otp,
-          }),
+          membershipCardNumber: BLANK_MEMBER_CARD.membershipCardNumber,
+          membershipCardHolderName: BLANK_MEMBER_CARD.holderName,
+          membershipCardHolderEmail: BLANK_MEMBER_CARD.holderEmail,
+          membershipCardOtp: BLANK_MEMBER_CARD.otp,
+        }),
     }));
     setMemberCardDrawerOpen(isMembershipCard);
   };
@@ -998,6 +1028,20 @@ function DiagnosticBookingContent() {
         }}
         branchId={effectiveBranchId}
       />
+      <ReferrerSelect
+        hideTrigger
+        drawerOpen={addReferrerOpen}
+        onDrawerOpenChange={setAddReferrerOpen}
+        value={form.referringHospitalId}
+        onChange={(id, referrer) => {
+          setSelectedReferrer(referrer);
+          setForm((f) => ({
+            ...f,
+            referringHospitalId: id,
+            referrer: referrer ? getReferrerName(referrer) : '',
+          }));
+        }}
+      />
       <MemberCardDrawer
         isOpen={memberCardDrawerOpen}
         onClose={() => setMemberCardDrawerOpen(false)}
@@ -1062,9 +1106,6 @@ function DiagnosticBookingContent() {
           />
           {!isEditMode ? (
             <>
-              <Button variant="outline" className="rounded-xl border-gray-300 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs gap-2">
-                <Download size={16} /> Export Draft
-              </Button>
               <Button className="rounded-xl custom-gradient text-white font-bold text-xs gap-2 shadow-lg shadow-emerald-500/10 px-6">
                 <Zap size={16} /> Smart Sync
               </Button>
@@ -1257,15 +1298,7 @@ function DiagnosticBookingContent() {
                     className="border-gray-300"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Referrer Name</Label>
-                  <Input
-                    value={form.referrer}
-                    onChange={set('referrer')}
-                    placeholder="Medical Center Referral"
-                    className="border-gray-300"
-                  />
-                </div>
+
                 <div className="space-y-2">
                   <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">SRF ID</Label>
                   <Input
@@ -1275,32 +1308,96 @@ function DiagnosticBookingContent() {
                     className="border-gray-300"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[11px] font-black text-slate-400 uppercase pl-1">Referring Hospital ID</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={form.referringHospitalId ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        referringHospitalId: v === '' ? null : Number(v),
-                      }));
-                    }}
-                    placeholder="Hospital ID"
-                    className="border-gray-300"
-                  />
-                </div>
+
               </div>
             </div>
           </Card>
 
-          {/* Section 3: Referring Doctor */}
+          {/* Section 3: Referrer  */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-black text-slate-800 tracking-tight">Referring Doctor</h3>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight"> Referrer</h3>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] px-2.5">
+                  {selectedReferrer ? '1 SELECTED' : 'NONE'}
+                </Badge>
+              </div>
+              <Button
+                onClick={() => setAddReferrerOpen(true)}
+                className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10 shrink-0"
+              >
+                <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Referrer
+              </Button>
+            </div>
+
+            {selectedReferrer ? (
+              <Card className="overflow-hidden border-gray-300 shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Referrer Name</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Details</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 border border-gray-200">
+                              <Building2 size={16} />
+                            </div>
+                            <div className="text-sm font-bold text-slate-900">{getReferrerName(selectedReferrer)}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant="secondary" className="bg-slate-100 text-slate-500 text-[9px] font-black border-gray-200 max-w-xs truncate">
+                            {referrerMeta(selectedReferrer)}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReferrer(null);
+                              setForm((f) => ({
+                                ...f,
+                                referringHospitalId: null,
+                                referrer: '',
+                              }));
+                            }}
+                            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            ) : (
+              <div
+                className="bg-white rounded-3xl border-2 border-dashed border-gray-200 h-52 flex flex-col items-center justify-center text-center p-8 transition-all hover:bg-slate-50 group cursor-pointer"
+                onClick={() => setAddReferrerOpen(true)}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-200 mb-4 group-hover:scale-110 group-hover:bg-emerald-50 group-hover:text-emerald-400 transition-all border border-gray-100">
+                  <Building2 size={32} />
+                </div>
+                <p className="text-slate-400 text-sm font-bold">No referrer added yet.</p>
+                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                  Start by clicking &quot;Add Referrer&quot;
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3:  Doctor */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight"> Doctor</h3>
                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] px-2.5">
                   {referringDoctors.length} ITEMS
                 </Badge>
@@ -1309,7 +1406,7 @@ function DiagnosticBookingContent() {
                 onClick={() => setAddReferringDoctorOpen(true)}
                 className="rounded-xl custom-gradient text-white text-xs font-black gap-2 px-5 group shadow-lg shadow-emerald-500/10 shrink-0"
               >
-                <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Referring Doctor
+                <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Doctor
               </Button>
             </div>
 
@@ -1626,21 +1723,14 @@ function DiagnosticBookingContent() {
                         {PAY_MODES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Input
-                      value={form.paymentReference}
-                      onChange={set('paymentReference')}
-                      placeholder="Payment reference (e.g. PAY-001)"
-                      className="border-gray-300 h-10 font-semibold"
-                    />
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black text-slate-400 uppercase">Created By</Label>
+                    {PAYMENT_MODES_WITH_REFERENCE.has(form.paymentMode) ? (
                       <Input
-                        value={form.createdByName}
-                        onChange={set('createdByName')}
-                        placeholder="Admin User"
+                        value={form.paymentReference}
+                        onChange={set('paymentReference')}
+                        placeholder="Payment reference (e.g. PAY-001)"
                         className="border-gray-300 h-10 font-semibold"
                       />
-                    </div>
+                    ) : null}
 
                     {form.paymentMode === MEMBERSHIP_CARD_PAYMENT_MODE ? (
                       <MemberCardSummaryButton

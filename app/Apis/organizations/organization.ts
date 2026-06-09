@@ -300,9 +300,7 @@ export async function fetchAllOrganizations(
     query.set('searchTerm', params.searchTerm!.trim());
   }
 
-  if (!isSearch && params.branchId != null && params.branchId > 0) {
-    query.set('branchId', String(params.branchId));
-  }
+
 
   const res = (await organizationClient.get(
     `${endpoint}?${query.toString()}`

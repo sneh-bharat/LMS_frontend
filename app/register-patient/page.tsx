@@ -11,7 +11,6 @@ import {
   Edit2,
   Shield,
   Zap,
-  ChevronDown,
   X,
   UserPlus,
   MoreVertical,
@@ -19,8 +18,6 @@ import {
   Database,
   ArrowRightCircle,
   Loader,
-  Filter,
-  Settings,
   AlertCircle,
   CheckCircle2,
   LayoutGrid,
@@ -39,7 +36,7 @@ import { EditPatient } from './EditPatient';
 import { PatientDetails } from './PatientDetails';
 import { PatientInvoices } from './patient-invoice';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
-import { formatPatientFullName } from '../Apis/Patients/patientDisplayUtils';
+import { formatPatientFullName, sanitizeMiddleName } from '../Apis/Patients/patientDisplayUtils';
 import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../Apis/Patients/Patient_Service_API';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
@@ -229,29 +226,10 @@ export default function FindRegisterPatientPage() {
       }
 
       searchTimeoutRef.current = setTimeout(() => {
-        setState(prev => {
-          loadPatients(0, prev.pagination.pageSize, searchTerm, prev.filters.category);
-          return prev;
-        });
+        loadPatients(0, state.pagination.pageSize, searchTerm, state.filters.category);
       }, 300);
     },
-    [loadPatients]
-  );
-
-  // ─── Handle Category Filter ──────────────────────────────────────────────
-  const handleCategoryFilter = useCallback(
-    (category: string) => {
-      setState(prev => ({
-        ...prev,
-        filters: { ...prev.filters, category },
-      }));
-
-      setState(prev => {
-        loadPatients(0, prev.pagination.pageSize, prev.filters.search, category);
-        return prev;
-      });
-    },
-    [loadPatients]
+    [loadPatients, state.pagination.pageSize, state.filters.category]
   );
 
   // ─── Pagination Handlers ────────────────────────────────────────────────
@@ -273,20 +251,6 @@ export default function FindRegisterPatientPage() {
   const handleRetry = useCallback(() => {
     loadPatients(state.pagination.pageNo, state.pagination.pageSize, state.filters.search, state.filters.category);
   }, [state, loadPatients]);
-
-  // ─── Get Unique Categories ──────────────────────────────────────────────
-  const categories = useCallback(() => {
-    const categorySet = new Set<string>();
-    categorySet.add('All');
-    state.patients.forEach(patient => {
-      if (patient.patientCategory) {
-        categorySet.add(patient.patientCategory);
-      }
-    });
-    return Array.from(categorySet);
-  }, [state.patients]);
-
-  const categoryList = categories();
 
   // ─── Cleanup ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -455,9 +419,6 @@ export default function FindRegisterPatientPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-2 px-6">
-            <LayoutGrid size={16} /> Patient View
-          </Button>
           <Button
             variant="gradient"
             size="sm"
@@ -486,23 +447,6 @@ export default function FindRegisterPatientPage() {
           />
         </div>
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="relative flex-1 lg:w-48 group">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <select
-              value={state.filters.category}
-              onChange={e => handleCategoryFilter(e.target.value)}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-              aria-label="Filter patients by category"
-              disabled={state.loading.isLoading}
-            >
-              {categoryList.map(c => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
-          </div>
           <Button
             variant="outline"
             size="sm"
@@ -565,7 +509,7 @@ export default function FindRegisterPatientPage() {
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 tracking-tight group-hover:text-emerald-700 transition-colors text-sm">
-                              {patient.firstName} {patient.middleName || ''} {patient.lastName}
+                              {patient.firstName} {sanitizeMiddleName(patient.middleName) || ''} {patient.lastName}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               {patient.isActive && (

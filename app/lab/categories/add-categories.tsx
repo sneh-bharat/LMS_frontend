@@ -8,7 +8,7 @@ import { createTestCategory, updateTestCategory, type TestCategory, type CreateC
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
-interface AddCategoryProps {
+interface AddCategoryProps { 
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateCategoryInput) => void;

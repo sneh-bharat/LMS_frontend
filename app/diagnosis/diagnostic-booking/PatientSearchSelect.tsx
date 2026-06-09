@@ -8,6 +8,7 @@ import {
   searchPatientByMobile,
   type Patient,
 } from '@/app/Apis/Patients/Patient_Service_API';
+import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
 import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +32,7 @@ const MIN_NAME_LEN = 2;
 const MIN_UHID_LEN = 2;
 
 function patientFullName(p: Patient): string {
-  return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ').trim();
+  return [p.firstName, sanitizeMiddleName(p.middleName), p.lastName].filter(Boolean).join(' ').trim();
 }
 
 function patientDisplayLabel(p: Patient): string {

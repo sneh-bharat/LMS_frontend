@@ -149,9 +149,9 @@ function OrganizationDetailsBody({ org }: { org: Organization }) {
 
       <DetailsSection title="Contact person" icon={User} variant="muted">
         <DetailField label="Name" value={org.contactPersonName} icon={User} />
-        <DetailField label="Designation" value={org.contactPersonDesignation} icon={User} />
-        <DetailField label="Phone" value={org.contactPersonPhone} icon={Phone} />
-        <DetailField label="Email" value={org.contactPersonEmail} icon={Mail} />
+        {/* <DetailField label="Designation" value={org.contactPersonDesignation} icon={User} /> */}
+        {/* <DetailField label="Phone" value={org.contactPersonPhone} icon={Phone} />
+        <DetailField label="Email" value={org.contactPersonEmail} icon={Mail} /> */}
       </DetailsSection>
 
       <DetailsSection title="Billing & cards" icon={CreditCard} iconClass="text-amber-500" variant="billing">

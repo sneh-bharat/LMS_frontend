@@ -4,6 +4,7 @@ import labClient from '@/app/Apis/lab/axios';
 export interface Department {
   id: number;
   branchId: number;
+  branchName?: string; 
   departmentCode: string;
   departmentName: string;
   departmentNameShort: string | null;

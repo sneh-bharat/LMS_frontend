@@ -15,10 +15,17 @@ import {
 } from '@/components/ui';
 import { Textarea } from '@/components/ui/textarea';
 import { RightDrawer } from '@/components/ui/right-drawer';
-import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
-import {getOrganizationName,type Organization,} from '@/app/Apis/organizations/organization';
+import {
+  getOrganizationName,
+  type Organization,
+} from '@/app/Apis/organizations/organization';
 import { useOrganizations } from '@/app/Apis/organizations/useOrganizations';
-import {MEMBER_CARD_TYPES,formatMemberCardLabel,type CreateMemberCardPayload,type MemberCardType,} from '@/app/Apis/membership/membership';
+import {
+  MEMBER_CARD_TYPES,
+  formatMemberCardLabel,
+  type CreateMemberCardPayload,
+  type MemberCardType,
+} from '@/app/Apis/membership/membership';
 import { useCreateMemberCard } from '@/app/Apis/membership/useMembership';
 
 const FORM_ID = 'create-member-card-form';
@@ -39,11 +46,9 @@ export interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  defaultBranchId?: number;
 }
 
 type FormState = {
-  branchId: string;
   organizationId: string;
   cardholderName: string;
   cardType: MemberCardType | '';
@@ -58,9 +63,8 @@ type FormState = {
   autoRenewal: boolean;
 };
 
-function createEmptyForm(defaultBranchId: number): FormState {
+function createEmptyForm(): FormState {
   return {
-    branchId: 'Select Branch',
     organizationId: '',
     cardholderName: '',
     cardType: '',
@@ -119,46 +123,26 @@ export default function AddMemberModal({
   isOpen,
   onClose,
   onSuccess,
-  defaultBranchId = 1,
 }: AddMemberModalProps) {
   const createMutation = useCreateMemberCard();
-  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll(
-    { size: 100 },
+  const [form, setForm] = useState(() => createEmptyForm());
+
+  // ✅ Fetch all organizations
+  const { data: organizationsRes, isLoading: isLoadingOrgs } = useOrganizations(
+    { pageNo: 0, pageSize: 200 },
     { enabled: isOpen }
   );
-  const [form, setForm] = useState(() => createEmptyForm(defaultBranchId));
-
-  const parsedBranchId = useMemo(() => {
-    const id = Number.parseInt(form.branchId, 10);
-    return Number.isFinite(id) && id > 0 ? id : null;
-  }, [form.branchId]);
-
-  const { data: organizationsRes, isLoading: isLoadingOrgs } = useOrganizations(
-    { pageNo: 0, pageSize: 200, branchId: parsedBranchId ?? undefined },
-    { enabled: isOpen && parsedBranchId != null }
-  );
-
-  const branches = branchesData?.data?.content ?? [];
 
   const organizations = useMemo(() => {
-    const list = organizationsRes?.data?.content ?? [];
-    if (parsedBranchId == null) return list;
-    return list.filter(
-      (org: Organization) => org.branchId == null || org.branchId === parsedBranchId
-    );
-  }, [organizationsRes?.data?.content, parsedBranchId]);
-
-  const selectedBranch = useMemo(
-    () => branches.find((b) => String(b.id) === form.branchId),
-    [branches, form.branchId]
-  );
+    return organizationsRes?.data?.content ?? [];
+  }, [organizationsRes?.data?.content]);
 
   const selectedOrganization = useMemo(
     () => organizations.find((o) => String(o.id) === form.organizationId),
     [organizations, form.organizationId]
   );
 
-  const resetForm = () => setForm(createEmptyForm(defaultBranchId));
+  const resetForm = () => setForm(createEmptyForm());
 
   const handleClose = () => {
     if (!createMutation.isPending) {
@@ -169,8 +153,8 @@ export default function AddMemberModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(createEmptyForm(defaultBranchId));
-  }, [isOpen, defaultBranchId]);
+    setForm(createEmptyForm());
+  }, [isOpen]);
 
   const set =
     <K extends keyof FormState>(key: K) =>
@@ -185,7 +169,6 @@ export default function AddMemberModal({
     const cardholderName = form.cardholderName.trim();
     const cardType = form.cardType.trim() as MemberCardType;
     const limitAmount = Number.parseFloat(form.limitAmount);
-    const branchId = Number.parseInt(form.branchId, 10);
 
     if (!Number.isFinite(organizationId) || organizationId < 1) {
       toast.error('Please select an organization.');
@@ -203,10 +186,6 @@ export default function AddMemberModal({
       toast.error('Limit amount must be a valid non-negative number.');
       return;
     }
-    if (!Number.isFinite(branchId) || branchId < 1) {
-      toast.error('Please select a branch.');
-      return;
-    }
 
     const expiryDate = form.expiryDate.trim();
     const minExpiry = todayIsoDate();
@@ -220,7 +199,6 @@ export default function AddMemberModal({
       cardholderName,
       cardType,
       limitAmount,
-      branchId,
       expiryDate: expiryDate || undefined,
       remarks: form.remarks.trim() || undefined,
       internalNotes: form.internalNotes.trim() || undefined,
@@ -242,7 +220,9 @@ export default function AddMemberModal({
       onSuccess?.();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create member card.');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to create member card.'
+      );
     }
   };
 
@@ -294,57 +274,31 @@ export default function AddMemberModal({
         </div>
       }
     >
-      <form id={FORM_ID} onSubmit={(e) => void handleSubmit(e)} className="space-y-6 pb-4">
-        <FormSection title="Branch & organization">
-          <Field label="Branch" required>
-            <Select
-              value={form.branchId}
-              onValueChange={(v) => {
-                setForm((prev) => ({
-                  ...prev,
-                  branchId: v ?? '',
-                  organizationId: '',
-                }));
-              }}
-              disabled={submitting || isLoadingBranches}
-            >
-              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
-                <SelectValue
-                  placeholder={isLoadingBranches ? 'Loading branches…' : 'Select branch'}
-                >
-                  {selectedBranch?.branchName ?? null}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={String(branch.id)}>
-                    {branch.branchName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Organization" required>
+      <form
+        id={FORM_ID}
+        onSubmit={(e) => void handleSubmit(e)}
+        className="space-y-6 pb-4"
+      >
+        <FormSection title="Organization">
+          <Field label="Organization" required className="sm:col-span-2">
             <Select
               value={form.organizationId}
               onValueChange={(v) => set('organizationId')(v ?? '')}
-              disabled={
-                submitting || isLoadingOrgs || parsedBranchId == null || organizations.length === 0
-              }
+              disabled={submitting || isLoadingOrgs || organizations.length === 0}
             >
               <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
                 <SelectValue
                   placeholder={
-                    parsedBranchId == null
-                      ? 'Select branch first'
-                      : isLoadingOrgs
-                        ? 'Loading organizations…'
-                        : organizations.length === 0
-                          ? 'No organizations for branch'
-                          : 'Select organization'
+                    isLoadingOrgs
+                      ? 'Loading organizations…'
+                      : organizations.length === 0
+                        ? 'No organizations available'
+                        : 'Select organization'
                   }
                 >
-                  {selectedOrganization ? getOrganizationName(selectedOrganization) : null}
+                  {selectedOrganization
+                    ? getOrganizationName(selectedOrganization)
+                    : null}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -359,7 +313,11 @@ export default function AddMemberModal({
         </FormSection>
 
         <FormSection title="Card details">
-          <Field label="Cardholder name" required className="sm:col-span-2">
+          <Field
+            label="Cardholder name"
+            required
+            className="sm:col-span-2"
+          >
             <Input
               value={form.cardholderName}
               onChange={(e) => set('cardholderName')(e.target.value)}
@@ -371,7 +329,9 @@ export default function AddMemberModal({
           <Field label="Card type" required>
             <Select
               value={form.cardType}
-              onValueChange={(v) => set('cardType')((v ?? '') as MemberCardType)}
+              onValueChange={(v) =>
+                set('cardType')((v ?? '') as MemberCardType)
+              }
               disabled={submitting}
             >
               <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
@@ -417,7 +377,9 @@ export default function AddMemberModal({
                 disabled={submitting}
                 className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
               />
-              <span className="text-sm font-bold text-slate-700">Enable auto renewal</span>
+              <span className="text-sm font-bold text-slate-700">
+                Enable auto renewal
+              </span>
             </label>
           </Field>
         </FormSection>
@@ -438,7 +400,9 @@ export default function AddMemberModal({
           <Field label="Contact name">
             <Input
               value={form.emergencyContactName}
-              onChange={(e) => set('emergencyContactName')(e.target.value)}
+              onChange={(e) =>
+                set('emergencyContactName')(e.target.value)
+              }
               className={INPUT_CLASS}
               placeholder="John Smith"
               disabled={submitting}
@@ -447,7 +411,9 @@ export default function AddMemberModal({
           <Field label="Contact phone">
             <Input
               value={form.emergencyContactPhone}
-              onChange={(e) => set('emergencyContactPhone')(e.target.value)}
+              onChange={(e) =>
+                set('emergencyContactPhone')(e.target.value)
+              }
               className={INPUT_CLASS}
               placeholder="9876543213"
               maxLength={15}
@@ -458,7 +424,9 @@ export default function AddMemberModal({
             <Input
               type="email"
               value={form.emergencyContactEmail}
-              onChange={(e) => set('emergencyContactEmail')(e.target.value)}
+              onChange={(e) =>
+                set('emergencyContactEmail')(e.target.value)
+              }
               className={INPUT_CLASS}
               placeholder="john.smith@example.com"
               disabled={submitting}

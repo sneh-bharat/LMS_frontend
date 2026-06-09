@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Search,
+  Trash2,
   SlidersHorizontal,
   MapPin,
   Phone,
@@ -406,12 +407,12 @@ export default function BranchesPage() {
                       <Plus size={20} />
                     </Button>
                     <Button 
-                      variant="ghost" 
-                      className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors h-10 w-10 aspect-square rounded-full"
-                      onClick={() => openDeleteDialog(branch.id)}
-                    >
-                      <MoreVertical size={20} />
-                    </Button>
+  variant="ghost" 
+  className="font-bold gap-2 text-white bg-rose-600 hover:text-rose-600"
+  onClick={() => openDeleteDialog(branch.id)}
+>
+  <Trash2 size={16} />
+</Button>
                   </div>
                 </div>
 

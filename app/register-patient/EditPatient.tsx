@@ -233,7 +233,7 @@ export function EditPatient({ isOpen, onClose, patientId }: EditPatientProps) {
             const patientDTO = {
                 id: patientId, // CRITICAL: Top-level ID
                 firstName: formData.firstName.trim(),
-                middleName: formData.middleName.trim() || undefined,
+                middleName: formData.middleName.trim() || null,
                 lastName: formData.lastName.trim(),
                 dateOfBirth: formData.dateOfBirth,
                 gender: formData.gender as any,

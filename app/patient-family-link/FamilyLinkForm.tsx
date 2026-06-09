@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { fetchPatients, fetchPatientById, type Patient } from '@/app/Apis/Patients/Patient_Service_API';
+import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
 import {
   FAMILY_RELATIONS,
   type FamilyRelation,
@@ -20,7 +21,7 @@ const SECTION_HEAD =
   'text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2';
 
 function patientDisplayName(p: Patient): string {
-  const parts = [p.firstName, p.middleName, p.lastName].filter(Boolean);
+  const parts = [p.firstName, sanitizeMiddleName(p.middleName), p.lastName].filter(Boolean);
   const name = parts.join(' ').trim();
   return name ? `${name} (${p.patientCode})` : p.patientCode;
 }

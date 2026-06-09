@@ -7,11 +7,16 @@ import {
   fetchReferrerCommissions,
   fetchReferrerPaymentHistory,
   fetchReferrerCommissionCalculation,
+  fetchReferrerCommissionPayByRange,
+  fetchReferrerTestCommissions,
   markReferrerCommissionPaid,
   updateReferrerCommission,
+  updateReferrerCommissionByTestId,
   type CreateReferrerCommissionPayload,
   type MarkReferrerCommissionPaidParams,
+  type ReferrerCommissionPayRangeParams,
   type UpdateReferrerCommissionPayload,
+  type UpdateReferrerTestCommissionOverridePayload,
 } from './ReferrerCommission';
 
 
@@ -19,6 +24,8 @@ import {
 export const referrerCommissionQueryKeys = {
   all: ['referrer-commissions'] as const,
   byReferrer: (referrerId: number) => [...referrerCommissionQueryKeys.all, referrerId] as const,
+  testsByReferrer: (referrerId: number) =>
+    [...referrerCommissionQueryKeys.all, 'tests', referrerId] as const,
 };
 
 export function useReferrerCommissions(
@@ -147,6 +154,56 @@ export function useMarkReferrerCommissionPaid() {
       });
       queryClient.invalidateQueries({
         queryKey: ['referrer-payment-history'],
+      });
+    },
+  });
+}
+
+export function useCalculateReferrerCommissionByRange() {
+  return useMutation({
+    mutationFn: (params: ReferrerCommissionPayRangeParams) =>
+      fetchReferrerCommissionPayByRange(params),
+  });
+}
+
+export function useReferrerTestCommissions(
+  referrerId: number | null | undefined,
+  options?: { enabled?: boolean }
+) {
+  const numericId = referrerId != null && referrerId > 0 ? referrerId : undefined;
+  const { enabled = true } = options ?? {};
+
+  return useQuery({
+    queryKey:
+      numericId != null
+        ? referrerCommissionQueryKeys.testsByReferrer(numericId)
+        : ([...referrerCommissionQueryKeys.all, 'tests', 'disabled'] as const),
+    queryFn: numericId != null ? () => fetchReferrerTestCommissions(numericId) : skipToken,
+    enabled: Boolean(numericId) && enabled,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useUpdateReferrerTestCommission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      referrerId,
+      testId,
+      payload,
+    }: {
+      referrerId: number;
+      testId: number;
+      payload: UpdateReferrerTestCommissionOverridePayload;
+    }) => updateReferrerCommissionByTestId(referrerId, testId, payload),
+    onSuccess: (_data, { referrerId }) => {
+      queryClient.invalidateQueries({
+        queryKey: referrerCommissionQueryKeys.testsByReferrer(referrerId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: referrerCommissionQueryKeys.byReferrer(referrerId),
       });
     },
   });
