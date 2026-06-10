@@ -7,9 +7,10 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
-import { useCreateBloodCollector } from '@/app/Apis/collector/useCollectors';
+import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import { useCreateLabCoordinator } from '@/app/Apis/LabCoordinator/useLabCoordinators';
 
-export interface AddCollectorModalProps {
+export interface AddCoordinatorProps {
   isOpen: boolean;
   onSuccess?: () => void;
   onClose: () => void;
@@ -22,6 +23,8 @@ const initialForm = {
   phone: '',
   username: '',
   password: '',
+  department: '',
+  specialization: '',
   isVerified: true,
   isActive: true,
 };
@@ -35,16 +38,18 @@ function getErrorMessage(err: unknown): string {
     const server = res?.data?.message ?? res?.data?.error;
     if (typeof server === 'string') return server;
   }
-  return 'Failed to create blood collector.';
+  return 'Failed to create lab coordinator.';
 }
 
-export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCollectorModalProps) {
+export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordinatorProps) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  const createMutation = useCreateBloodCollector();
+  const createMutation = useCreateLabCoordinator();
 
   useEffect(() => {
     if (isOpen) {
@@ -60,7 +65,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
     (async () => {
       setLoadingBranches(true);
       try {
-        const res = await branchApi.getAllBranches({ pageNo: 0, pageSize: 200 });
+        const res = await branchApi.listBranchesAll({ page: 0, size: 100 });
         const list = res?.data?.content ?? [];
         if (cancelled) return;
         setBranches(list);
@@ -84,7 +89,35 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
     };
   }, [isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 10 });
+        const list = res?.data?.content ?? [];
+        if (cancelled) return;
+        setDepartments(list);
+      } catch {
+        if (!cancelled) {
+          setDepartments([]);
+          toast.error('Failed to load departments.');
+        }
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const el = e.target;
     const name = el.name;
 
@@ -110,6 +143,8 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
     if (!form.password.trim()) next.password = 'Password is required.';
     else if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
     if (!form.phone.trim()) next.phone = 'Phone is required.';
+    if (!form.department.trim()) next.department = 'Department is required.';
+    if (!form.specialization.trim()) next.specialization = 'Specialization is required.';
     const email = form.email.trim();
     if (!email) next.email = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
@@ -130,12 +165,18 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
         phone: form.phone.trim(),
         username: form.username.trim(),
         password: form.password,
-        isVerified: form.isVerified,
-        isActive: form.isActive,
+        department: form.department.trim(),
+        specialization: form.specialization.trim(),
+        isVerified: form.isVerified === true,
+        isActive: form.isActive === true,
       },
       {
         onSuccess: (res) => {
-          toast.success(res?.message?.trim() || 'Blood collector created successfully.');
+          if (res.response === false && res.status !== 'success') {
+            toast.error(res.message || 'Failed to create lab coordinator.');
+            return;
+          }
+          toast.success(res?.message?.trim() || 'Lab coordinator created successfully.');
           onSuccess?.();
           onClose();
         },
@@ -155,7 +196,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
       </Button>
       <Button
         type="submit"
-        form="blood-collector-form"
+        form="lab-coordinator-form"
         variant="gradient"
         className="flex-1 font-bold"
         disabled={pending}
@@ -166,7 +207,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
             Saving…
           </span>
         ) : (
-          'Save collector'
+          'Save coordinator'
         )}
       </Button>
     </div>
@@ -178,14 +219,14 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
       onClose={onClose}
       title={
         <>
-          Add <span className="text-emerald-200">blood collector</span>
+          Add <span className="text-emerald-200">lab coordinator</span>
         </>
       }
-      description="Register a new blood collector account"
+      description="Register a new lab coordinator account"
       footer={footer}
       maxWidth="md"
     >
-      <form id="blood-collector-form" onSubmit={handleSubmit} className="space-y-5">
+      <form id="lab-coordinator-form" onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="fullName" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
             Full name *
@@ -195,7 +236,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
             name="fullName"
             value={form.fullName}
             onChange={handleChange}
-            placeholder="Full Name"
+            placeholder="Enter Full Name"
             className={`border-slate-200 ${errors.fullName ? 'border-rose-300' : ''}`}
             disabled={pending}
           />
@@ -241,11 +282,64 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
               <AlertCircle size={12} aria-hidden /> {errors.branchId}
             </p>
           ) : null}
-          {!loadingBranches && branches.length === 0 ? (
-            <p className="text-xs text-amber-700 flex items-center gap-1">
-              <AlertCircle size={12} aria-hidden /> No branches found. Create a branch first.
-            </p>
-          ) : null}
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="department" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+              Department *
+            </Label>
+            {loadingDepartments ? (
+              <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                <Loader2 className="animate-spin text-emerald-600" size={16} aria-hidden />
+                Loading departments…
+              </div>
+            ) : (
+              <select
+                id="department"
+                name="department"
+                value={form.department}
+                onChange={handleChange}
+                className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  errors.department ? 'border-rose-300' : 'border-input'
+                }`}
+                disabled={pending || departments.length === 0}
+              >
+                <option value="" disabled>
+                  Select department
+                </option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.departmentName}>
+                    {dept.departmentName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.department ? (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle size={12} aria-hidden /> {errors.department}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="specialization" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+              Specialization *
+            </Label>
+            <Input
+              id="specialization"
+              name="specialization"
+              value={form.specialization}
+              onChange={handleChange}
+              placeholder="Enter Specialization"
+              className={`border-slate-200 ${errors.specialization ? 'border-rose-300' : ''}`}
+              disabled={pending}
+            />
+            {errors.specialization ? (
+              <p className="text-xs text-rose-600 flex items-center gap-1">
+                <AlertCircle size={12} aria-hidden /> {errors.specialization}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -258,7 +352,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
               name="username"
               value={form.username}
               onChange={handleChange}
-              placeholder="Username"
+              placeholder="Enter Username"
               autoComplete="username"
               className={`border-slate-200 ${errors.username ? 'border-rose-300' : ''}`}
               disabled={pending}
@@ -322,7 +416,7 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
               type="email"
               value={form.email}
               onChange={handleChange}
-              placeholder="Email"
+              placeholder="Enter Email"
               autoComplete="email"
               className={`border-slate-200 ${errors.email ? 'border-rose-300' : ''}`}
               disabled={pending}
@@ -334,10 +428,6 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
             ) : null}
           </div>
         </div>
-
-        <p className="text-xs text-slate-500 -mt-2">
-          Use the same phone number during user creation for blood collector login.
-        </p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">

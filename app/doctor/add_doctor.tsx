@@ -365,7 +365,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
               name="doctorName"
               value={formData.doctorName}
               onChange={handleChange}
-              placeholder="e.g. Dr. Sarah Smith"
+              placeholder="e.g. Dr. Doctor Name"
               className={`border-slate-200 ${errors.doctorName ? 'border-rose-300' : ''}`}
               disabled={pending}
             />
@@ -432,7 +432,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 name="specialization"
                 value={formData.specialization}
                 onChange={handleChange}
-                placeholder="e.g. Cardiology"
+                placeholder="e.g. Specialization Name"
                 className={`border-slate-200 ${errors.specialization ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
@@ -451,7 +451,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 name="hospitalName"
                 value={formData.hospitalName}
                 onChange={handleChange}
-                placeholder="e.g. City General Hospital"
+                placeholder="e.g. Hospital Name"
                 className={`border-slate-200 ${errors.hospitalName ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
@@ -474,7 +474,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  placeholder="dr.smith"
+                  placeholder="Username"
                   autoComplete="username"
                   className={`border-slate-200 ${errors.username ? 'border-rose-300' : ''}`}
                   disabled={pending}
@@ -519,7 +519,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 name="doctorPhone"
                 value={formData.doctorPhone}
                 onChange={handleChange}
-                placeholder="9876543221"
+                placeholder="+91-XX-XXXX-XXXX"
                 className={`border-slate-200 ${errors.doctorPhone ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
@@ -539,7 +539,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 type="email"
                 value={formData.doctorEmail}
                 onChange={handleChange}
-                placeholder="dr.sara@hospital.com"
+                placeholder="Email"
                 autoComplete="email"
                 className={`border-slate-200 ${errors.doctorEmail ? 'border-rose-300' : ''}`}
                 disabled={pending}

@@ -75,7 +75,6 @@ const NAV = [
         children: [
 
             { label: 'Invoices', href: '/diagnosis/invoice-list' },
-            { label: 'Referrers', href: '/referrer' },
             { label: 'Sample Tracking', href: '/SampleTracking' },
             { label: 'Report Entry', href: '/reports/reportEntry' },
         ],
@@ -103,7 +102,6 @@ const NAV = [
             { label: 'Test Categories', href: '/lab/categories' },
             { label: 'Test Department', href: '/lab/department' },
             { label: 'Reflex Rule', href: '/lab/reflex-rule' },
-            // { label: 'Test Sample ', href: '/lab/sample' },
             { label: 'Sample Receipt', href: '/lab/sample-receipt' },
             { label: 'Machine & Instrument', href: '/management/Machineinstrument' },
             { label: 'Test Result', href: '/lab/test-result' },
@@ -139,6 +137,7 @@ const NAV = [
             { label: 'Membership', href: '/member' },
             { label: 'Organization', href: '/organization' },
             { label: 'Lab Technicians', href: '/LabTechnician' },
+            { label: 'Lab Coordinator', href: '/LabCoordinator' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },

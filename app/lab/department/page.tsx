@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -9,7 +8,6 @@ import {
   MoreHorizontal,
   Edit2,
   Trash2,
-  Settings,
   LayoutGrid,
   ChevronDown,
   Eye,
@@ -19,21 +17,18 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
-  departmentApi,
   type Department,
   type CreateDepartmentInput,
 } from '@/app/Apis/lab/departmentApi';
 import {
   useDepartments,
-  useActiveDepartments,
-  useCreateDepartment,
-  useUpdateDepartment,
+  useDepartmentByCode,
   useDeleteDepartment,
-  useDepartmentById,
 } from '@/app/Apis/lab/departmentHooks';
 import AddDepartment from './new-department';
 import { DepartmentDetails } from '../department/details-view';
-import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
+import { departmentApi } from '@/app/Apis/lab/departmentApi';
+import { toast } from 'sonner';
 // ─── Components ───────────────────────────────────────────────────────────────
 function DepartmentActions({
   department,
@@ -72,11 +67,11 @@ function DepartmentActions({
       {open && (
         <>
           {/* Backdrop to close dropdown */}
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
           />
-          <div 
+          <div
             className="fixed w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: `${menuPosition.top}px`,
@@ -123,6 +118,7 @@ function DepartmentActions({
 
 export default function DepartmentsPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -132,7 +128,6 @@ export default function DepartmentsPage() {
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(10);
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<CreateDepartmentInput>({
     departmentCode: '',
@@ -148,40 +143,98 @@ export default function DepartmentsPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // React Query hooks for API integration
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setCurrentPage(0);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const isCodeSearch = debouncedSearch.length > 0;
+
   const {
     data: departmentsResponse,
-    isLoading,
-    refetch,
-  } = useDepartments({
-    pageNo: currentPage,
-    pageSize: pageSize,
-    name: search || undefined,
-    status: statusFilter,
-  });
+    isLoading: isListLoading,
+    refetch: refetchList,
+  } = useDepartments(
+    {
+      pageNo: currentPage,
+      pageSize: pageSize,
+      status: statusFilter,
+    },
+    { enabled: !isCodeSearch }
+  );
 
-  const createMutation = useCreateDepartment();
-  const updateMutation = useUpdateDepartment();
+  const {
+    data: departmentByCodeResponse,
+    isLoading: isCodeLoading,
+    isError: isCodeNotFound,
+    refetch: refetchByCode,
+  } = useDepartmentByCode(debouncedSearch);
+
   const deleteMutation = useDeleteDepartment();
 
-  const departments = departmentsResponse?.data?.content || [];
-  const totalPages = departmentsResponse?.data?.totalPages || 0;
-  const totalElements = departmentsResponse?.data?.totalElements || 0;
+  const departments = useMemo(() => {
+    if (!isCodeSearch) {
+      return departmentsResponse?.data?.content || [];
+    }
 
-  const handleEdit = (department: Department) => {
-    setEditingDepartment(department);
-    setFormData({
-      departmentCode: department.departmentCode,
-      departmentName: department.departmentName,
-      departmentNameShort: department.departmentNameShort || '',
-      description: department.description,
-      displayOrder: department.displayOrder || 1,
-      isActive: department.isActive,
-      branchId: department.branchId,
-      location: department.location || '',
-      tenantId: department.tenantId,
-    });
+    if (isCodeNotFound) {
+      return [];
+    }
+
+    const department = departmentByCodeResponse?.data;
+    if (!department) {
+      return [];
+    }
+
+    if (statusFilter === 'Active' && !department.isActive) {
+      return [];
+    }
+    if (statusFilter === 'Inactive' && department.isActive) {
+      return [];
+    }
+
+    return [department];
+  }, [
+    isCodeSearch,
+    isCodeNotFound,
+    departmentsResponse?.data?.content,
+    departmentByCodeResponse?.data,
+    statusFilter,
+  ]);
+
+  const isLoading = isCodeSearch ? isCodeLoading : isListLoading;
+  const totalPages = isCodeSearch ? 1 : departmentsResponse?.data?.totalPages || 0;
+  const totalElements = isCodeSearch ? departments.length : departmentsResponse?.data?.totalElements || 0;
+
+  const handleEdit = async (department: Department) => {
     setIsModalOpen(true);
+    setEditingDepartment(null); // optional: show loading in modal
+  
+  
+    try {
+      const response = await departmentApi.getDepartmentById(department.id);
+      const details = response.data;
+  
+      setEditingDepartment(details);
+      setFormData({
+        departmentCode: details.departmentCode,
+        departmentName: details.departmentName,
+        departmentNameShort: details.departmentNameShort || '',
+        description: details.description,
+        displayOrder: details.displayOrder || 1,
+        isActive: details.isActive,
+        branchId: details.branchId,
+        location: details.location || '',
+        tenantId: details.tenantId,
+      });
+    } catch (error) {
+      toast.error('Failed to load department details');
+      setIsModalOpen(false);
+    }
   };
 
   const handleView = (department: Department) => {
@@ -213,7 +266,7 @@ export default function DepartmentsPage() {
 
   const handleConfirmDelete = async () => {
     if (!deletingDepartmentId) return;
-    
+
     deleteMutation.mutate(deletingDepartmentId, {
       onSuccess: () => {
         setIsDeleteDialogOpen(false);
@@ -222,53 +275,12 @@ export default function DepartmentsPage() {
     });
   };
 
-  const handleSubmit = async (data: CreateDepartmentInput) => {
-    if (editingDepartment) {
-      updateMutation.mutate(
-        { id: editingDepartment.id, input: data },
-        {
-          onSuccess: (result) => {
-            if (result.response || result.status === 'success') {
-              setIsModalOpen(false);
-              setEditingDepartment(null);
-              setFormData({
-                departmentCode: '',
-                departmentName: '',
-                departmentNameShort: '',
-                description: '',
-                displayOrder: 1,
-                isActive: true,
-                branchId: 1,
-                location: '',
-                tenantId: 2,
-              });
-              if (viewingDepartment && editingDepartment) {
-                refetch();
-              }
-            }
-          },
-        }
-      );
+  const handleFormSuccess = async () => {
+    setEditingDepartment(null);
+    if (isCodeSearch) {
+      await refetchByCode();
     } else {
-      createMutation.mutate(data, {
-        onSuccess: (result) => {
-          if (result.response || result.status === 'success') {
-            setIsModalOpen(false);
-            setEditingDepartment(null);
-            setFormData({
-              departmentCode: '',
-              departmentName: '',
-              departmentNameShort: '',
-              description: '',
-              displayOrder: 1,
-              isActive: true,
-              branchId: data.branchId || undefined,
-              location: '',
-              tenantId: 2,
-            });
-          }
-        },
-      });
+      await refetchList();
     }
   };
 
@@ -327,7 +339,7 @@ export default function DepartmentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search departments..."
+            placeholder="Search by department code (e.g. CYT)..."
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             suppressHydrationWarning
           />
@@ -372,9 +384,6 @@ export default function DepartmentsPage() {
                   Branch ID
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Display Order
-                </th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   Status
                 </th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
@@ -395,7 +404,9 @@ export default function DepartmentsPage() {
               ) : departments.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                    No departments found. Create your first department to get started.
+                    {isCodeSearch
+                      ? `No department found with code "${debouncedSearch}".`
+                      : 'No departments found. Create your first department to get started.'}
                   </td>
                 </tr>
               ) : (
@@ -420,7 +431,7 @@ export default function DepartmentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-slate-700">
-                        {department.departmentNameShort || '-'}
+                        {department.departmentNameShort || department.departmentCode}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -430,12 +441,7 @@ export default function DepartmentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-slate-700">
-                        {department.branchName }
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-slate-900 font-mono">
-                        {department.displayOrder || '-'}
+                        {department.branchName}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -476,7 +482,7 @@ export default function DepartmentsPage() {
               size="sm"
               className="px-4 py-1 text-[10px]"
               onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
+              disabled={isCodeSearch || currentPage === 0}
               suppressHydrationWarning
             >
               Prev
@@ -489,7 +495,7 @@ export default function DepartmentsPage() {
               size="sm"
               className="px-4 py-1 text-[10px]"
               onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage >= totalPages - 1}
+              disabled={isCodeSearch || currentPage >= totalPages - 1}
               suppressHydrationWarning
             >
               Next
@@ -502,7 +508,7 @@ export default function DepartmentsPage() {
       <AddDepartment
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSubmit={handleSubmit}
+        onSubmit={handleFormSuccess}
         editData={editingDepartment}
       />
 

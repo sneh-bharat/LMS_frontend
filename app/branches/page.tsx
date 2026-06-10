@@ -116,6 +116,7 @@ export default function BranchesPage() {
     postalCode: string;
     contactEmail: string;
     contactPhone: string;
+    isActive?: boolean;
     status?: string;
   } | null>(null);
   const [branchRows, setBranchRows] = useState<Branch[]>([]);
@@ -209,6 +210,7 @@ export default function BranchesPage() {
       postalCode: branch.postalCode || '',
       contactEmail: branch.contactEmail || '',
       contactPhone: branch.contactPhone || '',
+      isActive: branch.isActive,
       status: branch.status || '',
     });
     setShowAddModal(true);

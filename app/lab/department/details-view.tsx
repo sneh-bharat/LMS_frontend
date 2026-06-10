@@ -119,12 +119,12 @@ export function DepartmentDetails({ isOpen, onClose, department, onEdit }: Depar
                             </div>
                         </div>
                     </div>
-                    <div className="text-right">
+                    {/* <div className="text-right">
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">Department ID</div>
                         <div className="text-xl font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 inline-block">
                             #{department.id}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Basic Info Grid */}
@@ -135,12 +135,7 @@ export function DepartmentDetails({ isOpen, onClose, department, onEdit }: Depar
                         </label>
                         <p className="text-sm font-bold text-slate-900 font-mono tracking-tight">{department.departmentCode}</p>
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                            <LayoutList size={10} /> Display Order
-                        </label>
-                        <p className="text-sm font-bold text-slate-900">{department.displayOrder ?? 'N/A'}</p>
-                    </div>
+                
                     <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
                             <Building2 size={10} /> Branch Name
@@ -224,19 +219,7 @@ export function DepartmentDetails({ isOpen, onClose, department, onEdit }: Depar
                         </div>
                     </div>
                 </div>
-
-                {/* Footer/Meta Section */}
-                <div className="pt-8 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Info size={14} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            Department ID: <span className="text-slate-900">#{department.id}</span>
-                        </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Branch: {department.branchId || 'N/A'}
-                    </span>
-                </div>
+              
             </div>
         </RightDrawer>
     );

@@ -42,6 +42,8 @@ interface AddFranchiseModalProps {
     postalCode: string;
     contactEmail: string;
     contactPhone: string;
+    isActive?: boolean;
+    status?: string;
   };
 }
 
@@ -62,12 +64,20 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset form when opened
+  // Reset form when opened or edit target changes
   useEffect(() => {
     if (isOpen) {
       resetForm();
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
+
+  const resolveInitialIsActive = (): boolean => {
+    if (typeof initialData?.isActive === 'boolean') return initialData.isActive;
+    const status = initialData?.status?.trim().toUpperCase();
+    if (status === 'ACTIVE') return true;
+    if (status === 'INACTIVE') return false;
+    return true;
+  };
 
   const resetForm = () => {
     setFormData({
@@ -80,9 +90,13 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
       postalCode: initialData?.postalCode || '',
       contactEmail: initialData?.contactEmail || '',
       contactPhone: initialData?.contactPhone || '',
-      isActive: true,
+      isActive: resolveInitialIsActive(),
     });
     setErrors({});
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, isActive: e.target.checked }));
   };
 
   const validate = (): boolean => {
@@ -126,8 +140,9 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
           postalCode: formData.postalCode.trim() || undefined,
           contactEmail: formData.contactEmail.trim().toLowerCase() || undefined,
           contactPhone: formData.contactPhone.trim() || undefined,
+          isActive: formData.isActive === true,
         };
-        
+
         await branchApi.updateBranch(Number(initialData.id), updateData);
         toast.success('Branch updated successfully!');
       } else {
@@ -142,7 +157,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
           postalCode: formData.postalCode.trim() || undefined,
           contactEmail: formData.contactEmail.trim().toLowerCase() || undefined,
           contactPhone: formData.contactPhone.trim() || undefined,
-          isActive: formData.isActive,
+          isActive: formData.isActive === true,
         };
         
         await branchApi.createBranch(branchData);
@@ -204,7 +219,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
             <Input
               value={formData.branchName}
               onChange={e => setFormData(p => ({ ...p, branchName: e.target.value }))}
-              placeholder="e.g., Main Branch"
+              placeholder="Enter Branch Name"
               className={errors.branchName ? 'border-rose-300' : 'border-slate-200'}
             />
             {errors.branchName && (
@@ -253,7 +268,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               <Input
                 value={formData.city}
                 onChange={e => setFormData(p => ({ ...p, city: e.target.value }))}
-                placeholder="e.g., Mumbai"
+                placeholder="Enter City"
               />
             </div>
             <div>
@@ -261,7 +276,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               <Input
                 value={formData.state}
                 onChange={e => setFormData(p => ({ ...p, state: e.target.value }))}
-                placeholder="e.g., Maharashtra"
+                placeholder="Enter State"
               />
             </div>
             <div>
@@ -269,7 +284,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               <Input
                 value={formData.postalCode}
                 onChange={e => setFormData(p => ({ ...p, postalCode: e.target.value }))}
-                placeholder="e.g., 400001"
+                placeholder="Enter Postal Code"
               />
             </div>
           </div>
@@ -306,7 +321,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
                 type="email"
                 value={formData.contactEmail}
                 onChange={e => setFormData(p => ({ ...p, contactEmail: e.target.value }))}
-                placeholder="e.g., branch@company.com"
+                placeholder="Enter Email"
                 className={errors.contactEmail ? 'border-rose-300' : 'border-slate-200'}
               />
               {errors.contactEmail && (
@@ -320,7 +335,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
                 type="tel"
                 value={formData.contactPhone}
                 onChange={e => setFormData(p => ({ ...p, contactPhone: e.target.value }))}
-                placeholder="e.g., +91 6207707624"
+                placeholder="+91-XX-XXXX-XXXX"
                 className={errors.contactPhone ? 'border-rose-300' : 'border-slate-200'}
               />
               {errors.contactPhone && (
@@ -339,18 +354,20 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
 
           <div>
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Status</Label>
-            <Select
-              value={formData.isActive ? 'ACTIVE' : 'INACTIVE'}
-              onValueChange={(value) => setFormData(p => ({ ...p, isActive: value === 'ACTIVE' }))}
-            >
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="INACTIVE">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+              <input
+                id="isActive"
+                name="isActive"
+                type="checkbox"
+                checked={formData.isActive === true}
+                onChange={handleCheckboxChange}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                disabled={isSubmitting}
+              />
+              <Label htmlFor="isActive" className="text-sm font-semibold text-slate-800 cursor-pointer mb-0">
+                Active branch
+              </Label>
+            </div>
           </div>
         </section>
       </form>

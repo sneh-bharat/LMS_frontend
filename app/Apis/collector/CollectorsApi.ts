@@ -9,6 +9,7 @@ export interface BloodCollector {
   phone?: string;
   role?: string;
   branchId?: number;
+  branchName?: string;
   tenantId?: number;
   isVerified?: boolean | null;
   isActive?: boolean | null;
@@ -89,6 +90,8 @@ export interface BloodCollectorMutationApiResponse {
   timestamp?: string;
 }
 
+export type BloodCollectorDetailResponse = BloodCollectorMutationApiResponse;
+
 /** POST `/api/v1/blood-collectors/create` request body. */
 export interface CreateBloodCollectorPayload {
   username: string;
@@ -98,6 +101,40 @@ export interface CreateBloodCollectorPayload {
   phone: string;
   branchId: number;
   isVerified: boolean;
+  isActive: boolean;
+}
+
+/** PUT `/api/v1/blood-collectors/{id}` request body. */
+export interface UpdateBloodCollectorPayload {
+  username: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  branchId: number;
+  isVerified: boolean;
+  isActive: boolean;
+  password?: string;
+}
+
+/**
+ * GET `{NEXT_PUBLIC_API_AUTH}/api/v1/blood-collectors/{id}`
+ */
+export async function fetchBloodCollectorById(
+  id: number
+): Promise<BloodCollectorDetailResponse> {
+  return collectorAxios.get(`/api/v1/blood-collectors/${id}`) as Promise<BloodCollectorDetailResponse>;
+}
+
+/**
+ * GET `{NEXT_PUBLIC_API_AUTH}/api/v1/blood-collectors/username/{username}`
+ */
+export async function fetchBloodCollectorByUsername(
+  username: string
+): Promise<BloodCollectorDetailResponse> {
+  const encodedUsername = encodeURIComponent(username.trim());
+  return collectorAxios.get(
+    `/api/v1/blood-collectors/username/${encodedUsername}`
+  ) as Promise<BloodCollectorDetailResponse>;
 }
 
 /**
@@ -108,6 +145,19 @@ export async function createBloodCollector(
 ): Promise<BloodCollectorMutationApiResponse> {
   return collectorAxios.post(
     '/api/v1/blood-collectors/create',
+    payload
+  ) as Promise<BloodCollectorMutationApiResponse>;
+}
+
+/**
+ * PUT `{NEXT_PUBLIC_API_AUTH}/api/v1/blood-collectors/{id}` — update a blood collector.
+ */
+export async function updateBloodCollector(
+  id: number,
+  payload: UpdateBloodCollectorPayload
+): Promise<BloodCollectorMutationApiResponse> {
+  return collectorAxios.put(
+    `/api/v1/blood-collectors/${id}`,
     payload
   ) as Promise<BloodCollectorMutationApiResponse>;
 }

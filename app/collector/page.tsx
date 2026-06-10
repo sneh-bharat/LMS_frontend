@@ -5,17 +5,29 @@ import {
   AlertCircle,
   ChevronDown,
   Database,
+  Eye,
   Filter,
   Loader,
   Mail,
+  MoreHorizontal,
+  Pencil,
   Phone,
   RefreshCw,
   Search,
+  Trash2,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
+import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 import {
   getCollectorName,
   getCollectorPhone,
@@ -24,38 +36,140 @@ import {
   isCollectorActive,
   type BloodCollector,
 } from '@/app/Apis/collector/CollectorsApi';
-import { useBloodCollectorsList } from '@/app/Apis/collector/useCollectors';
+import { useBloodCollectorsList, useBloodCollectorByUsername } from '@/app/Apis/collector/useCollectors';
 import AddCollectorModal from './AddCollectorModal';
+import EditCollector from './EditCollector';
+import CollectorDetails from './CollectorDetails';
 
 const PAGE_SIZE = 10;
 
 type SearchBy = 'Name' | 'Username' | 'Phone' | 'Email';
 
+function CollectorActions({
+  collector,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  collector: BloodCollector;
+  onView: (collector: BloodCollector) => void;
+  onEdit: (collector: BloodCollector) => void;
+  onDelete: (collector: BloodCollector) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+            aria-label="Collector actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-44 p-1.5 rounded-2xl border-slate-100 shadow-2xl"
+      >
+        <DropdownMenuItem
+          onClick={() => onView(collector)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+        >
+          <Eye size={14} />
+          View
+        </DropdownMenuItem>
+        {/* <DropdownMenuItem
+          onClick={() => onEdit(collector)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+        >
+          <Pencil size={14} />
+          Edit
+        </DropdownMenuItem> */}
+        {/* <DropdownMenuItem
+          onClick={() => onDelete(collector)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-red-600 focus:bg-red-50 focus:text-red-700"
+        >
+          <Trash2 size={14} />
+          Delete
+        </DropdownMenuItem> */}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function CollectorListPage() {
   const [pageNo, setPageNo] = useState(0);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchBy, setSearchBy] = useState<SearchBy>('Name');
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editCollectorId, setEditCollectorId] = useState<number | null>(null);
+  const [viewCollector, setViewCollector] = useState<BloodCollector | null>(null);
+  const [deleteCollector, setDeleteCollector] = useState<BloodCollector | null>(null);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useBloodCollectorsList({
-    page: pageNo,
-    size: PAGE_SIZE,
+  const isUsernameApiSearch =
+    searchBy === 'Username' && debouncedSearch.length > 0;
+
+  const {
+    data,
+    isLoading: isListLoading,
+    isError: isListError,
+    error: listError,
+    refetch: refetchList,
+    isFetching: isListFetching,
+  } = useBloodCollectorsList(
+    { page: pageNo, size: PAGE_SIZE },
+    { enabled: !isUsernameApiSearch }
+  );
+
+  const {
+    data: collectorByUsernameResponse,
+    isLoading: isUsernameLoading,
+    isError: isUsernameNotFound,
+    refetch: refetchByUsername,
+    isFetching: isUsernameFetching,
+  } = useBloodCollectorByUsername(debouncedSearch, {
+    enabled: isUsernameApiSearch,
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText.trim());
+      setPageNo(0);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   useEffect(() => {
     setPageNo(0);
   }, [searchBy]);
 
   const page = data?.data;
-  const rows = page?.content ?? [];
+
+  const rows = useMemo(() => {
+    if (isUsernameApiSearch) {
+      if (isUsernameNotFound) return [];
+      const collector = collectorByUsernameResponse?.data;
+      return collector ? [collector] : [];
+    }
+    return page?.content ?? [];
+  }, [
+    isUsernameApiSearch,
+    isUsernameNotFound,
+    collectorByUsernameResponse?.data,
+    page?.content,
+  ]);
 
   const filteredRows = useMemo(() => {
+    if (isUsernameApiSearch) return rows;
+
     const term = searchText.trim().toLowerCase();
     if (!term) return rows;
     return rows.filter((row) => {
-      if (searchBy === 'Username') {
-        return (row.username ?? '').toLowerCase().includes(term);
-      }
       if (searchBy === 'Phone') {
         const phone = getCollectorPhone(row).replace(/\D/g, '');
         const digits = term.replace(/\D/g, '');
@@ -66,12 +180,35 @@ export default function CollectorListPage() {
       }
       return getCollectorName(row).toLowerCase().includes(term);
     });
-  }, [rows, searchText, searchBy]);
+  }, [rows, searchText, searchBy, isUsernameApiSearch]);
 
-  const totalPages = page?.totalPages ?? 0;
-  const totalElements = page?.totalElements ?? 0;
-  const canPrev = pageNo > 0;
-  const canNext = page ? !page.last : false;
+  const isLoading = isUsernameApiSearch ? isUsernameLoading : isListLoading;
+  const isFetching = isUsernameApiSearch ? isUsernameFetching : isListFetching;
+  const isError = isListError;
+  const error = listError;
+
+  const totalPages = isUsernameApiSearch ? 1 : page?.totalPages ?? 0;
+  const totalElements = isUsernameApiSearch
+    ? filteredRows.length
+    : page?.totalElements ?? 0;
+  const canPrev = !isUsernameApiSearch && pageNo > 0;
+  const canNext = !isUsernameApiSearch && page ? !page.last : false;
+
+  const handleRefresh = () => {
+    if (isUsernameApiSearch) {
+      void refetchByUsername();
+    } else {
+      void refetchList();
+    }
+  };
+
+  const handleFormSuccess = () => {
+    if (isUsernameApiSearch) {
+      void refetchByUsername();
+    } else {
+      void refetchList();
+    }
+  };
 
   const formatCreatedAt = (value?: string) => {
     if (!value) return '—';
@@ -84,12 +221,55 @@ export default function CollectorListPage() {
     });
   };
 
+  const handleView = (collector: BloodCollector) => {
+    setViewCollector(collector);
+  };
+
+  const handleEdit = (collector: BloodCollector) => {
+    setEditCollectorId(collector.id);
+  };
+
+  const handleDelete = (collector: BloodCollector) => {
+    setDeleteCollector(collector);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteCollector) return;
+    toast.error('Delete blood collector is not available yet.');
+    setDeleteCollector(null);
+  };
+
   return (
     <>
       <AddCollectorModal
         isOpen={addModalOpen}
-        onSuccess={() => refetch()}
+        onSuccess={handleFormSuccess}
         onClose={() => setAddModalOpen(false)}
+      />
+
+      <EditCollector
+        isOpen={editCollectorId !== null}
+        collectorId={editCollectorId}
+        onSuccess={handleFormSuccess}
+        onClose={() => setEditCollectorId(null)}
+      />
+
+      <CollectorDetails
+        isOpen={Boolean(viewCollector)}
+        collector={viewCollector}
+        onClose={() => setViewCollector(null)}
+        onEdit={(collector) => {
+          setViewCollector(null);
+          handleEdit(collector);
+        }}
+      />
+
+      <DeleteAlertDialog
+        isOpen={Boolean(deleteCollector)}
+        onClose={() => setDeleteCollector(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete blood collector"
+        description={`Are you sure you want to delete ${deleteCollector ? getCollectorName(deleteCollector) : 'this collector'}? This action cannot be undone.`}
       />
 
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -127,7 +307,11 @@ export default function CollectorListPage() {
               type="search"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search collectors…"
+              placeholder={
+                searchBy === 'Username'
+                  ? 'Search by username (exact match)…'
+                  : 'Search collectors…'
+              }
               className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
               aria-label="Search collectors"
               disabled={isLoading}
@@ -155,7 +339,7 @@ export default function CollectorListPage() {
               variant="outline"
               size="sm"
               className="rounded-lg p-2.5 border-slate-200 shrink-0"
-              onClick={() => refetch()}
+              onClick={handleRefresh}
               disabled={isLoading || isFetching}
               title="Refresh list"
             >
@@ -170,7 +354,7 @@ export default function CollectorListPage() {
             <span className="font-medium">
               {error instanceof Error ? error.message : 'Failed to load blood collectors.'}
             </span>
-            <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={() => refetch()}>
+            <Button type="button" variant="outline" size="sm" className="ml-auto font-bold" onClick={handleRefresh}>
               Retry
             </Button>
           </div>
@@ -181,7 +365,7 @@ export default function CollectorListPage() {
             <Loader className="text-slate-400 animate-spin" size={32} aria-hidden />
             <p className="text-slate-600 font-medium">Loading blood collectors…</p>
           </div>
-        ) : rows.length === 0 ? (
+        ) : !isUsernameApiSearch && rows.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
             No blood collectors found.
           </div>
@@ -200,9 +384,7 @@ export default function CollectorListPage() {
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       Phone
                     </th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      Email
-                    </th>
+                    
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       Role
                     </th>
@@ -218,13 +400,18 @@ export default function CollectorListPage() {
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                       Created
                     </th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">
-                        No matches on this page for your search.
+                        {isUsernameApiSearch
+                          ? `No collector found with username "${debouncedSearch}".`
+                          : 'No matches on this page for your search.'}
                       </td>
                     </tr>
                   ) : (
@@ -262,21 +449,7 @@ export default function CollectorListPage() {
                               {getCollectorPhone(row)}
                             </div>
                           </td>
-                          <td className="px-6 py-5 max-w-55">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
-                              <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                              {row.email?.trim() ? (
-                                <a
-                                  href={`mailto:${row.email.trim()}`}
-                                  className="truncate hover:text-emerald-700 transition-colors"
-                                >
-                                  {row.email.trim()}
-                                </a>
-                              ) : (
-                                '—'
-                              )}
-                            </div>
-                          </td>
+                        
                           <td className="px-6 py-5">
                             <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wide">
                               {row.role?.trim() || '—'}
@@ -307,10 +480,18 @@ export default function CollectorListPage() {
                             </Badge>
                           </td>
                           <td className="px-6 py-5 text-center text-sm font-semibold text-slate-700">
-                            {row.branchId ?? '—'}
+                            {row?.branchName?.trim() || '—'}
                           </td>
                           <td className="px-6 py-5 text-center text-xs font-medium text-slate-500">
                             {formatCreatedAt(row.createdAt)}
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <CollectorActions
+                              collector={row}
+                              onView={handleView}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                            />
                           </td>
                         </tr>
                       );

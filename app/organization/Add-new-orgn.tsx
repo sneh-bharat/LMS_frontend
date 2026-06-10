@@ -277,7 +277,7 @@ export default function AddNewOrganization({
               value={form.orgName}
               onChange={(e) => set('orgName')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="e.g. Acme Healthcare Pvt Ltd"
+              placeholder="Enter Organization Name"
               required
               disabled={submitting}
             />
@@ -305,7 +305,7 @@ export default function AddNewOrganization({
               value={form.shortName}
               onChange={(e) => set('shortName')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="e.g. Acme HC"
+              placeholder="Enter Short Name"
               disabled={submitting}
             />
           </Field>
@@ -314,7 +314,7 @@ export default function AddNewOrganization({
               value={form.orgCode}
               onChange={(e) => set('orgCode')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="e.g. ACME-001"
+              placeholder="Enter Organization Code"
               disabled={submitting}
             />
           </Field>
@@ -323,7 +323,7 @@ export default function AddNewOrganization({
               value={form.registrationNumber}
               onChange={(e) => set('registrationNumber')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="e.g. REG-2026-001"
+              placeholder="Enter Registration Number"
               disabled={submitting}
             />
           </Field>
@@ -345,7 +345,7 @@ export default function AddNewOrganization({
               value={form.primaryPhone}
               onChange={(e) => set('primaryPhone')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="9876543210"
+              placeholder="+91-XX-XXXX-XXXX"
               disabled={submitting}
             />
           </Field>
@@ -364,7 +364,7 @@ export default function AddNewOrganization({
               value={form.email}
               onChange={(e) => set('email')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="contact@example.com"
+              placeholder="Enter Email"
               disabled={submitting}
             />
           </Field>
@@ -374,7 +374,7 @@ export default function AddNewOrganization({
               value={form.website}
               onChange={(e) => set('website')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="https://"
+              placeholder="Enter Website"
               disabled={submitting}
             />
           </Field>
@@ -387,6 +387,7 @@ export default function AddNewOrganization({
               onChange={(e) => set('contactPersonName')(e.target.value)}
               className={INPUT_CLASS}
               disabled={submitting}
+              placeholder="Enter Contact Person Name"
             />
           </Field>
           <Field label="Designation">
@@ -395,6 +396,7 @@ export default function AddNewOrganization({
               onChange={(e) => set('contactPersonDesignation')(e.target.value)}
               className={INPUT_CLASS}
               disabled={submitting}
+              placeholder="Enter Contact Person Designation"
             />
           </Field>
           <Field label="Phone">
@@ -403,6 +405,7 @@ export default function AddNewOrganization({
               onChange={(e) => set('contactPersonPhone')(e.target.value)}
               className={INPUT_CLASS}
               disabled={submitting}
+               placeholder="+91-XX-XXXX-XXXX"
             />
           </Field>
           <Field label="Email">
@@ -412,6 +415,7 @@ export default function AddNewOrganization({
               onChange={(e) => set('contactPersonEmail')(e.target.value)}
               className={INPUT_CLASS}
               disabled={submitting}
+              placeholder="Enter Contact Person Email"
             />
           </Field>
         </FormSection>
@@ -424,7 +428,7 @@ export default function AddNewOrganization({
               value={form.paymentTermsDays}
               onChange={(e) => set('paymentTermsDays')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="30"
+              placeholder="Enter Payment Terms Days"
               disabled={submitting}
             />
           </Field>

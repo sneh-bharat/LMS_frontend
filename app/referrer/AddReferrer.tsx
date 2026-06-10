@@ -266,7 +266,7 @@ export default function AddReferrer({
             setForm((f) => ({ ...f, name: e.target.value }));
             if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
           }}
-          placeholder="Dr. John Smith"
+          placeholder="Referrer Name"
           disabled={pending}
           className={errors.name ? 'border-rose-300' : ''}
         />
@@ -286,7 +286,7 @@ export default function AddReferrer({
               setForm((f) => ({ ...f, username: e.target.value }));
               if (errors.username) setErrors((prev) => ({ ...prev, username: '' }));
             }}
-            placeholder="referrer_john"
+            placeholder="Username"
             disabled={pending}
             className={errors.username ? 'border-rose-300' : ''}
           />
@@ -329,7 +329,7 @@ export default function AddReferrer({
                 setForm((f) => ({ ...f, mobile: e.target.value }));
                 if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: '' }));
               }}
-              placeholder="+1234567890"
+              placeholder="+91-XX-XXXX-XXXX"
               disabled={pending}
               className={errors.mobile ? 'border-rose-300' : ''}
             />
@@ -350,7 +350,7 @@ export default function AddReferrer({
               setForm((f) => ({ ...f, phone: e.target.value }));
               if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
             }}
-            placeholder={isEdit ? '+1234567899' : 'Same as mobile if empty'}
+            placeholder='+91-XX-XXXX-XXXX'
             disabled={pending}
             className={errors.phone ? 'border-rose-300' : ''}
           />
@@ -371,7 +371,7 @@ export default function AddReferrer({
             setForm((f) => ({ ...f, email: e.target.value }));
             if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
           }}
-          placeholder="john.smith@hospital.com"
+          placeholder="Email"
           disabled={pending}
           className={errors.email ? 'border-rose-300' : ''}
         />
