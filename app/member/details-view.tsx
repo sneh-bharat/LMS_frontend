@@ -171,14 +171,14 @@ function MemberCardDetailsBody({ card }: { card: MemberCard }) {
             </label>
             <p className="text-sm font-bold text-slate-900">{getMemberCardOrganization(card)}</p>
           </div>
-          <div className="space-y-1">
+          {/* <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
               <Mail size={10} className="text-emerald-500" />
               Email
             </label>
             <p className="text-sm font-bold text-slate-900">{card.email?.trim() || '—'}</p>
-          </div>
-          <div className="space-y-1">
+          </div> */}
+          {/* <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
               <Phone size={10} className="text-emerald-500" />
               Phone
@@ -186,7 +186,7 @@ function MemberCardDetailsBody({ card }: { card: MemberCard }) {
             <p className="text-sm font-bold text-slate-900">
               {card.phone?.trim() || card.mobile?.trim() || '—'}
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
 
