@@ -163,12 +163,28 @@ export default function AddDepartment({
     try {
       if (editData) {
         console.log('Updating department with data:', formData);
-       
-        await departmentApi.updateDepartment(editData.id, formData);
+        const response = await departmentApi.updateDepartment(editData.id, formData);
+        
+        // Validate API response - check both response flag and status
+        if (!response.response && response.status !== 'success') {
+          toast.error(response.message || 'Failed to update department');
+          setLoading(false);
+          return;
+        }
+        
         toast.success('Department updated successfully!');
       } else {
         console.log('Creating department with data:', formData);
-        await departmentApi.createDepartment(formData);
+        const response = await departmentApi.createDepartment(formData);
+        
+        // ✅ KEY FIX: Validate API response - check both response flag and status
+        // This prevents showing success when the API returns an error message
+        if (!response.response && response.status !== 'success') {
+          toast.error(response.message || 'Failed to create department');
+          setLoading(false);
+          return;
+        }
+        
         toast.success('Department created successfully!');
       }
       onSubmit(formData);
@@ -176,6 +192,7 @@ export default function AddDepartment({
     } catch (error: any) {
       console.error('Failed to save department:', error);
       const errorMessage = error?.response?.data?.message || 
+                          error?.message ||
                           'Failed to save department. Please try again.';
       toast.error(errorMessage);
     } finally {

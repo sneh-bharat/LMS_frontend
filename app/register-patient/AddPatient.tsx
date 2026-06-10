@@ -30,7 +30,8 @@ import {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'TRANSGENDER'];
+// Fallback used while API options are loading or if the request fails
+const GENDERS_FALLBACK = ['MALE', 'FEMALE', 'OTHER', 'TRANSGENDER'];
 const BLOOD_GROUPS = ['A_POS', 'A_NEG', 'B_POS', 'B_NEG', 'AB_POS', 'AB_NEG', 'O_POS', 'O_NEG'];
 const ADDRESS_TYPES = ['HOME', 'OFFICE', 'PERMANENT', 'COMMUNICATION'];
 const ALLERGY_SEVERITY = ['Mild', 'Moderate', 'Severe'];
@@ -147,6 +148,9 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
     } else if (!/^[6-9]\d{9}$/.test(formData.mobilePrimary.replace(/\D/g, ''))) {
       newErrors.mobilePrimary = 'Primary mobile must be a valid 10-digit Indian number';
     }
+    if (formData.abhaId && formData.abhaId.length !== 14 && formData.abhaId.length !== 17) {
+      newErrors.abhaId = 'ABHA ID must be 14 or 17 digits';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -159,7 +163,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
     try {
       const patientDTO: CreatePatientInput = {
         firstName: formData.firstName.trim(),
-        middleName: formData.middleName.trim() || undefined,
+        middleName: formData.middleName.trim() || null,
         lastName: formData.lastName.trim(),
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender as any,
@@ -324,7 +328,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold"
               >
                 <option value="">Select...</option>
-                {GENDERS.map(g => <option key={g}>{g}</option>)}
+                {GENDERS_FALLBACK.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
@@ -353,9 +357,15 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">ABHA ID (Digital Health ID)</Label>
             <Input
               value={formData.abhaId}
-              onChange={e => setFormData(p => ({ ...p, abhaId: e.target.value }))}
-              placeholder="14-digit Health ID"
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '');
+                setFormData(p => ({ ...p, abhaId: val }));
+              }}
+              placeholder="14 or 17 digit Health ID"
+              maxLength={17}
+              className={errors.abhaId ? 'border-rose-300' : 'border-slate-200'}
             />
+            {errors.abhaId && <p className="text-[10px] text-rose-500 mt-1 font-semibold">{errors.abhaId}</p>}
           </div>
         </section>
 
@@ -373,7 +383,9 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                 onChange={e => setFormData(p => ({ ...p, mobilePrimary: e.target.value }))}
                 placeholder="9876543210"
                 maxLength={10}
+                className={errors.mobilePrimary ? 'border-rose-300' : 'border-slate-200'}
               />
+              {errors.mobilePrimary && <p className="text-[10px] text-rose-500 mt-1 font-semibold">{errors.mobilePrimary}</p>}
             </div>
             <div>
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Alternate Mobile</Label>

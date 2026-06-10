@@ -110,7 +110,7 @@ export interface ReferrerCommissionRangeTestItem {
   commissionAmount: number;
 }
 export interface ReferrerCommissionPaySummary {
-  doctorId: number;
+  referrerId: number;
   totalOrderAmount: number;
   totalPaid: number;
   totalOrders: number;
@@ -129,7 +129,7 @@ export interface ReferrerCommissionPayApiResponse {
 }
 
 export interface ReferrerCommissionPayRangeParams {
-  doctorId: number;
+  referrerId: number;
   startDate: string;
   endDate: string;
 }
@@ -160,6 +160,45 @@ export interface ReferrerCommissionCalculationApiResponse {
   timestamp: string;
 }
 
+/** Per-test commission row from GET `/api/v1/commissions/referrer/{referrerId}/tests`. */
+export interface ReferrerTestCommission {
+  testId: number;
+  testCode: string;
+  testName: string;
+  mrpPrice: number;
+  finalPrice: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+}
+
+export interface ReferrerTestCommissionListApiResponse {
+  data: ReferrerTestCommission[];
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
+export interface UpdateReferrerTestCommissionOverridePayload {
+  commissionPercentage: number;
+}
+
+/** Mark-paid POST response payload. */
+export interface MarkReferrerCommissionPaidData {
+  recordId: number;
+  isPaid: boolean;
+  totalOrderAmount: number;
+  paidDate: string;
+  referrerId: number;
+  endDate: string;
+  transactionReference?: string;
+  paymentMethod: string;
+  totalCommission: number;
+  paidAmount: number;
+  startDate: string;
+  pendingAmount: number;
+}
+
 /**
  * POST `/api/v1/commissions/referrer` — create referrer commission.
  */
@@ -184,11 +223,11 @@ export async function fetchReferrerCommissions(
 
 
 /**
- * GET commission by doctor for a date range — booking service
- * `/api/v1/commissions/calculate/doctor/{doctorId}/range?startDate=&endDate=`.
+ * GET `/api/v1/referrer-commissions/calculate/referrer/{referrerId}/range?startDate=&endDate=`
+ * — calculate referrer commission for a specific date range.
  */
 export async function fetchReferrerCommissionPayByRange({
-  doctorId,
+  referrerId,
   startDate,
   endDate,
 }: ReferrerCommissionPayRangeParams): Promise<ReferrerCommissionPayApiResponse> {
@@ -197,7 +236,7 @@ export async function fetchReferrerCommissionPayByRange({
     endDate: endDate.trim(),
   });
   return bookingAxios.get(
-    `/referrer-commissions/calculate/referrer/${doctorId}/range?${params.toString()}`
+    `/referrer-commissions/calculate/referrer/${referrerId}/range?${params.toString()}`
   ) as Promise<ReferrerCommissionPayApiResponse>;
 }
 
@@ -241,8 +280,6 @@ export async function markReferrerCommissionPaid({
 }: MarkReferrerCommissionPaidParams): Promise<ReferrerCommissionApiResponse> {
   const params = new URLSearchParams({
     startDate: startDate.trim(),
-
-    
     endDate: endDate.trim(),
     amount: String(amount),
     paymentMethod: paymentMethod.trim(),
@@ -279,5 +316,33 @@ export async function deleteReferrerCommissionById(
 ): Promise<ReferrerCommissionApiResponse> {
   return commissionAxios.delete(
     `/api/v1/commissions/referrer/${commissionId}`
+  ) as Promise<ReferrerCommissionApiResponse>;
+}
+
+/**
+ * GET `/api/v1/commissions/referrer/{referrerId}/tests` — list per-test commission for a referrer.
+ */
+export async function fetchReferrerTestCommissions(
+  referrerId: number
+): Promise<ReferrerTestCommissionListApiResponse> {
+  return commissionAxios.get(
+    `/api/v1/commissions/referrer/${referrerId}/tests`
+  ) as Promise<ReferrerTestCommissionListApiResponse>;
+}
+
+/**
+ * PUT `/api/v1/commissions/referrer/{referrerId}/tests/{testId}/override?commissionPercentage=`
+ * — update per-test commission override (percentage) for a referrer.
+ */
+export async function updateReferrerCommissionByTestId(
+  referrerId: number,
+  testId: number,
+  payload: UpdateReferrerTestCommissionOverridePayload
+): Promise<ReferrerCommissionApiResponse> {
+  const params = new URLSearchParams({
+    commissionPercentage: String(payload.commissionPercentage),
+  });
+  return commissionAxios.put(
+    `/api/v1/commissions/referrer/${referrerId}/tests/${testId}/override?${params.toString()}`
   ) as Promise<ReferrerCommissionApiResponse>;
 }

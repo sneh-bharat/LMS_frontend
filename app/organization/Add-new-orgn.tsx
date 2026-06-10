@@ -327,24 +327,6 @@ export default function AddNewOrganization({
               disabled={submitting}
             />
           </Field>
-          <Field label="Select Branch" required>
-            <Select
-              value={form.targetBranchId}
-              onValueChange={(v) => set('targetBranchId')(v ?? '')}
-              disabled={submitting || isLoadingBranches}
-            >
-              <SelectTrigger className={`${INPUT_CLASS} font-bold`}>
-                <SelectValue placeholder={isLoadingBranches ? "Loading branches..." : "Select branch"} />
-              </SelectTrigger>
-              <SelectContent>
-                {branchesData?.data?.content?.map((branch) => (
-                  <SelectItem key={branch.id} value={String(branch.id)}>
-                    {branch.branchName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
         </FormSection>
 
         <FormSection title="Address & contact">

@@ -63,7 +63,6 @@ const NAV = [
             { label: 'Tracking Order', href: '/diagnosis/tracking-order' },
             { label: 'Estimation', href: '/diagnosis/estimation' },
             { label: 'Polyclinic Booking', href: '/polyclinic/booking' },
-            { label: 'Find Register Patient', href: '/register-patient' },
             { label: 'Appointments', href: '/Appointments' },
             { label: 'Test Order', href: '/lab/test-order' },
 
@@ -99,7 +98,7 @@ const NAV = [
         icon: <Microscope size={20} />,
         children: [
             { label: 'Test Packages', href: '/lab/test-packages' },
-            { label: 'Units', href: '/lab/units' },
+            // { label: 'Units', href: '/lab/units' },
             { label: 'Tests', href: '/lab/tests' },
             { label: 'Test Categories', href: '/lab/categories' },
             { label: 'Test Department', href: '/lab/department' },

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  Building2,
   ChevronDown,
   CreditCard,
   Eye,
@@ -30,13 +29,7 @@ import { Input } from '@/components/ui/input';
 import {
   ConfirmAlertDialog,
   DeleteAlertDialog,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from '@/components/ui';
-import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,10 +80,7 @@ import EditMemberCard from './edit-member';
 import MemberCardTransactionsDetails from './TransactionsDetails';
 
 const PAGE_SIZE = 10;
-const DEFAULT_BRANCH_ID = 1;
 
-const filterLabelClass =
-  'text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1';
 const inputClass =
   'h-11 rounded-xl border-slate-200 bg-white/80 hover:bg-white transition-all font-bold shadow-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500';
 
@@ -227,7 +217,6 @@ function MemberCardActions({
 
 export default function MembersPage() {
   const [pageNo, setPageNo] = useState(0);
-  const [branchId, setBranchId] = useState(String(DEFAULT_BRANCH_ID));
   const [search, setSearch] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
@@ -257,40 +246,10 @@ export default function MembersPage() {
   const [cardToApprove, setCardToApprove] = useState<MemberCard | null>(null);
   const [isLowBalanceOnly, setIsLowBalanceOnly] = useState(false);
   const [isExpiringOnly, setIsExpiringOnly] = useState(false);
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [dateRangeFilter, setDateRangeFilter] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
   });
-
-
-  const { data: branchesData, isLoading: isLoadingBranches } = useBranchesAll({ size: 100 });
-  const branches = branchesData?.data?.content ?? [];
-
-  const parsedBranchId = useMemo(() => {
-    const id = Number.parseInt(branchId.trim(), 10);
-    return Number.isFinite(id) && id > 0 ? id : null;
-  }, [branchId]);
-
-  const selectedBranch = useMemo(
-    () => branches.find((b) => String(b.id) === branchId),
-    [branches, branchId]
-  );
-
-  const selectedBranchName = selectedBranch?.branchName?.trim() || null;
-
-  useEffect(() => {
-    if (branches.length === 0) return;
-
-    const currentValid = branches.some((b) => String(b.id) === branchId);
-    if (currentValid) return;
-
-    const defaultBranch =
-      branches.find((b) => b.id === DEFAULT_BRANCH_ID) ?? branches[0];
-    if (defaultBranch) {
-      setBranchId(String(defaultBranch.id));
-    }
-  }, [branches, branchId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -303,8 +262,9 @@ export default function MembersPage() {
 
   useEffect(() => {
     setPageNo(0);
-  }, [parsedBranchId, typeFilter, statusFilter, dateRange, debouncedSearchTerm, isLowBalanceOnly, isExpiringOnly, dateRangeFilter]);
+  }, [typeFilter, statusFilter, dateRange, debouncedSearchTerm, isLowBalanceOnly, isExpiringOnly, dateRangeFilter]);
 
+  // ✅ FIXED: Load statistics without branch filter
   const {
     data: statisticsRes,
     isLoading: isStatisticsLoading,
@@ -312,10 +272,7 @@ export default function MembersPage() {
     error: statisticsError,
     isFetching: isStatisticsFetching,
     refetch: refetchStatistics,
-  } = useMemberCardStatistics(
-    { branchId: parsedBranchId ?? undefined },
-    { enabled: parsedBranchId != null && !isSearchActive }
-  );
+  } = useMemberCardStatistics({}, { enabled: !isSearchActive });
 
   const statistics = statisticsRes?.data ?? null;
 
@@ -325,7 +282,7 @@ export default function MembersPage() {
     isFetching: isFetchingLowBalance,
     refetch: refetchLowBalance,
   } = useLowBalanceMemberCards(
-    { thresholdPercentage: 50, branchId: parsedBranchId ?? undefined },
+    { thresholdPercentage: 50 },
     { enabled: isLowBalanceOnly }
   );
 
@@ -337,11 +294,11 @@ export default function MembersPage() {
     {
       startDate: dateRangeFilter.from ? format(dateRangeFilter.from, 'yyyy-MM-dd') : '',
       endDate: dateRangeFilter.to ? format(dateRangeFilter.to, 'yyyy-MM-dd') : '',
-      branchId: parsedBranchId ?? undefined,
     },
     { enabled: isExpiringOnly && !!dateRangeFilter.from && !!dateRangeFilter.to }
   );
 
+  // ✅ FIXED: Load all member cards without branch filter
   const {
     data,
     isLoading,
@@ -353,18 +310,19 @@ export default function MembersPage() {
     {
       pageNo,
       pageSize: PAGE_SIZE,
-      branchId: isSearchActive ? undefined : (parsedBranchId ?? undefined),
       searchTerm: debouncedSearchTerm || undefined,
     },
-    { enabled: (parsedBranchId != null || isSearchActive) && !isLowBalanceOnly && !isExpiringOnly }
+    { enabled: !isLowBalanceOnly && !isExpiringOnly }
   );
 
   const lowBalanceCardsCount = lowBalanceRes?.data?.totalElements ?? 0;
   const expiringCardsCount = expiringRes?.data?.totalElements ?? 0;
   const page = isExpiringOnly ? expiringRes?.data : isLowBalanceOnly ? lowBalanceRes?.data : data?.data;
   const memberCards = page?.content ?? [];
-  const totalPages = page?.totalPages ?? 1;
+  const totalPages = Math.max(page?.totalPages ?? 1, 1);
   const totalElements = page?.totalElements ?? 0;
+  // Use statistics totalCards for the header badge
+  const displayedTotalCards = statistics != null ? statistics.totalCards : totalElements;
   const canPrev = pageNo > 0;
   const canNext = page?.last != null ? !page.last : pageNo + 1 < totalPages;
 
@@ -467,18 +425,8 @@ export default function MembersPage() {
         bg: 'bg-sky-100',
         valueColor: 'text-sky-700',
       },
-      // {
-      //   label: 'Low Balance',
-      //   value: isLoadingLowBalance ? '…' : String(lowBalanceCardsCount),
-      //   icon: AlertCircle,
-      //   tone: isLowBalanceOnly ? 'text-white' : 'text-rose-600',
-      //   bg: isLowBalanceOnly ? 'bg-rose-600' : 'bg-rose-100',
-      //   valueColor: isLowBalanceOnly ? 'text-white' : 'text-rose-700',
-      //   onClick: () => setIsLowBalanceOnly(!isLowBalanceOnly),
-      //   active: isLowBalanceOnly,
-      // },
     ],
-    [statistics, lowBalanceCardsCount, isLoadingLowBalance, isLowBalanceOnly]
+    [statistics]
   );
 
   const openViewDetails = (card: MemberCard) => {
@@ -602,6 +550,8 @@ export default function MembersPage() {
       toast.success('Member card suspended successfully.');
       setSuspendDialogOpen(false);
       setSuspendingCard(null);
+      refetchTable();
+      void refetchStatistics();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to suspend member card.');
     }
@@ -614,6 +564,8 @@ export default function MembersPage() {
       toast.success('Member card unblocked successfully.');
       setUnblockDialogOpen(false);
       setUnblockingCard(null);
+      refetchTable();
+      void refetchStatistics();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to unblock member card.');
     }
@@ -659,7 +611,7 @@ export default function MembersPage() {
             Masters — <span className="text-[#FF671F]">Membership</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium max-w-xl">
-            View and manage membership cards, balances, and validity by branch.
+            View and manage membership cards, balances, and validity.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -667,7 +619,7 @@ export default function MembersPage() {
             variant="secondary"
             className="px-4 py-1.5 bg-slate-50 text-[#006D77] border border-slate-200 font-bold"
           >
-            {totalElements} Card{totalElements === 1 ? '' : 's'}
+            {displayedTotalCards} Card{displayedTotalCards === 1 ? '' : 's'}
           </Badge>
           <Button
             type="button"
@@ -720,8 +672,9 @@ export default function MembersPage() {
                   key={card.label}
                   onClick={card.onClick}
                   disabled={!card.onClick}
-                  className={`flex min-w-[8rem] flex-1 flex-col items-center justify-center px-2 py-1 text-center sm:min-w-0 transition-all hover:bg-slate-50 active:scale-95 ${index < statCards.length - 1 ? 'border-r border-slate-200/70' : ''
-                    } ${card.active ? 'ring-2 ring-inset ring-rose-500/20 bg-rose-50/30' : ''}`}
+                  className={`flex min-w-[8rem] flex-1 flex-col items-center justify-center px-2 py-1 text-center sm:min-w-0 transition-all hover:bg-slate-50 active:scale-95 ${
+                    index < statCards.length - 1 ? 'border-r border-slate-200/70' : ''
+                  } ${card.active ? 'ring-2 ring-inset ring-rose-500/20 bg-rose-50/30' : ''}`}
                 >
                   <div
                     className={`mb-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${card.bg}`}
@@ -825,38 +778,6 @@ export default function MembersPage() {
             />
           </div>
 
-          {/* Branch */}
-          <div className="w-[160px] relative group">
-            <Building2
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"
-              size={14}
-              aria-hidden
-            />
-            <Select
-              value={branchId}
-              onValueChange={(v) => setBranchId(v ?? '')}
-              disabled={(tableLoading && !isSearchActive) || isLoadingBranches || branches.length === 0}
-            >
-              <SelectTrigger
-                className={`${inputClass} w-full h-9 pl-9 pr-8 text-[10px] font-bold uppercase`}
-              >
-                <SelectValue
-                  placeholder={
-                    isLoadingBranches ? 'Loading branches…' : 'Branch'
-                  }
-                >
-                  {selectedBranchName}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={String(branch.id)}>
-                    {branch.branchName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           {/* Expiring Soon Date Filter - Native HTML5 version */}
           <div className="flex items-center gap-1.5 bg-slate-50/50 rounded-xl p-1 border border-slate-200/60">
             <div className="flex items-center gap-1 pl-1">
@@ -872,7 +793,6 @@ export default function MembersPage() {
                 setDateRangeFilter(prev => ({ ...prev, from: date }));
                 if (date) setIsExpiringOnly(true);
               }}
-              min={todayStr}
               className="h-7 w-28 px-2 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
               title="Filter by expiry start date"
             />
@@ -887,7 +807,6 @@ export default function MembersPage() {
                 setDateRangeFilter(prev => ({ ...prev, to: date }));
                 if (date) setIsExpiringOnly(true);
               }}
-              min={todayStr}
               className="h-7 w-28 px-2 rounded-lg border border-slate-200 bg-white text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
               title="Filter by expiry end date"
             />
@@ -946,16 +865,7 @@ export default function MembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-slate-50">
-              {!isSearchActive && parsedBranchId == null ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={10}
-                    className="px-6 py-16 text-center text-slate-500 text-sm font-semibold"
-                  >
-                    Select a branch to load member cards.
-                  </TableCell>
-                </TableRow>
-              ) : tableLoading ? (
+              {tableLoading ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={10} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-3">
@@ -997,9 +907,7 @@ export default function MembersPage() {
                       <p className="text-xs font-semibold text-slate-500 tracking-tight">
                         {isSearchActive
                           ? `No cards found for "${debouncedSearchTerm}".`
-                          : memberCards.length === 0
-                            ? `No records for ${selectedBranchName ?? `branch #${parsedBranchId}`} on this page.`
-                            : 'Try adjusting filters.'}
+                          : 'No records found. Try adjusting filters.'}
                       </p>
                     </div>
                   </TableCell>
@@ -1078,7 +986,7 @@ export default function MembersPage() {
             </TableBody>
           </Table>
 
-          {(isSearchActive || parsedBranchId != null) && !tableLoading && !tableIsError ? (
+          {!tableLoading && !tableIsError ? (
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/80">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                 Page {pageNo + 1} of {Math.max(totalPages, 1)}
@@ -1197,7 +1105,6 @@ export default function MembersPage() {
             refetchTable();
             void refetchStatistics();
           }}
-          defaultBranchId={parsedBranchId ?? DEFAULT_BRANCH_ID}
         />
       </div>
     </div>

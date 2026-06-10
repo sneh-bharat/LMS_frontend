@@ -19,6 +19,7 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
+import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
 import type { PatientFamilyLinkRow } from '@/app/Apis/Patients/patientFamilyLinkApi';
 import {
   useFamilyLinksByPatientId,
@@ -28,7 +29,7 @@ import {
 
 function patientHeading(p: Patient | null): string {
   if (!p) return '';
-  const parts = [p.firstName, p.middleName, p.lastName].filter(Boolean);
+  const parts = [p.firstName, sanitizeMiddleName(p.middleName), p.lastName].filter(Boolean);
   return parts.join(' ').trim() || p.patientCode;
 }
 

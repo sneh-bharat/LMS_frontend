@@ -262,3 +262,10 @@ export interface ReferrerTestCommissionListApiResponse {
   status: string;
   timestamp?: string;
 }
+
+export {
+  fetchReferrerCommissionPayByRange,
+  type ReferrerCommissionPayRangeParams,
+  type ReferrerCommissionPaySummary,
+  type ReferrerCommissionRangeTestItem,
+} from './ReferrerCommission';

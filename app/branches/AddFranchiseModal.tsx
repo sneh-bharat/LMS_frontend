@@ -23,7 +23,7 @@ import { branchApi, CreateBranchInput, UpdateBranchInput } from '@/app/Apis/bran
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const BRANCH_TYPES = ['MAIN', 'REGIONAL', 'COLLECTION_CENTER', 'FRANCHISE'];
+const BRANCH_TYPES = ['REGIONAL', 'COLLECTION_CENTER', 'FRANCHISE'];
 const COUNTRIES = ['India', 'USA', 'UK', 'Canada', 'Australia'];
 
 // ─── Add Franchise Modal ────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ interface AddFranchiseModalProps {
 export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddFranchiseModalProps) {
   const [formData, setFormData] = useState({
     branchName: initialData?.branchName || '',
-    branchType: initialData?.branchType || 'MAIN',
+    branchType: initialData?.branchType || '',
     address: initialData?.address || '',
     city: initialData?.city || '',
     state: initialData?.state || '',
@@ -72,7 +72,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
   const resetForm = () => {
     setFormData({
       branchName: initialData?.branchName || '',
-      branchType: initialData?.branchType || 'MAIN',
+      branchType: initialData?.branchType || '',
       address: initialData?.address || '',
       city: initialData?.city || '',
       state: initialData?.state || '',

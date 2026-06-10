@@ -45,7 +45,6 @@ export const memberCardQueryKeys = {
       'list',
       params.pageNo ?? 0,
       params.pageSize ?? 10,
-      params.branchId ?? 'all',
       params.searchTerm?.trim() ?? '',
     ] as const,
   detail: (cardId: number) => [...memberCardQueryKeys.all, 'detail', cardId] as const,
@@ -59,7 +58,7 @@ export const memberCardQueryKeys = {
       params.pageSize ?? 10,
     ] as const,
   statistics: (params: FetchMemberCardStatisticsParams) =>
-    [...memberCardQueryKeys.all, 'statistics', params.branchId ?? 'all'] as const,
+    [...memberCardQueryKeys.all, 'statistics'] as const,
 };
 
 export type MemberCardsListQueryKey = ReturnType<typeof memberCardQueryKeys.list>;
@@ -110,13 +109,13 @@ export function useMemberCards(
 
 /** GET `/api/v1/member-cards/low-balance` — locally filtered or server-side if exists. */
 export function useLowBalanceMemberCards(
-  params: { thresholdPercentage?: number; branchId?: number } = {},
+  params: { thresholdPercentage?: number } = {},
   options?: { enabled?: boolean }
 ) {
   const threshold = params.thresholdPercentage ?? 50;
   return useQuery({
-    queryKey: ['member-cards', 'low-balance', threshold, params.branchId ?? 'all'],
-    queryFn: () => fetchLowBalanceMemberCards(threshold, params.branchId),
+    queryKey: ['member-cards', 'low-balance', threshold],
+    queryFn: () => fetchLowBalanceMemberCards(threshold),
     enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,
     retry: 1,
@@ -126,13 +125,13 @@ export function useLowBalanceMemberCards(
 
 /** GET `/api/v1/member-cards/expiring` — locally filtered or server-side if exists. */
 export function useExpiringMemberCards(
-  params: { startDate: string; endDate: string; branchId?: number },
+  params: { startDate: string; endDate: string },
   options?: { enabled?: boolean }
 ) {
-  const { startDate, endDate, branchId } = params;
+  const { startDate, endDate } = params;
   return useQuery({
-    queryKey: ['member-cards', 'expiring', startDate, endDate, branchId ?? 'all'],
-    queryFn: () => fetchExpiringMemberCards(startDate, endDate, branchId),
+    queryKey: ['member-cards', 'expiring', startDate, endDate],
+    queryFn: () => fetchExpiringMemberCards(startDate, endDate),
     enabled: options?.enabled !== false && !!startDate && !!endDate,
     staleTime: 30 * 1000,
     retry: 1,
@@ -253,7 +252,6 @@ export function useDeleteMemberCard() {
     },
   });
 }
-
 
 /** POST `/api/v1/member-cards/allocate-limit` */
 export function useAllocateMemberCardLimit() {

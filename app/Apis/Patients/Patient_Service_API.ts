@@ -176,7 +176,7 @@ export interface PaginatedResponse<T> {
 export interface CreatePatientInput {
   patientCode?: string;
   firstName: string;
-  middleName?: string;
+  middleName?: string | null;
   lastName: string;
   dateOfBirth: string;
   gender: 'MALE' | 'FEMALE' | 'OTHER' | 'TRANSGENDER';

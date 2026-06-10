@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Building2,
   CheckCircle,
+  ChevronDown,
   Eye,
   Loader2,
   MoreHorizontal,
@@ -51,12 +52,13 @@ import {
   useToggleOrganizationStatus,
   useDeleteOrganization,
 } from '@/app/Apis/organizations/useOrganizations';
+import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
+import type { Branch } from '@/app/Apis/branch/branchApi';
 import OrganizationDetailsDrawer from './details';
 import AddNewOrganization from './Add-new-orgn';
 import EditOrganization from './Edit-orgn';
 
 const PAGE_SIZE = 10;
-const DEFAULT_BRANCH_ID = 1;
 
 const filterLabelClass =
   'text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1';
@@ -156,7 +158,8 @@ function OrganizationActions({
 export default function OrganizationPage() {
   const [pageNo, setPageNo] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [branchId, setBranchId] = useState(String(DEFAULT_BRANCH_ID));
+  const [branchId, setBranchId] = useState<string>('');
+  const [branchReady, setBranchReady] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -179,6 +182,7 @@ export default function OrganizationPage() {
   }, [searchTerm]);
 
   const parsedBranchId = useMemo(() => {
+    if (!branchId) return null;
     const id = Number.parseInt(branchId.trim(), 10);
     return Number.isFinite(id) && id > 0 ? id : null;
   }, [branchId]);
@@ -187,6 +191,21 @@ export default function OrganizationPage() {
     setPageNo(0);
   }, [parsedBranchId]);
 
+  /* ── Branches (tenants/all) ── */
+  const {
+    data: branchesRes,
+    isLoading: isBranchesLoading,
+  } = useBranchesAll({ page: 0, size: 100 });
+  const branches: Branch[] = branchesRes?.data?.content ?? [];
+
+  // Auto-select first branch when branches load
+  useEffect(() => {
+    if (!branchReady && branches.length > 0) {
+      setBranchId(String(branches[0].id));
+      setBranchReady(true);
+    }
+  }, [branches, branchReady]);
+
   const {
     data: statisticsRes,
     isLoading: isStatisticsLoading,
@@ -194,9 +213,7 @@ export default function OrganizationPage() {
     error: statisticsError,
     isFetching: isStatisticsFetching,
     refetch: refetchStatistics,
-  } = useOrganizationStatistics({
-    branchId: parsedBranchId ?? undefined,
-  });
+  } = useOrganizationStatistics({});
 
   const statistics = statisticsRes?.data ?? null;
 
@@ -245,7 +262,7 @@ export default function OrganizationPage() {
       branchId: parsedBranchId ?? undefined,
       searchTerm: debouncedSearchTerm.trim() || undefined,
     },
-    { enabled: parsedBranchId != null || debouncedSearchTerm.trim().length > 0 }
+    { enabled: branchReady && (parsedBranchId != null || debouncedSearchTerm.trim().length > 0) }
   );
 
   const approveMutation = useApproveOrganization();
@@ -362,7 +379,7 @@ export default function OrganizationPage() {
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
         onSuccess={() => void refetch()}
-        defaultTargetBranchId={parsedBranchId ?? DEFAULT_BRANCH_ID}
+        defaultTargetBranchId={parsedBranchId ?? undefined}
       />
       <EditOrganization
         isOpen={editOpen}
@@ -458,6 +475,45 @@ export default function OrganizationPage() {
 
      
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
+        {/* Branch selector */}
+        {/* <div className="relative w-full md:w-72 shrink-0">
+          <label className={`block ${filterLabelClass} mb-1`}>Branch</label>
+          {isBranchesLoading ? (
+            <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-400">
+              <Loader2 className="animate-spin" size={16} aria-hidden />
+              Loading branches…
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="flex h-11 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm text-amber-700 font-semibold">
+              <AlertCircle size={16} aria-hidden />
+              No branches available
+            </div>
+          ) : (
+            <div className="relative">
+              <select
+                value={branchId}
+                onChange={(e) => {
+                  setBranchId(e.target.value);
+                  setBranchReady(true);
+                  setPageNo(0);
+                }}
+                className={`${inputClass} w-full appearance-none pr-10 pl-4 cursor-pointer`}
+              >
+                <option value="" disabled>Select branch</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={String(b.id)}>
+                    {b.branchName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={16}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+            </div>
+          )}
+        </div> */}
+
         <div className="relative group flex-1 w-full">
           <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10"
@@ -523,18 +579,18 @@ export default function OrganizationPage() {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-slate-50">
-            {parsedBranchId == null ? (
+            {!branchReady ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="px-6 py-16 text-center text-slate-500 text-sm font-semibold"
                 >
-                  Enter a valid branch ID to load organizations.
+                  Please select a branch to load organizations.
                 </TableCell>
               </TableRow>
             ) : isLoading ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                <TableCell colSpan={9} className="px-6 py-12 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <div className="animate-spin h-8 w-8 border-3 border-emerald-500/20 border-t-emerald-500 rounded-full" />
                     <span className="text-xs font-bold uppercase tracking-widest">
@@ -545,7 +601,7 @@ export default function OrganizationPage() {
               </TableRow>
             ) : isError ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={8} className="px-6 py-12">
+                <TableCell colSpan={9} className="px-6 py-12">
                   <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                     <AlertCircle size={18} className="shrink-0" aria-hidden />
                     <span className="font-medium">{error?.message || 'Failed to load organizations.'}</span>
@@ -563,7 +619,7 @@ export default function OrganizationPage() {
               </TableRow>
             ) : organizations.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={8} className="px-6 py-16 text-center">
+                <TableCell colSpan={9} className="px-6 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-200">
                       <Building2 size={32} strokeWidth={1} aria-hidden />
@@ -678,13 +734,6 @@ export default function OrganizationPage() {
           </div>
         ) : null}
       </div>
-
-      <EditOrganization
-        isOpen={editOpen}
-        onClose={closeEdit}
-        onSuccess={() => void refetch()}
-        organization={organizationToEdit}
-      />
 
       <ConfirmAlertDialog
         isOpen={approveOpen}

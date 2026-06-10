@@ -33,6 +33,7 @@ import {
 } from '@/app/Apis/lab/departmentHooks';
 import AddDepartment from './new-department';
 import { DepartmentDetails } from '../department/details-view';
+import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 // ─── Components ───────────────────────────────────────────────────────────────
 function DepartmentActions({
   department,
@@ -261,7 +262,7 @@ export default function DepartmentsPage() {
               description: '',
               displayOrder: 1,
               isActive: true,
-              branchId: 1,
+              branchId: data.branchId || undefined,
               location: '',
               tenantId: 2,
             });
@@ -429,7 +430,7 @@ export default function DepartmentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-slate-700">
-                        {department.branchId}
+                        {department.branchName }
                       </span>
                     </td>
                     <td className="px-6 py-4">
