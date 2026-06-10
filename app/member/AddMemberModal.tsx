@@ -322,7 +322,7 @@ export default function AddMemberModal({
               value={form.cardholderName}
               onChange={(e) => set('cardholderName')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="e.g. Jane Smith"
+              placeholder="Enter Cardholder Name"
               disabled={submitting}
             />
           </Field>
@@ -354,7 +354,7 @@ export default function AddMemberModal({
               value={form.limitAmount}
               onChange={(e) => set('limitAmount')(e.target.value)}
               className={INPUT_CLASS}
-              placeholder="50000"
+              placeholder="Enter Limit Amount"
               disabled={submitting}
             />
           </Field>
@@ -390,7 +390,7 @@ export default function AddMemberModal({
               value={form.billingAddress}
               onChange={(e) => set('billingAddress')(e.target.value)}
               className="min-h-[88px] rounded-xl border-slate-200 font-medium resize-y"
-              placeholder="123 Business Park, Sector 18, Noida"
+             
               disabled={submitting}
             />
           </Field>
@@ -415,7 +415,7 @@ export default function AddMemberModal({
                 set('emergencyContactPhone')(e.target.value)
               }
               className={INPUT_CLASS}
-              placeholder="9876543213"
+              placeholder="+91-XX-XXXX-XXXX"
               maxLength={15}
               disabled={submitting}
             />
@@ -428,7 +428,7 @@ export default function AddMemberModal({
                 set('emergencyContactEmail')(e.target.value)
               }
               className={INPUT_CLASS}
-              placeholder="john.smith@example.com"
+              placeholder="EnterEmail"
               disabled={submitting}
             />
           </Field>
@@ -440,7 +440,7 @@ export default function AddMemberModal({
               value={form.remarks}
               onChange={(e) => set('remarks')(e.target.value)}
               className="min-h-[72px] rounded-xl border-slate-200 font-medium resize-y"
-              placeholder="Annual corporate membership card"
+             
               disabled={submitting}
             />
           </Field>
@@ -449,7 +449,7 @@ export default function AddMemberModal({
               value={form.internalNotes}
               onChange={(e) => set('internalNotes')(e.target.value)}
               className="min-h-[72px] rounded-xl border-slate-200 font-medium resize-y"
-              placeholder="Approved by admin on 2026-05-23"
+              
               disabled={submitting}
             />
           </Field>

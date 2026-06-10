@@ -1,28 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AlertCircle, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useQueryClient } from '@tanstack/react-query';
 import {
   departmentApi,
   type Department,
   type CreateDepartmentInput,
 } from '@/app/Apis/lab/departmentApi';
+import { departmentKeys } from '@/app/Apis/lab/departmentHooks';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 interface AddDepartmentProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateDepartmentInput) => void;
+  onSubmit: () => void;
   editData?: Department | null;
 }
 
@@ -32,6 +27,7 @@ export default function AddDepartment({
   onSubmit,
   editData,
 }: AddDepartmentProps) {
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState<CreateDepartmentInput>({
     departmentCode: '',
     departmentName: '',
@@ -48,9 +44,8 @@ export default function AddDepartment({
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('1');
 
-  // Load branches only when the drawer is open (branch API = lims-auth, not test-catalog)
+  // Load branches when drawer opens: GET /tenants/{tenantId}/branches/all
   useEffect(() => {
     if (!isOpen) return;
     loadBranches();
@@ -58,16 +53,14 @@ export default function AddDepartment({
 
   useEffect(() => {
     if (editData && isOpen) {
-      console.log('Edit mode - Department data:', editData);
-      console.log('Edit mode - Branch ID:', editData.branchId);
       setFormData({
         departmentCode: editData.departmentCode,
         departmentName: editData.departmentName,
         departmentNameShort: editData.departmentNameShort || '',
         description: editData.description,
-        displayOrder: editData.displayOrder || 1,
         isActive: editData.isActive,
-        branchId: editData.branchId,
+        // branchId: editData.branchId,
+        branchId: Number(editData.branchId), 
         location: editData.location || '',
         tenantId: editData.tenantId,
       });
@@ -78,37 +71,50 @@ export default function AddDepartment({
         departmentName: '',
         departmentNameShort: '',
         description: '',
-        displayOrder: 1,
         isActive: true,
         branchId: 1,
         location: '',
         tenantId: 2,
       });
-      setSelectedBranchId('1');
       setErrors({});
     }
   }, [editData, isOpen]);
 
-  // Set selected branch ID after branches are loaded
-  useEffect(() => {
-    if (editData && isOpen && branches.length > 0 && editData.branchId) {
-      const branchIdStr = editData.branchId.toString();
-      setSelectedBranchId(branchIdStr);
-      console.log('Set selected branch ID to:', branchIdStr);
-      const foundBranch = branches.find(b => b.id === editData.branchId);
-      console.log('Found branch:', foundBranch);
+  const branchOptions = useMemo(() => {
+    const options = [...branches];
+
+    if (
+      editData?.branchId &&
+      !options.some((branch) => branch.id === editData.branchId)
+    ) {
+      options.unshift({
+        id: editData.branchId,
+        branchCode: '',
+        branchName: editData.branchName || `Branch ${editData.branchId}`,
+        branchType: '',
+        address: null,
+        city: null,
+        state: null,
+        country: null,
+        postalCode: null,
+        contactEmail: null,
+        contactPhone: null,
+        isActive: true,
+        tenantId: editData.tenantId,
+      });
     }
-  }, [branches, editData, isOpen]);
+
+    return options;
+  }, [branches, editData]);
 
   const loadBranches = async () => {
     setLoadingBranches(true);
     try {
-      const response = await branchApi.getAllBranches({
-        pageNo: 0,
-        pageSize: 100,
+      const response = await branchApi.listBranchesAll({
+        page: 0,
+        size: 100,
       });
-      console.log('Loaded branches:', response.data.content);
-      setBranches(response.data.content);
+      setBranches(response.data.content ?? []);
     } catch (error) {
       console.error('Failed to load branches:', error);
     } finally {
@@ -127,9 +133,6 @@ export default function AddDepartment({
       newErrors.departmentName = 'Department name is required';
     }
 
-    if (formData.displayOrder !== undefined && formData.displayOrder < 0) {
-      newErrors.displayOrder = 'Display order must be non-negative';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -141,7 +144,10 @@ export default function AddDepartment({
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? parseInt(value) || 0 : value,
+      [name]:
+        type === 'number' || name === 'branchId'
+          ? Number(value) || 0
+          : value,
     }));
     if (errors[name]) {
       setErrors((prev) => ({
@@ -159,11 +165,22 @@ export default function AddDepartment({
       return;
     }
 
+    const payload: CreateDepartmentInput = {
+      departmentCode: formData.departmentCode.trim(),
+      departmentName: formData.departmentName.trim(),
+      departmentNameShort: formData.departmentNameShort?.trim() || '',
+      description: formData.description || '',
+      displayOrder: formData.displayOrder ?? 1,
+      isActive: formData.isActive,
+      branchId: Number(formData.branchId),
+      location: formData.location || '',
+    
+    };
+
     setLoading(true);
     try {
       if (editData) {
-        console.log('Updating department with data:', formData);
-        const response = await departmentApi.updateDepartment(editData.id, formData);
+        const response = await departmentApi.updateDepartment(editData.id, payload);
         
         // Validate API response - check both response flag and status
         if (!response.response && response.status !== 'success') {
@@ -172,22 +189,26 @@ export default function AddDepartment({
           return;
         }
         
-        toast.success('Department updated successfully!');
+        toast.success(response.message || 'Department updated successfully!');
       } else {
-        console.log('Creating department with data:', formData);
-        const response = await departmentApi.createDepartment(formData);
+        const response = await departmentApi.createDepartment(payload);
         
-        // ✅ KEY FIX: Validate API response - check both response flag and status
-        // This prevents showing success when the API returns an error message
+    
         if (!response.response && response.status !== 'success') {
           toast.error(response.message || 'Failed to create department');
           setLoading(false);
           return;
         }
         
-        toast.success('Department created successfully!');
+        toast.success(response.message || 'Department created successfully!');
       }
-      onSubmit(formData);
+
+      await queryClient.invalidateQueries({ queryKey: departmentKeys.lists() });
+      await queryClient.invalidateQueries({ queryKey: departmentKeys.active() });
+      if (editData?.id) {
+        await queryClient.invalidateQueries({ queryKey: departmentKeys.detail(editData.id) });
+      }
+      onSubmit();
       onClose();
     } catch (error: any) {
       console.error('Failed to save department:', error);
@@ -249,7 +270,7 @@ export default function AddDepartment({
                 name="departmentCode"
                 value={formData.departmentCode}
                 onChange={handleChange}
-                placeholder="e.g., HEM"
+                placeholder="Enter Department Code"
                 className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
                   errors.departmentCode
                     ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
@@ -272,7 +293,7 @@ export default function AddDepartment({
                 name="departmentName"
                 value={formData.departmentName}
                 onChange={handleChange}
-                placeholder="e.g., Hematology"
+                placeholder="Enter Department Name"
                 className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
                   errors.departmentName
                     ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
@@ -296,7 +317,7 @@ export default function AddDepartment({
               name="departmentNameShort"
               value={formData.departmentNameShort || ''}
               onChange={handleChange}
-              placeholder="e.g., HEM"
+              placeholder="Enter Short Name"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
             />
           </div>
@@ -309,7 +330,7 @@ export default function AddDepartment({
               name="description"
               value={formData.description || ''}
               onChange={handleChange}
-              placeholder="e.g., Blood-related tests and analysis"
+              placeholder="Enter Description"
               rows={3}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 resize-none"
             />
@@ -323,50 +344,38 @@ export default function AddDepartment({
               {loadingBranches ? (
                 <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2">
                   <Loader size={16} className="animate-spin text-slate-400" />
-                  <span className="text-sm text-slate-400">Loading branches...</span>
+                  <span className="text-sm text-slate-400">
+                    {editData?.branchName
+                      ? `Loading branches (${editData.branchName})...`
+                      : 'Loading branches...'}
+                  </span>
                 </div>
               ) : (
-                <Select
-                  value={selectedBranchId}
-                  onValueChange={(value) => {
-                    if (value) {
-                      const branchId = parseInt(value);
-                      console.log('Selected branch ID:', branchId);
-                      setSelectedBranchId(value);
-                      setFormData((prev) => ({
-                        ...prev,
-                        branchId: branchId,
-                      }));
-                    }
-                  }}
+                <select
+                  name="branchId"
+                  value={formData.branchId || ''}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 appearance-none bg-white cursor-pointer"
+                  required
                 >
-                  <SelectTrigger id={`branchId-${selectedBranchId}`} className="w-full">
-                    <SelectValue placeholder="Select a branch">
-                      {(() => {
-                        const selectedBranch = branches.find(b => b.id.toString() === selectedBranchId);
-                        if (selectedBranch) {
-                          return selectedBranch.branchName;
-                        }
-                        return 'Select a branch';
-                      })()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.length > 0 ? (
-                      branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id.toString()}>
-                          {branch.branchName}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-4 py-2 text-sm text-slate-400">No branches available</div>
-                    )}
-                  </SelectContent>
-                </Select>
+                  <option value="" disabled>
+                    Select a branch
+                  </option>
+                  {branchOptions.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.branchName}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {branchOptions.length === 0 && !loadingBranches && (
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} /> No branches available.
+                </p>
               )}
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
                 Display Order
               </label>
@@ -388,10 +397,10 @@ export default function AddDepartment({
                   <AlertCircle size={12} /> {errors.displayOrder}
                 </p>
               )}
-            </div>
+            </div> */}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
                 Location
@@ -405,7 +414,7 @@ export default function AddDepartment({
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
               />
             </div>
-          </div>
+          </div> */}
 
           <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <input

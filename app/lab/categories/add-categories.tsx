@@ -234,7 +234,7 @@ export default function AddCategory({
                 name="categoryName"
                 value={formData.categoryName}
                 onChange={handleChange}
-                placeholder="e.g., Hematology"
+                placeholder="Enter Category Name"
                 className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
                   errors.categoryName
                     ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
@@ -257,7 +257,7 @@ export default function AddCategory({
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="e.g., Blood-related tests"
+              placeholder="Enter Description"
               rows={3}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 resize-none"
             />
@@ -328,33 +328,7 @@ export default function AddCategory({
               )}
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Display Order
-              </label>
-              <input
-                type="number"
-                name="displayOrder"
-                value={formData.displayOrder}
-                onChange={handleChange}
-                placeholder="1"
-                min="0"
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                  errors.displayOrder
-                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                }`}
-              />
-              {errors.displayOrder && (
-                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.displayOrder}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 self-end">
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 self-end">
               <input
                 type="checkbox"
                 id="isActive"
@@ -372,9 +346,8 @@ export default function AddCategory({
                 Active Category
               </label>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          {/* <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <input
               type="checkbox"
               id="isActiveHidden"
@@ -388,7 +361,7 @@ export default function AddCategory({
               className="w-5 h-5 accent-emerald-600 rounded border-slate-300 cursor-pointer hidden"
               tabIndex={-1}
             />
-          </div>
+          </div> */}
         </form>
       </div>
     </RightDrawer>

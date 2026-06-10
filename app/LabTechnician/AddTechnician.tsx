@@ -317,7 +317,7 @@ export default function AddTechnician({ isOpen, onClose, technicianId }: AddTech
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g. Sarah Miller"
+              placeholder="Full Name"
               className={`border-slate-200 ${errors.name ? 'border-rose-300' : ''}`}
               disabled={pending}
             />
@@ -387,7 +387,7 @@ export default function AddTechnician({ isOpen, onClose, technicianId }: AddTech
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  placeholder="lab_tech_sarah"
+                  placeholder="UserName"
                   autoComplete="username"
                   className={`border-slate-200 ${errors.username ? 'border-rose-300' : ''}`}
                   disabled={pending}
@@ -433,7 +433,7 @@ export default function AddTechnician({ isOpen, onClose, technicianId }: AddTech
               type="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="sarah.miller@hospital-lab.com"
+              placeholder="Email"
               autoComplete="email"
               className={`border-slate-200 ${errors.email ? 'border-rose-300' : ''}`}
               disabled={pending}
@@ -456,7 +456,7 @@ export default function AddTechnician({ isOpen, onClose, technicianId }: AddTech
                 name="department"
                 value={formData.department}
                 onChange={handleChange}
-                placeholder="e.g. Microbiology"
+                placeholder="Department Name"
                 className={`border-slate-200 ${errors.department ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />

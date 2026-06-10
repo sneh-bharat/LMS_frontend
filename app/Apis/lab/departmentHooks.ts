@@ -10,6 +10,7 @@ export const departmentKeys = {
   list: (params: DepartmentQueryParams) => [...departmentKeys.lists(), params] as const,
   details: () => [...departmentKeys.all, 'detail'] as const,
   detail: (id: number) => [...departmentKeys.details(), id] as const,
+  byCode: (code: string) => [...departmentKeys.all, 'code', code] as const,
   active: () => [...departmentKeys.all, 'active'] as const,
 };
 
@@ -18,13 +19,17 @@ export const departmentKeys = {
 /**
  * Hook to fetch departments with pagination, search, and filtering
  */
-export function useDepartments(params: DepartmentQueryParams = {}) {
+export function useDepartments(
+  params: DepartmentQueryParams = {},
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: departmentKeys.list(params),
     queryFn: () => departmentApi.getAllDepartments(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
     refetchOnWindowFocus: false,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -37,6 +42,22 @@ export function useActiveDepartments(params: { pageNo?: number; pageSize?: numbe
     queryFn: () => departmentApi.getActiveDepartments(params),
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Hook to fetch a single department by code
+ */
+export function useDepartmentByCode(code: string | undefined) {
+  const trimmedCode = code?.trim();
+
+  return useQuery({
+    queryKey: departmentKeys.byCode(trimmedCode || ''),
+    queryFn: () => departmentApi.getDepartmentByCode(trimmedCode!),
+    enabled: !!trimmedCode,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
     refetchOnWindowFocus: false,
   });
 }

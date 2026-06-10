@@ -858,7 +858,7 @@ export default function NewTest({
                     name="testName"
                     value={formData.testName}
                     onChange={handleInputChange}
-                    placeholder="Complete Blood Count (CBC)"
+                    placeholder="Enter Test Name"
                     className={errors.testName ? 'border-rose-300 ring-rose-50' : ''}
                   />
                   {errors.testName && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors.testName}</p>}
@@ -869,7 +869,7 @@ export default function NewTest({
                     name="testNameShort"
                     value={formData.testNameShort || ''}
                     onChange={handleInputChange}
-                    placeholder="CBC"
+                    placeholder="Enter Test Name Short"
                   />
                 </div>
               </div>
@@ -880,7 +880,7 @@ export default function NewTest({
                   name="testDescription"
                   value={formData.testDescription || ''}
                   onChange={handleInputChange}
-                  placeholder="Full blood count analysis"
+                  placeholder="Enter Test Description"
                   rows={3}
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -943,18 +943,18 @@ export default function NewTest({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">LOINC Code</Label>
-                  <Input name="loincCode" value={formData.loincCode} onChange={handleInputChange} placeholder="58410-2" />
+                  <Input name="loincCode" value={formData.loincCode} onChange={handleInputChange} placeholder="Enter LOINC Code" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">TAT (Hours)</Label>
-                  <Input type="number" name="tatHours" value={formData.tatHours} onChange={handleInputChange} placeholder="2" />
+                  <Input type="number" name="tatHours" value={formData.tatHours} onChange={handleInputChange} placeholder="Enter TAT (Hours)" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">TAT (Minutes)</Label>
-                  <Input type="number" name="tatMinutes" value={formData.tatMinutes || ''} onChange={handleInputChange} placeholder="30" />
+                  <Input type="number" name="tatMinutes" value={formData.tatMinutes || ''} onChange={handleInputChange} placeholder="Enter TAT (Minutes)" />
                 </div>
               </div>
 
@@ -990,16 +990,16 @@ export default function NewTest({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Method</Label>
-                  <Input name="method" value={formData.method} onChange={handleInputChange} placeholder="Automated Hematology Analyzer" disabled={activeTab === 'pricing'} />
+                  <Input name="method" value={formData.method} onChange={handleInputChange} placeholder="Enter Method" disabled={activeTab === 'pricing'} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Standard Price () *</Label>
                   <Input
-                    type="number"
+                    type="text"
                     name="price"
                     value={formData.price}
                     onChange={handleInputChange}
-                    placeholder="500.00"
+                    placeholder="Enter Standard Price (₹)"
                     className={errors['price'] ? 'border-rose-300 ring-rose-50' : ''}
                   />
                   {errors['price'] && <p className="text-[10px] font-bold text-rose-500 pl-1 uppercase">{errors['price']}</p>}
@@ -1008,8 +1008,8 @@ export default function NewTest({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">CGHS Price (₹)</Label>
-                  <Input type="number" name="cghsPrice" value={formData.cghsPrice} onChange={handleInputChange} placeholder="350.00" />
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Central Government Health Scheme approved rate Price (₹)</Label>
+                  <Input type="text" name="cghsPrice" value={formData.cghsPrice} onChange={handleInputChange} placeholder="Enter CGHS approved rate (₹)" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Effective From</Label>
@@ -1087,7 +1087,7 @@ export default function NewTest({
                           <Input
                             value={param.parameterCode || ''}
                             onChange={(e) => updateArrayItem('parameters', idx, 'parameterCode', e.target.value)}
-                            placeholder="HB"
+                            placeholder="Enter Parameter Code"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -1095,7 +1095,7 @@ export default function NewTest({
                           <Input
                             value={param.parameterName}
                             onChange={(e) => updateArrayItem('parameters', idx, 'parameterName', e.target.value)}
-                            placeholder="Hemoglobin"
+                            placeholder="Enter Parameter Name"
                           />
                         </div>
                         <div className="space-y-1.5"> 
@@ -1313,12 +1313,12 @@ export default function NewTest({
                           </select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Vol (ml)</Label>
+                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">Volume</Label>
                           <Input
                             type="number"
                             value={req.volumeMl}
                             onChange={(e) => updateArrayItem('sampleRequirements', idx, 'volumeMl', e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="5.0"
+                            placeholder="Enter Volume"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -1326,7 +1326,7 @@ export default function NewTest({
                           <Input
                             value={req.containerColor}
                             onChange={(e) => updateArrayItem('sampleRequirements', idx, 'containerColor', e.target.value)}
-                            placeholder="Yellow"
+                            placeholder="Enter Container Color"
                           />
                         </div>
                       </div>
@@ -1335,7 +1335,7 @@ export default function NewTest({
                         <Input
                           value={req.storageCondition}
                           onChange={(e) => updateArrayItem('sampleRequirements', idx, 'storageCondition', e.target.value)}
-                          placeholder="Refrigerated"
+                          placeholder="Enter Storage Condition"
                         />
                       </div>
                     </div>

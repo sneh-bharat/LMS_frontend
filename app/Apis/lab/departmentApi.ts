@@ -54,6 +54,7 @@ export interface UpdateDepartmentInput {
   displayOrder?: number;
   isActive?: boolean;
   location?: string;
+  tenantId?: number;
 }
 
 export interface DepartmentQueryParams {
@@ -135,14 +136,24 @@ export const departmentApi = {
   },
 
   /**
+   * GET DEPARTMENT BY CODE - Fetch a single department by code
+   * Endpoint: GET /api/v1/departments/code/{code}
+   */
+  getDepartmentByCode: async (code: string): Promise<ApiResponse<Department>> => {
+    const encodedCode = encodeURIComponent(code.trim());
+    return labClient.get(`/api/v1/departments/code/${encodedCode}`);
+  },
+
+  /**
    * CREATE DEPARTMENT - Create a new department
    * Endpoint: POST /api/v1/departments
    */
   createDepartment: async (input: CreateDepartmentInput): Promise<ApiResponse<Department>> => {
+    const departmentNameShort = input.departmentNameShort?.trim();
     const requestBody = {
-      departmentCode: input.departmentCode,
-      departmentName: input.departmentName,
-      departmentNameShort: input.departmentNameShort || null,
+      departmentCode: input.departmentCode.trim(),
+      departmentName: input.departmentName.trim(),
+      departmentNameShort: departmentNameShort || null,
       description: input.description || '',
       displayOrder: input.displayOrder || 0,
       isActive: input.isActive !== undefined ? input.isActive : true,
@@ -159,15 +170,17 @@ export const departmentApi = {
    * Endpoint: PUT /api/v1/departments/{id}
    */
   updateDepartment: async (id: number, input: UpdateDepartmentInput): Promise<ApiResponse<Department>> => {
+    const departmentNameShort = input.departmentNameShort?.trim();
     const requestBody = {
-      departmentCode: input.departmentCode,
-      departmentName: input.departmentName,
-      departmentNameShort: input.departmentNameShort || null,
+      departmentCode: input.departmentCode?.trim(),
+      departmentName: input.departmentName?.trim(),
+      departmentNameShort: departmentNameShort || null,
       description: input.description || '',
-      displayOrder: input.displayOrder || 0,
+      displayOrder: input.displayOrder ?? 0,
       isActive: input.isActive !== undefined ? input.isActive : true,
       location: input.location || null,
-      branchId: input.branchId || 1,
+      branchId: input.branchId ?? 1,
+      tenantId: input.tenantId ?? 2,
     };
 
     return labClient.put(`/api/v1/departments/${id}`, requestBody);
