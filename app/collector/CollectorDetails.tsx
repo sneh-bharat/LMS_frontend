@@ -118,22 +118,17 @@ export default function CollectorDetails({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+       
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
-              Branch ID
-            </p>
-            <p className="text-sm font-semibold text-slate-800">{collector.branchId ?? '—'}</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
-              Collection center
+              Collection center / Branch
             </p>
             <p className="text-sm font-semibold text-slate-800">
-              {collector.collectionCenter?.trim() || '—'}
+              {collector.branchName?.trim() || '—'}
             </p>
           </div>
-        </div>
+        
 
         <div className="flex flex-wrap items-center gap-3">
           <Badge

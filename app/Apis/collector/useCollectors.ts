@@ -2,11 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
+  activateBloodCollector,
   createBloodCollector,
-  fetchBloodCollectorById,
+  deleteBloodCollector,
   fetchBloodCollectorByUsername,
   fetchBloodCollectors,
   updateBloodCollector,
+  type ActivateBloodCollectorParams,
+  type BloodCollector,
   type BloodCollectorsApiResponse,
   type CreateBloodCollectorPayload,
   type FetchBloodCollectorsParams,
@@ -16,7 +19,7 @@ import {
 export const collectorQueryKeys = {
   all: ['blood-collectors'] as const,
   list: (p: FetchBloodCollectorsParams) =>
-    [...collectorQueryKeys.all, 'list', p.page, p.size] as const,
+    [...collectorQueryKeys.all, 'list', p.statusFilter ?? 'all', p.page, p.size] as const,
   detail: (id: number) => [...collectorQueryKeys.all, 'detail', id] as const,
   byUsername: (username: string) =>
     [...collectorQueryKeys.all, 'username', username] as const,
@@ -63,21 +66,6 @@ export function useCreateBloodCollector() {
   });
 }
 
-/** GET single blood collector — `/api/v1/blood-collectors/{id}`. */
-export function useBloodCollector(
-  id: number | null | undefined,
-  options?: { enabled?: boolean }
-) {
-  return useQuery({
-    queryKey: collectorQueryKeys.detail(id ?? 0),
-    queryFn: () => fetchBloodCollectorById(id!),
-    enabled: !!id && (options?.enabled ?? true),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
-}
-
 /** GET blood collector by username — `/api/v1/blood-collectors/username/{username}`. */
 export function useBloodCollectorByUsername(
   username: string | undefined,
@@ -101,6 +89,31 @@ export function useUpdateBloodCollector() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateBloodCollectorPayload }) =>
       updateBloodCollector(id, payload),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: collectorQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: collectorQueryKeys.detail(id) });
+    },
+  });
+}
+
+/** Delete blood collector via PUT; invalidates list + detail. */
+export function useDeleteBloodCollector() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (collector: BloodCollector) => deleteBloodCollector(collector),
+    onSuccess: (_data, collector) => {
+      queryClient.invalidateQueries({ queryKey: collectorQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: collectorQueryKeys.detail(collector.id) });
+    },
+  });
+}
+
+/** PUT activate/deactivate blood collector — `/api/v1/blood-collectors/{id}/activate`. */
+export function useActivateBloodCollector() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ActivateBloodCollectorParams) => activateBloodCollector(params),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: collectorQueryKeys.all });
       queryClient.invalidateQueries({ queryKey: collectorQueryKeys.detail(id) });

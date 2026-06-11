@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ChevronDown,
   Database,
   Eye,
+  Plus,
   Filter,
   FlaskConical,
   Loader,
@@ -31,30 +32,43 @@ import {
   getLabCoordinatorStatusLabel,
   getLabCoordinatorVerifiedLabel,
   isLabCoordinatorActive,
+  isLabCoordinatorMutationSuccess,
   type LabCoordinator,
   type LabCoordinatorMutationApiResponse,
+  type LabCoordinatorStatusFilter,
 } from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
-import { useDeleteLabCoordinator, useLabCoordinatorsList } from '@/app/Apis/LabCoordinator/useLabCoordinators';
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog';
+import {
+  useActivateLabCoordinator,
+  useDeleteLabCoordinator,
+  useLabCoordinatorByUsername,
+  useLabCoordinatorsList,
+} from '@/app/Apis/LabCoordinator/useLabCoordinators';
 import AddCoordinator from './AddCoordinator';
 import EditCoordinator from './EditCoordinator';
 import LabCoordinatorDetailsView from './detailsCoordinator';
 
-const PAGE_SIZE = 10;
 
-type SearchBy = 'Name' | 'Username' | 'Department';
+
+
+const PAGE_SIZE = 10;
 
 function LabCoordinatorActions({
   coordinator,
   onView,
   onEdit,
   onDelete,
+  onToggleStatus,
 }: {
   coordinator: LabCoordinator;
   onView: (coordinatorId: number) => void;
   onEdit: (coordinatorId: number) => void;
   onDelete: (coordinator: LabCoordinator) => void;
+  onToggleStatus: (coordinator: LabCoordinator) => void;
 }) {
+  const active = isLabCoordinatorActive(coordinator);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -88,6 +102,17 @@ function LabCoordinatorActions({
           Edit
         </DropdownMenuItem>
         <DropdownMenuItem
+          onClick={() => onToggleStatus(coordinator)}
+          className={`rounded-lg py-2.5 text-xs font-black uppercase ${
+            active
+              ? 'text-rose-600 focus:bg-rose-50 focus:text-rose-700'
+              : 'text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700'
+          }`}
+        >
+          <Plus size={14} className={active ? 'rotate-45' : 'rotate-0'} />
+          {active ? 'Deactivate' : 'Activate'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
           onClick={() => onDelete(coordinator)}
           className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
         >
@@ -102,41 +127,101 @@ function LabCoordinatorActions({
 export default function LabCoordinatorListPage() {
   const [pageNo, setPageNo] = useState(0);
   const [searchText, setSearchText] = useState('');
-  const [searchBy, setSearchBy] = useState<SearchBy>('Name');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<LabCoordinatorStatusFilter>('all');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [viewCoordinatorId, setViewCoordinatorId] = useState<number | null>(null);
   const [deleteCoordinator, setDeleteCoordinator] = useState<LabCoordinator | null>(null);
   const [editCoordinatorId, setEditCoordinatorId] = useState<number | null>(null);
+  const [statusCoordinator, setStatusCoordinator] = useState<LabCoordinator | null>(null);
+  const activateMutation = useActivateLabCoordinator();
 
   const deleteMutation = useDeleteLabCoordinator();
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useLabCoordinatorsList({
-    pageNo,
-    pageSize: PAGE_SIZE,
+  const isUsernameApiSearch = debouncedSearch.length > 0;
+
+  const {
+    data,
+    isLoading: isListLoading,
+    isError: isListError,
+    error: listError,
+    refetch: refetchList,
+    isFetching: isListFetching,
+  } = useLabCoordinatorsList(
+    { pageNo, pageSize: PAGE_SIZE, statusFilter },
+    { enabled: !isUsernameApiSearch }
+  );
+
+  const {
+    data: coordinatorByUsernameResponse,
+    isLoading: isUsernameLoading,
+    isError: isUsernameNotFound,
+    refetch: refetchByUsername,
+    isFetching: isUsernameFetching,
+  } = useLabCoordinatorByUsername(debouncedSearch, {
+    enabled: isUsernameApiSearch,
   });
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText.trim());
+      setPageNo(0);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
   const page = data?.data;
-  const rows = page?.content ?? [];
 
-  const filteredRows = useMemo(() => {
-    const term = searchText.trim().toLowerCase();
-    if (!term) return rows;
+  const rows = useMemo(() => {
+    if (isUsernameApiSearch) {
+      if (isUsernameNotFound) return [];
+      const coordinator = coordinatorByUsernameResponse?.data;
+      return coordinator ? [coordinator] : [];
+    }
 
-    return rows.filter((row) => {
-      if (searchBy === 'Username') {
-        return (row.username ?? '').toLowerCase().includes(term);
-      }
-      if (searchBy === 'Department') {
-        return getLabCoordinatorDepartment(row).toLowerCase().includes(term);
-      }
-      return getLabCoordinatorName(row).toLowerCase().includes(term);
-    });
-  }, [rows, searchText, searchBy]);
+    let list = page?.content ?? [];
 
-  const totalPages = page?.totalPages ?? 0;
-  const totalElements = page?.totalElements ?? 0;
-  const canPrev = pageNo > 0;
-  const canNext = page ? !page.last : false;
+    if (statusFilter === 'inactive') {
+      list = list.filter((row) => row.isActive === false);
+    }
+
+    return list;
+  }, [
+    isUsernameApiSearch,
+    isUsernameNotFound,
+    coordinatorByUsernameResponse?.data,
+    page?.content,
+    statusFilter,
+  ]);
+
+  const filteredRows = rows;
+
+  const isLoading = isUsernameApiSearch ? isUsernameLoading : isListLoading;
+  const isFetching = isUsernameApiSearch ? isUsernameFetching : isListFetching;
+  const isError = isListError;
+  const error = listError;
+
+  const totalPages = isUsernameApiSearch ? 1 : page?.totalPages ?? 0;
+  const totalElements = isUsernameApiSearch ? filteredRows.length : page?.totalElements ?? 0;
+  const canPrev = !isUsernameApiSearch && pageNo > 0;
+  const canNext = !isUsernameApiSearch && page ? !page.last : false;
+
+  const handleRefresh = () => {
+    if (isUsernameApiSearch) {
+      void refetchByUsername();
+    } else {
+      void refetchList();
+    }
+  };
+
+  const handleFormSuccess = () => {
+    if (isUsernameApiSearch) {
+      void refetchByUsername();
+    } else {
+      void refetchList();
+    }
+  };
 
   const handleDelete = (coordinator: LabCoordinator) => {
     setDeleteCoordinator(coordinator);
@@ -147,25 +232,54 @@ export default function LabCoordinatorListPage() {
 
     deleteMutation.mutate(deleteCoordinator.id, {
       onSuccess: (res: LabCoordinatorMutationApiResponse) => {
-        if (res.response === false && res.status !== 'success') {
+        if (!isLabCoordinatorMutationSuccess(res)) {
           toast.error(res.message || 'Failed to delete lab coordinator.');
           return;
         }
         toast.success(res?.message?.trim() || 'Lab coordinator deleted successfully.');
         setDeleteCoordinator(null);
-        refetch();
+        handleFormSuccess();
       },
       onError: (err: Error) => {
         toast.error(err.message || 'Failed to delete lab coordinator.');
       },
     });
   };
+  const handleToggleStatus = (coordinator: LabCoordinator) => {
+    setStatusCoordinator(coordinator);
+  };
+  const handleConfirmToggleStatus = () => {
+    if (!statusCoordinator) return;
+
+    const nextIsActive = !isLabCoordinatorActive(statusCoordinator);
+
+    activateMutation.mutate(
+      { id: statusCoordinator.id, isActive: nextIsActive },
+      {
+        onSuccess: (res) => {
+          if (!isLabCoordinatorMutationSuccess(res)) {
+            toast.error(res.message || 'Failed to update status.');
+            return;
+          }
+          toast.success(
+            res.message?.trim() ||
+              `Lab coordinator ${nextIsActive ? 'activated' : 'deactivated'} successfully.`
+          );
+          setStatusCoordinator(null);
+          handleFormSuccess();
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to update status.');
+        },
+      }
+    );
+  };
 
   return (
     <>
       <AddCoordinator
         isOpen={addModalOpen}
-        onSuccess={() => refetch()}
+        onSuccess={handleFormSuccess}
         onClose={() => setAddModalOpen(false)}
       />
 
@@ -204,7 +318,7 @@ export default function LabCoordinatorListPage() {
             type="search"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search lab coordinators…"
+            placeholder="Search lab coordinator Username"
             className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
             aria-label="Search lab coordinators"
             disabled={isLoading}
@@ -214,6 +328,31 @@ export default function LabCoordinatorListPage() {
           <div className="relative flex-1 sm:min-w-35 group">
             <Filter
               className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none"
+              size={14}
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as LabCoordinatorStatusFilter);
+                setPageNo(0);
+              }}
+              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              aria-label="Filter by status"
+              disabled={isLoading}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="verified">Verified</option>
+            </select>
+            <ChevronDown
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+              size={14}
+            />
+          </div>
+          {/* <div className="relative flex-1 sm:min-w-35 group">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
               size={14}
             />
             <select
@@ -231,13 +370,13 @@ export default function LabCoordinatorListPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
               size={14}
             />
-          </div>
+          </div> */}
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="rounded-lg p-2.5 border-slate-200 shrink-0"
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             disabled={isLoading || isFetching}
             title="Refresh list"
           >
@@ -257,7 +396,7 @@ export default function LabCoordinatorListPage() {
             variant="outline"
             size="sm"
             className="ml-auto font-bold"
-            onClick={() => refetch()}
+            onClick={handleRefresh}
           >
             Retry
           </Button>
@@ -271,7 +410,9 @@ export default function LabCoordinatorListPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
-          No lab coordinators found.
+          {isUsernameApiSearch
+            ? `No lab coordinator found with username "${debouncedSearch}".`
+            : 'No lab coordinators found.'}
         </div>
       ) : (
         <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
@@ -309,8 +450,10 @@ export default function LabCoordinatorListPage() {
               <tbody className="divide-y divide-slate-100">
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
-                      No matches on this page for your search.
+                    <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
+                      {isUsernameApiSearch
+                        ? `No lab coordinator found with username "${debouncedSearch}".`
+                        : 'No lab coordinators match the current filters.'}
                     </td>
                   </tr>
                 ) : (
@@ -377,12 +520,13 @@ export default function LabCoordinatorListPage() {
                           </Badge>
                         </td>
                         <td className="px-6 py-5 text-center">
-                          <LabCoordinatorActions
+                        <LabCoordinatorActions
                             coordinator={row}
                             onView={setViewCoordinatorId}
                             onEdit={setEditCoordinatorId}
                             onDelete={handleDelete}
-                          />
+                            onToggleStatus={handleToggleStatus}
+                            />
                         </td>
                       </tr>
                     );
@@ -430,16 +574,42 @@ export default function LabCoordinatorListPage() {
         <EditCoordinator
         isOpen={editCoordinatorId !== null}
         coordinatorId={editCoordinatorId}
-        onSuccess={() => refetch()}
+        onSuccess={handleFormSuccess}
         onClose={() => setEditCoordinatorId(null)}
       />
+
 
       <LabCoordinatorDetailsView
         isOpen={viewCoordinatorId != null}
         onClose={() => setViewCoordinatorId(null)}
         coordinatorId={viewCoordinatorId}
       />
-       <DeleteAlertDialog
+      <ConfirmAlertDialog
+        isOpen={Boolean(statusCoordinator)}
+        onClose={() => {
+          if (!activateMutation.isPending) setStatusCoordinator(null);
+        }}
+        onConfirm={handleConfirmToggleStatus}
+        title={
+          statusCoordinator && isLabCoordinatorActive(statusCoordinator)
+            ? 'Deactivate Lab Coordinator'
+            : 'Activate Lab Coordinator'
+        }
+        description={`Are you sure you want to ${
+          statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'deactivate' : 'activate'
+        } "${statusCoordinator ? getLabCoordinatorName(statusCoordinator) : 'this lab coordinator'}"?`}
+        confirmText={
+          statusCoordinator && isLabCoordinatorActive(statusCoordinator)
+            ? 'Deactivate Now'
+            : 'Activate Now'
+        }
+        isLoading={activateMutation.isPending}
+        variant={
+          statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'destructive' : 'success'
+        }
+      />
+
+      <DeleteAlertDialog
         isOpen={Boolean(deleteCoordinator)}
         onClose={() => {
           if (!deleteMutation.isPending) setDeleteCoordinator(null);

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import CollectorSearchSelect from './CollectorSearchSelect';
 import PatientSearchSelect from './PatientSearchSelect';
 import PreExistingDynamics from './PreExistingDynamics';
 import PatientLastVisit from './booking/patient_last_visit';
@@ -862,14 +863,10 @@ export default function DiagnosticIntakeForm({
                       className="border-gray-300"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-slate-500">Collector Name</Label>
-                    <Input
-                      value={form.phlebotomist}
-                      onChange={set('phlebotomist')}
-                      className="border-gray-300"
-                    />
-                  </div>
+                  <CollectorSearchSelect
+                    value={form.phlebotomist}
+                    onChange={(name) => setForm((f) => ({ ...f, phlebotomist: name }))}
+                  />
                 </div>
               </div>
 

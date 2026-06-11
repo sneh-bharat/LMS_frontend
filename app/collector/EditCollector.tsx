@@ -8,13 +8,13 @@ import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import {
-  useBloodCollector,
   useUpdateBloodCollector,
 } from '@/app/Apis/collector/useCollectors';
+import type { BloodCollector } from '@/app/Apis/collector/CollectorsApi';
 
 export interface EditCollectorProps {
   isOpen: boolean;
-  collectorId: number | null;
+  collector: BloodCollector | null;
   onSuccess?: () => void;
   onClose: () => void;
 }
@@ -30,6 +30,19 @@ const initialForm = {
   isActive: true,
 };
 
+function collectorToForm(collector: BloodCollector) {
+  return {
+    branchId: collector.branchId ?? 0,
+    fullName: collector.fullName?.trim() || '',
+    email: collector.email?.trim() || '',
+    phone: collector.phone?.trim() || '',
+    username: collector.username?.trim() || '',
+    password: '',
+    isVerified: collector.isVerified === true,
+    isActive: collector.isActive !== false,
+  };
+}
+
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
@@ -44,7 +57,7 @@ function getErrorMessage(err: unknown): string {
 
 export default function EditCollector({
   isOpen,
-  collectorId,
+  collector,
   onSuccess,
   onClose,
 }: EditCollectorProps) {
@@ -53,14 +66,9 @@ export default function EditCollector({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
 
-  const detailQuery = useBloodCollector(collectorId, {
-    enabled: isOpen && !!collectorId,
-  });
-  const updateMutation = useUpdateBloodCollector();
+  const collectorId = collector?.id ?? null;
 
-  const loadingDetail =
-    !!collectorId &&
-    (detailQuery.isLoading || (detailQuery.isFetching && !detailQuery.data));
+  const updateMutation = useUpdateBloodCollector();
 
   useEffect(() => {
     if (!isOpen) {
@@ -95,22 +103,10 @@ export default function EditCollector({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !collectorId) return;
-    const collector = detailQuery.data?.data;
-    if (!collector || collector.id !== collectorId) return;
-
-    setForm({
-      branchId: collector.branchId ?? 0,
-      fullName: collector.fullName?.trim() || '',
-      email: collector.email?.trim() || '',
-      phone: collector.phone?.trim() || '',
-      username: collector.username?.trim() || '',
-      password: '',
-      isVerified: collector.isVerified === true,
-      isActive: collector.isActive !== false,
-    });
+    if (!isOpen || !collector) return;
+    setForm(collectorToForm(collector));
     setErrors({});
-  }, [isOpen, collectorId, detailQuery.data?.data]);
+  }, [isOpen, collector]);
 
   const branchOptions = useMemo(() => {
     const options = [...branches];
@@ -133,12 +129,12 @@ export default function EditCollector({
         contactEmail: null,
         contactPhone: null,
         isActive: true,
-        tenantId: detailQuery.data?.data?.tenantId ?? 1,
+        tenantId: collector?.tenantId ?? 1,
       });
     }
 
     return options;
-  }, [branches, form.branchId, detailQuery.data?.data?.tenantId]);
+  }, [branches, form.branchId, collector?.tenantId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const el = e.target;
@@ -221,7 +217,7 @@ export default function EditCollector({
         form="edit-collector-form"
         variant="gradient"
         className="flex-1 font-bold"
-        disabled={pending || loadingDetail || detailQuery.isError}
+        disabled={pending}
       >
         {pending ? (
           <span className="inline-flex items-center justify-center gap-2">
@@ -248,21 +244,7 @@ export default function EditCollector({
       footer={footer}
       maxWidth="md"
     >
-      {loadingDetail ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-          <Loader2 className="animate-spin text-emerald-600" size={28} aria-hidden />
-          <p className="text-sm font-medium">Loading collector details…</p>
-        </div>
-      ) : detailQuery.isError ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex items-start gap-2">
-          <AlertCircle size={18} className="shrink-0 mt-0.5" aria-hidden />
-          <span>
-            {detailQuery.error instanceof Error
-              ? detailQuery.error.message
-              : 'Failed to load collector details.'}
-          </span>
-        </div>
-      ) : (
+      {!collector ? null : (
         <form id="edit-collector-form" onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="edit-fullName" className="text-xs font-bold text-slate-700 uppercase tracking-widest">

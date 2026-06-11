@@ -5,8 +5,11 @@ import {
   createLabCoordinator,
   deleteLabCoordinator,
   fetchLabCoordinatorById,
+  fetchLabCoordinatorByUsername,
   fetchLabCoordinators,
   updateLabCoordinator,
+  activateLabCoordinator,
+  type ActivateLabCoordinatorParams,
   type CreateLabCoordinatorPayload,
   type FetchLabCoordinatorsParams,
   type LabCoordinatorDetailApiResponse,
@@ -14,11 +17,14 @@ import {
   type UpdateLabCoordinatorParams,
 } from './LabCoordinatorApi';
 
+
 export const labCoordinatorQueryKeys = {
   all: ['lab-coordinators'] as const,
   list: (p: FetchLabCoordinatorsParams) =>
-    [...labCoordinatorQueryKeys.all, 'list', p.pageNo, p.pageSize] as const,
+    [...labCoordinatorQueryKeys.all, 'list', p.statusFilter ?? 'all', p.pageNo, p.pageSize] as const,
   detail: (id: number) => [...labCoordinatorQueryKeys.all, 'detail', id] as const,
+  byUsername: (username: string) =>
+    [...labCoordinatorQueryKeys.all, 'username', username] as const,
 };
 
 export type LabCoordinatorsListQueryKey = ReturnType<typeof labCoordinatorQueryKeys.list>;
@@ -48,6 +54,23 @@ export function useLabCoordinatorsList(
     refetchOnWindowFocus: false,
     ...queryOptions,
     enabled: queryOptions?.enabled ?? enabled,
+  });
+}
+
+/** GET lab coordinator by username — `/api/v1/lab-coordinators/username/{username}`. */
+export function useLabCoordinatorByUsername(
+  username: string | undefined,
+  options?: { enabled?: boolean }
+) {
+  const trimmedUsername = username?.trim();
+
+  return useQuery({
+    queryKey: labCoordinatorQueryKeys.byUsername(trimmedUsername || ''),
+    queryFn: () => fetchLabCoordinatorByUsername(trimmedUsername!),
+    enabled: !!trimmedUsername && (options?.enabled ?? true),
+    staleTime: 30_000,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -103,6 +126,40 @@ export function useDeleteLabCoordinator() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: labCoordinatorQueryKeys.all });
       queryClient.invalidateQueries({ queryKey: labCoordinatorQueryKeys.detail(id) });
+    },
+  });
+}
+
+/** PUT activate/deactivate lab coordinator — `/api/v1/lab-coordinators/{id}/activate`. */
+export function useActivateLabCoordinator() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ActivateLabCoordinatorParams) =>
+      activateLabCoordinator(params),
+
+    onSuccess: (data, params) => {
+      const updatedIsActive =
+        typeof data.data?.isActive === 'boolean' ? data.data.isActive : params.isActive;
+
+      queryClient.setQueriesData<LabCoordinatorsApiResponse>(
+        { queryKey: labCoordinatorQueryKeys.all },
+        (old) => {
+          if (!old?.data?.content) return old;
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              content: old.data.content.map((row) =>
+                row.id === params.id ? { ...row, isActive: updatedIsActive } : row
+              ),
+            },
+          };
+        }
+      );
+
+      queryClient.invalidateQueries({ queryKey: labCoordinatorQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: labCoordinatorQueryKeys.detail(params.id) });
     },
   });
 }
