@@ -647,63 +647,89 @@ export default function ResultEntryPage() {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 group">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-            size={16}
-          />
-          <input
-            type="search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder={
-              searchBy === "Mobile"
-                ? "Search by mobile…"
-                : "Search by patient name or ID…"
-            }
-            className="input-refined w-full py-2.5 pl-11 pr-4 font-bold text-sm"
-            disabled={isLoading}
-          />
-        </div>
-
-        <div className="flex gap-2.5 shrink-0">
-          {/* Status filter */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as ResultStatus | "ALL");
-                setPageNo(0);
-              }}
-              className="input-refined py-2.5 pl-4 pr-9 text-[11px] font-bold uppercase tracking-wider appearance-none min-w-[130px]"
-              disabled={isLoading}
-            >
-              <option value="ALL">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="DRAFT">Draft</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="VERIFIED">Verified</option>
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              size={13}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Top row: search + refresh */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+          <div className="relative flex-1 group">
+            <Search
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
+              size={16}
             />
+            <input
+              type="search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder={
+                searchBy === "Mobile"
+                  ? "Search by mobile…"
+                  : "Search by patient name or ID…"
+              }
+              className="w-full h-10 pl-10 pr-9 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 focus:bg-white transition-all"
+              disabled={isLoading}
+            />
+            {searchText && (
+              <button
+                type="button"
+                onClick={() => setSearchText("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          {/* Refresh */}
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-xl px-3 border-slate-200 shrink-0"
             onClick={() => refetch()}
             disabled={isLoading || isFetching}
             title="Refresh"
+            className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all disabled:opacity-40 shrink-0"
           >
             <RefreshCw size={15} className={isFetching ? "animate-spin" : ""} />
-          </Button>
+          </button>
+        </div>
+
+        {/* Bottom row: status filter tabs */}
+        <div className="flex items-center gap-1 px-4 py-2.5 bg-slate-50/60">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-2 shrink-0">
+            Status
+          </span>
+          {(
+            [
+              { value: "ALL", label: "All" },
+              { value: "PENDING", label: "Pending" },
+              { value: "DRAFT", label: "Draft" },
+              { value: "COMPLETED", label: "Completed" },
+              { value: "VERIFIED", label: "Verified" },
+            ] as { value: ResultStatus | "ALL"; label: string }[]
+          ).map(({ value, label }) => {
+            const isActive = statusFilter === value;
+            const colorMap: Record<string, string> = {
+              ALL: isActive ? "bg-slate-800 text-white shadow-sm" : "",
+              PENDING: isActive ? "bg-amber-500 text-white shadow-sm" : "",
+              DRAFT: isActive ? "bg-slate-500 text-white shadow-sm" : "",
+              COMPLETED: isActive ? "bg-emerald-600 text-white shadow-sm" : "",
+              VERIFIED: isActive ? "bg-sky-600 text-white shadow-sm" : "",
+            };
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(value);
+                  setPageNo(0);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all ${
+                  colorMap[value] ||
+                  "text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                }`}
+                disabled={isLoading}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
