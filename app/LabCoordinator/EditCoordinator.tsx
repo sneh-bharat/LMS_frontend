@@ -11,6 +11,7 @@ import {
   useLabCoordinatorById,
   useUpdateLabCoordinator,
 } from '@/app/Apis/LabCoordinator/useLabCoordinators';
+import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
 import { getLabCoordinatorName } from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
 
 export interface EditCoordinatorProps {
@@ -22,11 +23,14 @@ export interface EditCoordinatorProps {
 
 const initialForm = {
   branchId: 0,
+  department: '',
+  specialization: '',
   fullName: '',
-  email: '',
   phone: '',
   username: '',
+  email: '',
   isVerified: true,
+  isActive: true,
 };
 
 function getErrorMessage(err: unknown): string {
@@ -51,6 +55,8 @@ export default function EditCoordinator({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const detailQuery = useLabCoordinatorById(coordinatorId, {
     enabled: isOpen && coordinatorId != null && coordinatorId > 0,
@@ -94,6 +100,32 @@ export default function EditCoordinator({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 100 });
+        const list = res?.data?.content ?? [];
+        if (cancelled) return;
+        setDepartments(list);
+      } catch {
+        if (!cancelled) {
+          setDepartments([]);
+          toast.error('Failed to load departments.');
+        }
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen || !coordinatorId) return;
     const coordinator = detailQuery.data?.data;
     if (!coordinator || coordinator.id !== coordinatorId) return;
@@ -104,7 +136,10 @@ export default function EditCoordinator({
       email: coordinator.email?.trim() || '',
       phone: coordinator.phone?.trim() || '',
       username: coordinator.username?.trim() || '',
+      department: coordinator.departmentName?.trim() || coordinator.department?.trim() || '',
+      specialization: coordinator.specialization?.trim() || '',
       isVerified: coordinator.isVerified === true,
+      isActive: coordinator.isActive !== false,
     });
     setErrors({});
   }, [isOpen, coordinatorId, detailQuery.data?.data]);
@@ -137,12 +172,39 @@ export default function EditCoordinator({
     return options;
   }, [branches, form.branchId, detailQuery.data?.data]);
 
+  const departmentOptions = useMemo(() => {
+    const options = [...departments];
+    const currentDepartment = form.department.trim();
+
+    if (
+      currentDepartment &&
+      currentDepartment !== '—' &&
+      !options.some((dept) => dept.departmentName === currentDepartment)
+    ) {
+      options.unshift({
+        id: detailQuery.data?.data?.departmentId ?? 0,
+        branchId: form.branchId,
+        departmentCode: '',
+        departmentName: currentDepartment,
+        departmentNameShort: null,
+        description: '',
+        displayOrder: null,
+        isActive: true,
+        location: null,
+        tenantId: detailQuery.data?.data?.tenantId ?? 0,
+      });
+    }
+
+    return options;
+  }, [departments, form.department, form.branchId, detailQuery.data?.data]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const el = e.target;
     const name = el.name;
 
     if (el instanceof HTMLInputElement && el.type === 'checkbox') {
-      setForm((prev) => ({ ...prev, isVerified: el.checked }));
+      const checkboxField = name as 'isVerified' | 'isActive';
+      setForm((prev) => ({ ...prev, [checkboxField]: el.checked }));
     } else if (name === 'branchId') {
       setForm((prev) => ({ ...prev, branchId: Number(el.value) || 0 }));
     } else {
@@ -160,6 +222,10 @@ export default function EditCoordinator({
     if (!form.fullName.trim()) next.fullName = 'Full name is required.';
     if (!form.username.trim()) next.username = 'Username is required.';
     if (!form.phone.trim()) next.phone = 'Phone is required.';
+    if (!form.department.trim() || form.department === '—') {
+      next.department = 'Department is required.';
+    }
+    if (!form.specialization.trim()) next.specialization = 'Specialization is required.';
     const email = form.email.trim();
     if (!email) next.email = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
@@ -181,6 +247,8 @@ export default function EditCoordinator({
           email: form.email.trim(),
           phone: form.phone.trim(),
           username: form.username.trim(),
+          department: form.department.trim(),
+          specialization: form.specialization.trim(),
           isVerified: form.isVerified === true,
         },
       },
@@ -298,9 +366,8 @@ export default function EditCoordinator({
                 name="branchId"
                 value={form.branchId || ''}
                 onChange={handleChange}
-                className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  errors.branchId ? 'border-rose-300' : 'border-input'
-                }`}
+                className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.branchId ? 'border-rose-300' : 'border-input'
+                  }`}
                 disabled={pending || branchOptions.length === 0}
               >
                 <option value="" disabled>
@@ -318,6 +385,62 @@ export default function EditCoordinator({
                 <AlertCircle size={12} aria-hidden /> {errors.branchId}
               </p>
             ) : null}
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="department" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                Department *
+              </Label>
+              {loadingDepartments ? (
+                <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                  <Loader2 className="animate-spin text-emerald-600" size={16} aria-hidden />
+                  Loading departments…
+                </div>
+              ) : (
+                <select
+                  id="department"
+                  name="department"
+                  value={form.department}
+                  onChange={handleChange}
+                  className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${errors.department ? 'border-rose-300' : 'border-input'
+                    }`}
+                  disabled={pending || departmentOptions.length === 0}
+                >
+                  <option value="" disabled>
+                    Select department
+                  </option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept.id} value={dept.departmentName}>
+                      {dept.departmentName}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {errors.department ? (
+                <p className="text-xs text-rose-600 flex items-center gap-1">
+                  <AlertCircle size={12} aria-hidden /> {errors.department}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="specialization" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                Specialization *
+              </Label>
+              <Input
+                id="specialization"
+                name="specialization"
+                value={form.specialization}
+                onChange={handleChange}
+                placeholder="Enter Specialization"
+                className={`border-slate-200 ${errors.specialization ? 'border-rose-300' : ''}`}
+                disabled={pending}
+              />
+              {errors.specialization ? (
+                <p className="text-xs text-rose-600 flex items-center gap-1">
+                  <AlertCircle size={12} aria-hidden /> {errors.specialization}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -384,6 +507,7 @@ export default function EditCoordinator({
             ) : null}
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
             <input
               id="edit-isVerified"
@@ -397,6 +521,21 @@ export default function EditCoordinator({
             <Label htmlFor="edit-isVerified" className="text-sm font-semibold text-slate-800 cursor-pointer mb-0">
               Verified account
             </Label>
+          </div>
+          {/* <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+            <input
+              id="edit-isActive"
+              name="isActive"
+              type="checkbox"
+              checked={form.isActive === true}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              disabled={pending}
+            />
+            <Label htmlFor="edit-isActive" className="text-sm font-semibold text-slate-800 cursor-pointer mb-0">
+              Active account
+            </Label>
+          </div> */}
           </div>
         </form>
       )}

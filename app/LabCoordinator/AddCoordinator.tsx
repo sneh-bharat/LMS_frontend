@@ -8,6 +8,10 @@ import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import {
+  isLabCoordinatorMutationSuccess,
+  normalizeLabCoordinatorPhone,
+} from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
 import { useCreateLabCoordinator } from '@/app/Apis/LabCoordinator/useLabCoordinators';
 
 export interface AddCoordinatorProps {
@@ -33,12 +37,44 @@ function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
     const o = err as Record<string, unknown>;
-    if (typeof o.message === 'string') return o.message;
+    if (typeof o.message === 'string' && o.message.trim()) return o.message;
     const res = o.response as { data?: { message?: string; error?: string } } | undefined;
     const server = res?.data?.message ?? res?.data?.error;
-    if (typeof server === 'string') return server;
+    if (typeof server === 'string' && server.trim()) return server;
   }
   return 'Failed to create lab coordinator.';
+}
+
+const DUPLICATE_EMAIL_MESSAGE =
+  'The email address already exists. Please use a different email address.';
+
+function isDuplicateEmailMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('email address already exists') ||
+    (lower.includes('email') &&
+      (lower.includes('duplicate') ||
+        lower.includes('already') ||
+        lower.includes('exist') ||
+        lower.includes('in use')))
+  );
+}
+
+function applyCreateFieldErrors(message: string, setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>) {
+  const lower = message.toLowerCase();
+  if (lower.includes('username') && (lower.includes('duplicate') || lower.includes('already') || lower.includes('exist'))) {
+    setErrors((prev) => ({ ...prev, username: 'This username is already in use.' }));
+    return true;
+  }
+  if (isDuplicateEmailMessage(message)) {
+    setErrors((prev) => ({ ...prev, email: DUPLICATE_EMAIL_MESSAGE }));
+    return true;
+  }
+  if (lower.includes('branch')) {
+    setErrors((prev) => ({ ...prev, branchId: 'Selected branch is invalid. Choose another branch.' }));
+    return true;
+  }
+  return false;
 }
 
 export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordinatorProps) {
@@ -96,7 +132,7 @@ export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordi
     (async () => {
       setLoadingDepartments(true);
       try {
-        const res = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 10 });
+        const res = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 100 });
         const list = res?.data?.content ?? [];
         if (cancelled) return;
         setDepartments(list);
@@ -162,7 +198,7 @@ export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordi
         branchId: form.branchId,
         fullName: form.fullName.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: normalizeLabCoordinatorPhone(form.phone),
         username: form.username.trim(),
         password: form.password,
         department: form.department.trim(),
@@ -172,8 +208,11 @@ export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordi
       },
       {
         onSuccess: (res) => {
-          if (res.response === false && res.status !== 'success') {
-            toast.error(res.message || 'Failed to create lab coordinator.');
+          if (!isLabCoordinatorMutationSuccess(res)) {
+            const msg = res.message?.trim() || 'Failed to create lab coordinator.';
+            if (!applyCreateFieldErrors(msg, setErrors)) {
+              toast.error(msg);
+            }
             return;
           }
           toast.success(res?.message?.trim() || 'Lab coordinator created successfully.');
@@ -181,7 +220,10 @@ export default function AddCoordinator({ isOpen, onSuccess, onClose }: AddCoordi
           onClose();
         },
         onError: (err) => {
-          toast.error(getErrorMessage(err));
+          const msg = getErrorMessage(err);
+          if (!applyCreateFieldErrors(msg, setErrors)) {
+            toast.error(msg);
+          }
         },
       }
     );

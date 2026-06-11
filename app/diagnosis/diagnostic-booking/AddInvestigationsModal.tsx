@@ -6,6 +6,7 @@ import { RightDrawer, Button, Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   fetchTestsAscending,
+  searchTestsByName,
   type ApiResponse,
   type PaginatedResponse,
   type Test,
@@ -83,14 +84,16 @@ export default function AddInvestigationsModal({
 
       try {
         const trimmed = query.trim();
-        const response = await fetchTestsAscending(page, PAGE_SIZE, trimmed || undefined, {
-          branchId,
-        });
+        const isSearch = trimmed.length > 0;
+        const response = isSearch
+          ? await searchTestsByName(trimmed, page, PAGE_SIZE)
+          : await fetchTestsAscending(page, PAGE_SIZE, undefined, { branchId });
         const pageData = extractPaginatedTestsPage(response);
         const content = extractPaginatedTests(response);
-        const mapped = sortInvestigationsByName(
-          filterTestsForBranch(content, branchId).map(testToInvestigation)
-        );
+        const tests = isSearch
+          ? content.filter((t) => t.isActive)
+          : filterTestsForBranch(content, branchId);
+        const mapped = sortInvestigationsByName(tests.map(testToInvestigation));
 
         setBranchTests((prev) => {
           if (!append) return mapped;
@@ -228,7 +231,7 @@ export default function AddInvestigationsModal({
         ) : displayedTests.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-12">
             {search.trim()
-              ? 'No matching tests at this branch.'
+              ? 'No matching tests found.'
               : 'No active tests configured for this branch.'}
           </p>
         ) : (

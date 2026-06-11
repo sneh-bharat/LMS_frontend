@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   AlertCircle,
@@ -11,11 +11,11 @@ import {
   Trash2,
   Beaker,
   CheckCircle2,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { RightDrawer } from '@/components/ui/right-drawer';
-import Button from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+} from "lucide-react";
+import { toast } from "sonner";
+import { RightDrawer } from "@/components/ui/right-drawer";
+import Button from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   enterBulkResults,
   fetchParametersWithReference,
@@ -23,8 +23,7 @@ import {
   type EnterBulkResultsPayload,
   type EnterBulkResultsData,
   type ParameterWithReference,
-} from '@/app/Apis/Report/reportApi';
-
+} from "@/app/Apis/Report/reportApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,35 +73,43 @@ function emptyParam(): ParameterResultEntry & { _uid: string } {
   return {
     _uid: `new-${paramIdCounter}`,
     parameterId: 0,
-    parameterName: '',
-    resultValue: '',
+    parameterName: "",
+    resultValue: "",
     numericValue: null,
-    resultType: 'NUMERIC',
-    unit: '',
+    resultType: "NUMERIC",
+    unit: "",
   };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }: EnterResultDrawerProps) {
+export default function EnterResultDrawer({
+  isOpen,
+  onClose,
+  row,
+  selectedTest,
+}: EnterResultDrawerProps) {
   const queryClient = useQueryClient();
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [autoVerification, setAutoVerification] = useState(false);
   const [submitForVerification, setSubmitForVerification] = useState(false);
-  const [params, setParams] = useState<(ParameterResultEntry & { _uid: string })[]>([emptyParam()]);
+  const [params, setParams] = useState<
+    (ParameterResultEntry & { _uid: string })[]
+  >([emptyParam()]);
 
   // ── Derive test context from selectedTest or row ─────────────────────────
   const effectiveTestId = selectedTest?.testId ?? row?.testId ?? 0;
-  const effectiveOrderItemId = selectedTest?.orderItemId ?? row?.orderItemId ?? 0;
-  const effectiveTestName = selectedTest?.testName ?? row?.testName ?? '';
-  const effectiveSampleType = selectedTest?.sampleType ?? row?.sampleType ?? '';
-  const gender = (row?.gender ?? '').toUpperCase();
+  const effectiveOrderItemId =
+    selectedTest?.orderItemId ?? row?.orderItemId ?? 0;
+  const effectiveTestName = selectedTest?.testName ?? row?.testName ?? "";
+  const effectiveSampleType = selectedTest?.sampleType ?? row?.sampleType ?? "";
+  const gender = (row?.gender ?? "").toUpperCase();
   const age = row?.age ?? 0;
 
   // ── Fetch parameters with reference when drawer opens ─────────────────────
   const { data: paramsQueryData, isLoading: isLoadingParams } = useQuery({
-    queryKey: ['report-parameters', effectiveTestId, gender, age],
+    queryKey: ["report-parameters", effectiveTestId, gender, age],
     queryFn: () => fetchParametersWithReference(effectiveTestId, gender, age),
     enabled: isOpen && effectiveTestId > 0 && !!gender && age > 0,
     staleTime: 5 * 60 * 1000,
@@ -118,14 +125,14 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
           _uid: `ref-${p.parameterId}-${paramIdCounter}`,
           parameterId: p.parameterId,
           parameterName: p.parameterName,
-          resultValue: '',
+          resultValue: "",
           numericValue: null,
           resultType: p.resultType,
           unit: p.unit,
           referenceLow: p.referenceMin,
           referenceHigh: p.referenceMax,
           referenceRange: p.referenceRange,
-          criticalLow: p.criticalLow,  
+          criticalLow: p.criticalLow,
           criticalHigh: p.criticalHigh,
         };
       });
@@ -156,7 +163,12 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
         return {
           ...p,
           resultValue: value,
-          numericValue: p.resultType === 'NUMERIC' ? (Number.isNaN(n) ? null : n) : p.numericValue,
+          numericValue:
+            p.resultType === "NUMERIC"
+              ? Number.isNaN(n)
+                ? null
+                : n
+              : p.numericValue,
         };
       }),
     );
@@ -165,7 +177,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
   const addParam = () => setParams((prev) => [...prev, emptyParam()]);
 
   const removeParam = (uid: string) => {
-    setParams((prev) => (prev.length <= 1 ? prev : prev.filter((p) => p._uid !== uid)));
+    setParams((prev) =>
+      prev.length <= 1 ? prev : prev.filter((p) => p._uid !== uid),
+    );
   };
 
   // ── Mutation ──────────────────────────────────────────────────────────────
@@ -173,12 +187,12 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
     mutationFn: (payload: EnterBulkResultsPayload) => enterBulkResults(payload),
     onSuccess: (res) => {
       if (res.response === false) {
-        toast.error(res.message || 'Failed to submit results.');
+        toast.error(res.message || "Failed to submit results.");
         return;
       }
 
       const d: EnterBulkResultsData | undefined = res.data;
-      const summary = res.message || 'Results submitted successfully.';
+      const summary = res.message || "Results submitted successfully.";
 
       if (d && d.criticalCount > 0) {
         toast.warning(summary, {
@@ -187,7 +201,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
         });
       } else {
         toast.success(summary, {
-          description: d ? `${d.flaggedCount} flagged out of ${d.totalParameters} parameters.` : undefined,
+          description: d
+            ? `${d.flaggedCount} flagged out of ${d.totalParameters} parameters.`
+            : undefined,
         });
       }
 
@@ -195,12 +211,12 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
         toast.info(`${d.skippedParameters.length} parameter(s) were skipped.`);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['report-result-list'] });
+      queryClient.invalidateQueries({ queryKey: ["report-result-list"] });
       onClose();
       resetForm();
     },
     onError: (err: Error) => {
-      toast.error(err.message || 'Failed to submit results.');
+      toast.error(err.message || "Failed to submit results.");
     },
   });
 
@@ -211,14 +227,16 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
     const submitTestId = effectiveTestId;
 
     if (!orderId || !orderItemId || !submitTestId) {
-      toast.error('Order ID, Order Item ID, and Test ID are missing from the selected row.');
+      toast.error(
+        "Order ID, Order Item ID, and Test ID are missing from the selected row.",
+      );
       return;
     }
 
     // Validate all parameters have a result value
     const invalid = params.some((p) => !p.resultValue.trim());
     if (invalid) {
-      toast.error('All parameters must have a result value.');
+      toast.error("All parameters must have a result value.");
       return;
     }
 
@@ -235,25 +253,32 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
   };
 
   // ── Abnormal flag helper ──────────────────────────────────────────────────
-  function getAbnormalFlag(p: ParameterResultEntry): 'LOW' | 'HIGH' | 'NORMAL' | 'CRITICAL' | null {
-    if (p.resultType !== 'NUMERIC' || p.numericValue == null) return null;
+  function getAbnormalFlag(
+    p: ParameterResultEntry,
+  ): "LOW" | "HIGH" | "NORMAL" | "CRITICAL" | null {
+    if (p.resultType !== "NUMERIC" || p.numericValue == null) return null;
     const val = p.numericValue;
 
     // Check reference range first to determine if out of range
     const isBelowRef = p.referenceLow != null && val < p.referenceLow;
     const isAboveRef = p.referenceHigh != null && val > p.referenceHigh;
-    const isWithinRef = !isBelowRef && !isAboveRef && (p.referenceLow != null || p.referenceHigh != null);
+    const isWithinRef =
+      !isBelowRef &&
+      !isAboveRef &&
+      (p.referenceLow != null || p.referenceHigh != null);
 
     // CRITICAL: out of reference range AND beyond critical threshold
-    if (isBelowRef && p.criticalLow != null && val < p.criticalLow) return 'CRITICAL';
-    if (isAboveRef && p.criticalHigh != null && val > p.criticalHigh) return 'CRITICAL';
+    if (isBelowRef && p.criticalLow != null && val < p.criticalLow)
+      return "CRITICAL";
+    if (isAboveRef && p.criticalHigh != null && val > p.criticalHigh)
+      return "CRITICAL";
 
     // LOW / HIGH: out of reference range but not critical
-    if (isBelowRef) return 'LOW';
-    if (isAboveRef) return 'HIGH';
+    if (isBelowRef) return "LOW";
+    if (isAboveRef) return "HIGH";
 
     // Within reference range
-    if (isWithinRef) return 'NORMAL';
+    if (isWithinRef) return "NORMAL";
 
     return null;
   }
@@ -262,14 +287,21 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
   return (
     <RightDrawer
       isOpen={isOpen}
-      onClose={() => { onClose(); resetForm(); }}
+      onClose={() => {
+        onClose();
+        resetForm();
+      }}
       title={
         <span className="flex items-center gap-2">
           <FlaskConical size={20} />
           Enter Result
         </span>
       }
-      description={row ? `${row.patientName} — ${effectiveTestName}` : 'Enter parameter-level results'}
+      description={
+        row
+          ? `${row.patientName} — ${effectiveTestName}`
+          : "Enter parameter-level results"
+      }
       maxWidth="xl"
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
@@ -278,7 +310,10 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
             variant="outline"
             size="sm"
             className="font-bold border-slate-200"
-            onClick={() => { onClose(); resetForm(); }}
+            onClick={() => {
+              onClose();
+              resetForm();
+            }}
             disabled={mutation.isPending}
           >
             Cancel
@@ -306,29 +341,45 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
       }
     >
       <div className="space-y-6">
-
         {/* ── Patient Summary (read-only) ── */}
         {row && (
           <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-1">
-            <div className="text-sm font-bold text-slate-900">{row.patientName}</div>
-            <div className="text-xs text-slate-500">
-              {row.gender}, {row.age} yrs &middot; PID: {row.patientId} &middot; {row.mobile}
+            <div className="text-sm font-bold text-slate-900">
+              {row.patientName}
             </div>
             <div className="text-xs text-slate-500">
-              Test: <span className="font-semibold text-slate-700">{effectiveTestName}</span>
-              {effectiveSampleType && <span> &middot; Sample: {effectiveSampleType}</span>}
+              {row.gender}, {row.age} yrs &middot; PID: {row.patientId} &middot;{" "}
+              {row.mobile}
+            </div>
+            <div className="text-xs text-slate-500">
+              Test:{" "}
+              <span className="font-semibold text-slate-700">
+                {effectiveTestName}
+              </span>
+              {effectiveSampleType && (
+                <span> &middot; Sample: {effectiveSampleType}</span>
+              )}
             </div>
             {selectedTest && (
               <div className="text-xs text-slate-500">
-                Code: <span className="font-mono text-slate-600">{selectedTest.testCode}</span>
+                Code:{" "}
+                <span className="font-mono text-slate-600">
+                  {selectedTest.testCode}
+                </span>
                 {selectedTest.isCritical && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[9px] font-bold">CRITICAL</span>
+                  <span className="ml-2 px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[9px] font-bold">
+                    CRITICAL
+                  </span>
                 )}
               </div>
             )}
             {/* Hidden order context — submitted with payload but not shown as inputs */}
-            <input type="hidden" name="orderId" value={row.orderId ?? ''} />
-            <input type="hidden" name="orderItemId" value={effectiveOrderItemId} />
+            <input type="hidden" name="orderId" value={row.orderId ?? ""} />
+            <input
+              type="hidden"
+              name="orderItemId"
+              value={effectiveOrderItemId}
+            />
             <input type="hidden" name="testId" value={effectiveTestId} />
           </div>
         )}
@@ -337,17 +388,20 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
         {row && row.tests && row.tests.length > 1 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
             <div className="text-xs font-bold text-amber-800">
-              This order has {row.tests.length} tests — currently entering result for:
+              This order has {row.tests.length} tests — currently entering
+              result for:
             </div>
-            <div className="text-sm font-bold text-amber-900">{effectiveTestName}</div>
+            <div className="text-sm font-bold text-amber-900">
+              {effectiveTestName}
+            </div>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {row.tests.map((t) => (
                 <span
                   key={t.orderItemId}
                   className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
                     t.testId === effectiveTestId
-                      ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                      : "bg-slate-100 text-slate-500 border-slate-200"
                   }`}
                 >
                   {t.testNameShort || t.testName}
@@ -361,7 +415,7 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
         {mutation.isError && (
           <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-rose-800">
             <AlertCircle size={16} className="shrink-0" />
-            <span>{mutation.error?.message ?? 'Submission failed.'}</span>
+            <span>{mutation.error?.message ?? "Submission failed."}</span>
           </div>
         )}
 
@@ -382,7 +436,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
               onChange={(e) => setAutoVerification(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="text-xs font-bold text-slate-700">Request Auto-Verification</span>
+            <span className="text-xs font-bold text-slate-700">
+              Request Auto-Verification
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -391,7 +447,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
               onChange={(e) => setSubmitForVerification(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="text-xs font-bold text-slate-700">Submit for Verification</span>
+            <span className="text-xs font-bold text-slate-700">
+              Submit for Verification
+            </span>
           </label>
         </div>
 
@@ -400,7 +458,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Beaker size={16} className="text-emerald-600" />
-              <span className="text-sm font-bold text-slate-800">Parameter Results</span>
+              <span className="text-sm font-bold text-slate-800">
+                Parameter Results
+              </span>
               <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                 {params.length}
               </span>
@@ -422,7 +482,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-10">#</th>
+                    <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-10">
+                      #
+                    </th>
                     <th className="px-3 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       Parameter Name
                     </th>
@@ -448,21 +510,31 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
                   {params.map((p, idx) => {
                     const flag = getAbnormalFlag(p);
                     return (
-                      <tr key={p._uid} className="hover:bg-slate-50/50 transition-colors">
-
+                      <tr
+                        key={p._uid}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
                         {/* # */}
                         <td className="px-3 py-3 text-xs font-bold text-slate-400">
                           {idx + 1}
                           {/* Parameter ID — hidden, submitted with payload */}
-                          <input type="hidden" name={`parameterId-${idx}`} value={p.parameterId ?? 0} />
+                          <input
+                            type="hidden"
+                            name={`parameterId-${idx}`}
+                            value={p.parameterId ?? 0}
+                          />
                         </td>
 
                         {/* Parameter Name — read-only, fetched from API */}
                         <td className="px-3 py-3">
                           {p.parameterName ? (
-                            <span className="text-sm font-semibold text-slate-800">{p.parameterName}</span>
+                            <span className="text-sm font-semibold text-slate-800">
+                              {p.parameterName}
+                            </span>
                           ) : (
-                            <span className="text-xs text-slate-400 italic">—</span>
+                            <span className="text-xs text-slate-400 italic">
+                              —
+                            </span>
                           )}
                         </td>
 
@@ -470,7 +542,9 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
                         <td className="px-3 py-3">
                           <Input
                             value={p.resultValue}
-                            onChange={(e) => updateResultValue(p._uid, e.target.value)}
+                            onChange={(e) =>
+                              updateResultValue(p._uid, e.target.value)
+                            }
                             placeholder="Enter value…"
                             className="h-8 text-xs py-1 px-2 font-bold focus:ring-emerald-500 focus:border-emerald-500"
                             autoFocus={idx === 0}
@@ -480,14 +554,16 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
                         {/* Type — read-only */}
                         <td className="px-3 py-3 text-center">
                           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                            {p.resultType || 'NUMERIC'}
+                            {p.resultType || "NUMERIC"}
                           </span>
                         </td>
 
                         {/* Unit — read-only, fetched from API */}
                         <td className="px-3 py-3 text-center">
                           {p.unit ? (
-                            <span className="text-[10px] font-mono text-slate-500">{p.unit}</span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {p.unit}
+                            </span>
                           ) : (
                             <span className="text-slate-300 text-xs">—</span>
                           )}
@@ -496,8 +572,11 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
                         {/* Reference Range — read-only, fetched from API */}
                         <td className="px-3 py-3 text-center">
                           {p.referenceRange ? (
-                            <span className="text-[10px] font-mono text-slate-500">{p.referenceRange}</span>
-                          ) : p.referenceLow != null && p.referenceHigh != null ? (
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {p.referenceRange}
+                            </span>
+                          ) : p.referenceLow != null &&
+                            p.referenceHigh != null ? (
                             <span className="text-[10px] font-mono text-slate-500">
                               {p.referenceLow} – {p.referenceHigh}
                             </span>
@@ -508,19 +587,29 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
 
                         {/* Abnormal Flag */}
                         <td className="px-3 py-3 text-center">
-                          {flag === 'CRITICAL' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-red-50 text-red-600 border border-red-200 animate-pulse">CRITICAL</span>
+                          {flag === "CRITICAL" && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-red-50 text-red-600 border border-red-200 animate-pulse">
+                              CRITICAL
+                            </span>
                           )}
-                          {flag === 'LOW' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-200">LOW</span>
+                          {flag === "LOW" && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-200">
+                              LOW
+                            </span>
                           )}
-                          {flag === 'HIGH' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200">HIGH</span>
+                          {flag === "HIGH" && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200">
+                              HIGH
+                            </span>
                           )}
-                          {flag === 'NORMAL' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-200">NORMAL</span>
+                          {flag === "NORMAL" && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-200">
+                              NORMAL
+                            </span>
                           )}
-                          {!flag && <span className="text-slate-300 text-xs">—</span>}
+                          {!flag && (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
 
                         {/* Delete */}
@@ -534,7 +623,6 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
                             <Trash2 size={14} />
                           </button>
                         </td>
-
                       </tr>
                     );
                   })}
@@ -543,7 +631,6 @@ export default function EnterResultDrawer({ isOpen, onClose, row, selectedTest }
             </div>
           </div>
         </div>
-
       </div>
     </RightDrawer>
   );
