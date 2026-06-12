@@ -3,58 +3,42 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-
-const AUTHORIZED_ROLES = [
-    "SUPER_ADMIN",
-    "ADMIN",
-    "BRANCH_MANAGER",
-    "PATHOLOGIST",
-    "LAB_TECHNICIAN",
-    "LAB_COORDINATOR",
-    "BLOOD_COLLECTOR",
-    "RECEPTIONIST",
-];
+import { AUTHORIZED_ROLES, AUTH_STORAGE_KEYS } from '@/config/constants';
 
 interface RoleGuardProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
-/**
- * RoleGuard Component
- * Enforces authentication and role-based access control.
- */
 export default function RoleGuard({ children }: RoleGuardProps) {
-    const router = useRouter();
-    const [isAuthorized, setIsAuthorized] = useState(false);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        const role = localStorage.getItem('role');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
 
-        if (!token || !role) {
-            router.replace('/login');
-            return;
-        }
-
-        if (!AUTHORIZED_ROLES.includes(role)) {
-            toast.error('You are not authorised');
-
-            // Clear unauthorized session
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('role');
-
-            router.replace('/login');
-            return;
-        }
-
-        setIsAuthorized(true);
-    }, [router]);
-
-    // Prevent rendering children until authorization is verified
-    if (!isAuthorized) {
-        return null; // Or a loading spinner
+    if (!token || !role) {
+      router.replace('/login');
+      return;
     }
 
-    return <>{children}</>;
+    if (!(AUTHORIZED_ROLES as readonly string[]).includes(role)) {
+      toast.error('You are not authorised');
+      AUTH_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
+      router.replace('/login');
+      return;
+    }
+
+    setIsAuthorized(true);
+  }, [router]);
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-[#eceff1] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#00ac80] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

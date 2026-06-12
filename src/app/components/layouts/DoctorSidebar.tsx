@@ -11,7 +11,22 @@ import { cn } from "@/lib/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCTOR NAV DATA
 // ─────────────────────────────────────────────────────────────────────────────
-const NAV = [
+interface NavChild {
+    id: string;
+    label: string;
+    href: string;
+}
+
+interface NavItem {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    href?: string;
+    children?: NavChild[];
+}
+
+
+const NAV: NavItem[] = [
     {
         id: 'doctor-dashboard',
         label: 'Dashboard',
@@ -27,7 +42,12 @@ const NAV = [
     // Add more doctor specific items here as they are developed
 ];
 
-export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
+interface DoctorSidebarProps {
+    isOpen: boolean;
+    onExtendSidebar: () => void;
+}
+
+export default function DoctorSidebar({ isOpen, onExtendSidebar }: DoctorSidebarProps) {
     const pathname = usePathname();
 
     const getDefaultOpen = () => {
@@ -41,7 +61,7 @@ export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
 
     const [openGroups, setOpenGroups] = useState(getDefaultOpen);
 
-    const toggleGroup = (id) => {
+    const toggleGroup = (id: string) => {
         if (!isOpen) {
             onExtendSidebar?.();
             setOpenGroups([id]);
@@ -52,7 +72,7 @@ export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
         );
     };
 
-    const isActive = (href) =>
+    const isActive = (href: string) =>
         pathname === href || pathname.startsWith(href + '/');
 
     return (
@@ -137,7 +157,7 @@ export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
                                 </button>
                             ) : (
                                 <Link
-                                    href={item.href}
+                                    href={item.href ?? "/"}
                                     title={!isOpen ? item.label : ''}
                                     className={cn(
                                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
@@ -170,7 +190,7 @@ export default function DoctorSidebar({ isOpen, onExtendSidebar }) {
                                     "overflow-hidden transition-all duration-500 ease-in-out",
                                     groupOpen ? 'max-h-[800px] mt-2' : 'max-h-0'
                                 )}>
-                                    {item.children.map((child, index) => {
+                                    {(item.children ?? []).map((child: NavChild, index: number) => {
                                         const active = isActive(child.href);
                                         return (
                                             <Link

@@ -4,8 +4,23 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
 import Badge from '@/components/ui/badge';
-import AdvancedTemplateEditor from '@/app/components/editor/AdvancedTemplateEditor';
+
+const AdvancedTemplateEditor = dynamic(
+  () => import('@/app/components/editor/AdvancedTemplateEditor'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-96 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2 text-slate-400">
+          <Loader size={16} className="animate-spin" />
+          <span className="text-sm">Loading editor...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 import { useCreateReportTemplate } from '@/app/Apis/lab/TemplateMgmt/useReportTemplates';
 import { mapApplicableForToApi } from '@/app/Apis/lab/reportTemplateApi';
 

@@ -23,6 +23,21 @@ import { Button } from '@/components/ui';
 // ─────────────────────────────────────────────────────────────────────────────
 // NAV DATA
 // ─────────────────────────────────────────────────────────────────────────────
+interface NavChild {
+    id: string;
+    label: string;
+    href: string;
+}
+
+interface NavItem {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    href?: string;
+    children?: NavChild[];
+}
+
+
 const NAV = [
     {
         id: 'dashboard',
@@ -203,7 +218,12 @@ const NAV = [
     },
 ];
 
-export default function Sidebar({ isOpen, onExtendSidebar }) {
+interface SidebarProps {
+    isOpen: boolean;
+    onExtendSidebar: () => void;
+}
+
+export default function Sidebar({ isOpen, onExtendSidebar }: SidebarProps) {
     const pathname = usePathname();
 
     const getDefaultOpen = () => {
@@ -217,7 +237,7 @@ export default function Sidebar({ isOpen, onExtendSidebar }) {
 
     const [openGroups, setOpenGroups] = useState(getDefaultOpen);
 
-    const toggleGroup = (id) => {
+    const toggleGroup = (id: string) => {
         if (!isOpen) {
             onExtendSidebar?.();
             setOpenGroups([id]);
@@ -228,7 +248,7 @@ export default function Sidebar({ isOpen, onExtendSidebar }) {
         );
     };
 
-    const isActive = (href) =>
+    const isActive = (href: string) =>
         pathname === href || pathname.startsWith(href + '/');
 
     return (
