@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 import Badge from '@/components/ui/badge';
 
 const AdvancedTemplateEditor = dynamic(
-  () => import('@/app/components/editor/AdvancedTemplateEditor'),
+  () => import('@/components/common/AdvancedTemplateEditor'),
   {
     ssr: false,
     loading: () => (

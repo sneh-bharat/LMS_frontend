@@ -17,34 +17,28 @@ import {
     Input,
     Label,
 } from '@/components/ui';
+import SnehBharatEmr_Info from './SnehBharatEmr_Info';
 import Image from 'next/image';
 import { useMutation } from '@tanstack/react-query';
-import { authApi } from '../Apis/Auth/doctor_auth';
-import useDeviceId from '../utils/custom-hooks/UseDeviceId';
+import { authApi } from '@/app/Apis/Auth/auth';
+import useDeviceId from '@/app/utils/custom-hooks/UseDeviceId';
 import { useEffect } from 'react';
-import SnehBharatEmr_Info from '../login/SnehBharatEmr_Info';
 
 export default function LoginPage() {
     const router = useRouter();
     const deviceId = useDeviceId();
 
-    const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
     // Redirect if already logged in
     useEffect(() => {
-        if (!mounted) return;
-        const token = localStorage.getItem('doctor-token');
+        const token = localStorage.getItem('token');
         if (token) {
-            router.replace('/forDoctors/dashboard');
+            router.replace('/dashboard');
         }
-    }, [router, mounted]);
+    }, [router]);
 
     const loginMutation = useMutation({
         mutationFn: authApi.login,
@@ -52,18 +46,18 @@ export default function LoginPage() {
             if (result.response) {
                 const { token, refreshToken, loginDetails } = result.data;
 
-                localStorage.setItem('doctor-token', token);
-                localStorage.setItem('doctor-refreshToken', refreshToken);
+                localStorage.setItem('token', token);
+                localStorage.setItem('refreshToken', refreshToken);
                 localStorage.setItem('role', loginDetails.role);
-                if (loginDetails.id != null) {
-                    localStorage.setItem('doctor-id', String(loginDetails.id));
+                if (loginDetails.fullName) {
+                    localStorage.setItem('fullName', loginDetails.fullName);
                 }
-                if (loginDetails.fullName?.trim()) {
-                    localStorage.setItem('doctor-name', loginDetails.fullName.trim());
+                if (loginDetails.tenantId != null) {
+                    localStorage.setItem('tenantId', String(loginDetails.tenantId));
                 }
 
                 toast.success(result.message || 'Login successful');
-                router.push('/forDoctors/dashboard');
+                router.push('/dashboard');
             } else {
                 toast.error(result.message || 'Login failed');
             }
@@ -117,12 +111,6 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    {!mounted ? (
-                        <div className="flex flex-col items-center justify-center gap-4 py-12" aria-busy="true">
-                            <Loader2 className="animate-spin text-[#00ac80]" size={36} aria-hidden />
-                            <p className="text-sm font-medium text-slate-500">Loading…</p>
-                        </div>
-                    ) : (
                     <form className="space-y-8" onSubmit={handleLogin}>
                         {/* Username */}
                         <div className="space-y-2">
@@ -138,6 +126,7 @@ export default function LoginPage() {
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder="Enter your username"
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="h-12 pl-11 border-slate-200 focus:ring-[#00ac80]/20 focus:border-[#00ac80] rounded-xl font-medium"
                                 />
                             </div>
@@ -160,12 +149,14 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="h-12 pl-11 pr-11 border-slate-200 focus:ring-[#00ac80]/20 focus:border-[#00ac80] rounded-xl font-medium"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     disabled={isLoading}
+                                    suppressHydrationWarning
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -192,7 +183,6 @@ export default function LoginPage() {
                             )}
                         </Button>
                     </form>
-                    )}
 
                     {/* Footer Branding */}
                     <div className="pt-8 flex flex-col items-center space-y-6">

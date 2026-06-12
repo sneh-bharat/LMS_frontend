@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LogoutConfirmDialog } from '../LogoutConfirmDialog';
+import { LogoutConfirmDialog } from '@/components/guards/LogoutConfirmDialog';
 
 interface DoctorTopbarProps {
     onToggleSidebar: () => void;

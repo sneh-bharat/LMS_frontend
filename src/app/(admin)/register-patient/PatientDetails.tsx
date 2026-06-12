@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
-import { Patient, fetchPatientImage } from '../Apis/Patients/Patient_Service_API';
-import { sanitizeMiddleName } from '../Apis/Patients/patientDisplayUtils';
+import { Patient, fetchPatientImage } from '@/app/Apis/Patients/Patient_Service_API';
+import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { getBase64ImageSource } from '../functions/getBase64';
+import { getBase64ImageSource } from '@/app/functions/getBase64';
 import Button from '@/components/ui/button';
 import { Trash2, Receipt } from 'lucide-react';
 

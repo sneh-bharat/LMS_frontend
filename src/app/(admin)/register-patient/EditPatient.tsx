@@ -28,9 +28,9 @@ import {
     Patient,
     fetchPatientById,
     fetchPatientImage,
-} from '../Apis/Patients/Patient_Service_API';
-import { sanitizeAddressesForEdit, sanitizeAllergiesForEdit } from '../Apis/Patients/patientPayloadUtils';
-import { getBase64ImageSource } from '../functions/getBase64';
+} from '@/app/Apis/Patients/Patient_Service_API';
+import { sanitizeAddressesForEdit, sanitizeAllergiesForEdit } from '@/app/Apis/Patients/patientPayloadUtils';
+import { getBase64ImageSource } from '@/app/functions/getBase64';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
