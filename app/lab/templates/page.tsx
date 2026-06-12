@@ -81,12 +81,10 @@ export default function TemplatePage() {
   };
 
   const handleConfigInterpretation = (testId: number) => {
-    console.log('Configure interpretation for test:', selectedTestId ?? testId);
   };
 
   const handleDeleteTemplate = (templateId: number) => {
     if (confirm('Are you sure you want to delete this template?')) {
-      console.log('Delete template:', templateId);
     }
   };
 

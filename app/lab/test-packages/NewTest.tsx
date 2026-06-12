@@ -161,7 +161,6 @@ export default function NewTest({
           pageNo: 0,
           pageSize: 100,
         });
-        console.log('Loaded branches for test package:', response.data.content);
         setBranches(response.data.content);
       } catch (error) {
         console.error('Failed to load branches:', error);
@@ -178,7 +177,6 @@ export default function NewTest({
     if (editData && isOpen && branches.length > 0 && formData.branchId) {
       const branchIdStr = formData.branchId.toString();
       setSelectedBranchId(branchIdStr);
-      console.log('Set selected branch ID to:', branchIdStr);
     }
   }, [branches, editData, isOpen, formData.branchId]);
 
@@ -361,9 +359,6 @@ export default function NewTest({
         })),
       };
 
-      console.log('=== SUBMITTING PACKAGE ===');
-      console.log('Mode:', isEditMode ? 'UPDATE' : 'CREATE');
-      console.log('Payload:', JSON.stringify(apiData, null, 2));
 
       await onSubmit(apiData);
       handleClose();
@@ -503,7 +498,6 @@ export default function NewTest({
                   onValueChange={(value) => {
                     if (value) {
                       const branchId = parseInt(value);
-                      console.log('Selected branch ID:', branchId);
                       setSelectedBranchId(value);
                       setFormData((prev) => ({
                         ...prev,

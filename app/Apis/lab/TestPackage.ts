@@ -16,7 +16,6 @@ import labClient from '@/app/Apis/lab/axios';
 const logger = {
   debug: (message: string, data?: unknown) => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[DEBUG] ${message}`, data);
     }
   },
   error: (message: string, error?: unknown) => {

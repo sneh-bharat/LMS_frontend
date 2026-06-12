@@ -134,10 +134,6 @@ export function EditPatient({ isOpen, onClose, patientId }: EditPatientProps) {
                     setPhotoPreview(null);
                 }
 
-                console.log('--- EDIT FORM LOADED DATA ---');
-                console.log('Original Patient from API:', patient);
-                console.log('Sanitized addresses:', sanitizeAddressesForEdit(patient.addresses));
-                console.log('------------------------------');
 
                 setFormData({
                     firstName: patient.firstName || '',
@@ -270,21 +266,14 @@ export function EditPatient({ isOpen, onClose, patientId }: EditPatientProps) {
                 })),
             };
 
-            console.log('--- PATIENT UPDATE PAYLOAD ---');
-            console.log('JSON Data (patientDTO):', patientDTO);
             if (formData.photoFile) {
-                console.log('Binary File (photoFile):', formData.photoFile);
             }
-            console.log('------------------------------');
 
             const response = await updatePatient(patientId, {
                 ...patientDTO,
                 photoFile: formData.photoFile,
             } as any);
 
-            console.log('--- UPDATE RESPONSE ---');
-            console.log('Response from updatePatient:', response);
-            console.log('------------------------------');
 
             if (response && (response.code === 200 || response.response === true)) {
                 toast.success('Patient updated successfully!');

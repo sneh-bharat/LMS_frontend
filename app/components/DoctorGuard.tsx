@@ -23,16 +23,13 @@ export default function DoctorGuard({ children }: DoctorGuardProps) {
         const token = localStorage.getItem('doctor-token');
         const role = localStorage.getItem('role');
 
-        console.log('DoctorGuard Debug:', { token: !!token, role });
 
         if (!token || !role || role !== 'DOCTOR') {
-            console.log('DoctorGuard: Unauthorized access, redirecting...');
             if (role !== 'DOCTOR' && role) {
                 toast.error('You are not authorized as a doctor');
             }
             router.replace('/doctor-login');
         } else {
-            console.log('DoctorGuard: Authorized');
             setIsAuthorized(true);
         }
     }, [router]);

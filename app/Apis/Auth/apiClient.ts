@@ -34,7 +34,7 @@ apiClient.interceptors.response.use(
         // Handle 401 Unauthorized globally (e.g., redirect to login)
         if (error.response?.status === 401) {
             if (typeof window !== 'undefined') {
-                localStorage.clear();
+                ['token','refreshToken','role','tenantId','fullName'].forEach(k => localStorage.removeItem(k));
                 window.location.href = '/login';
             }
         }

@@ -154,11 +154,6 @@ export async function fetchTestCategories(
     `/api/v1/test-categories?${params}`
   );
   
-  console.log('📦 Raw API response:', response);
-  console.log('📦 Response type:', typeof response);
-  console.log('📦 Has data property:', 'data' in (response || {}));
-  console.log('📦 Response.data:', response?.data);
-  console.log('📦 Response.data.content:', response?.data?.content);
   
   return response.data;
 }

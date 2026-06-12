@@ -173,8 +173,6 @@ export default function TestCategoriesPage() {
         response = await fetchTestCategories(currentPageNum, pageSize);
       }
       
-      console.log('API Response:', response);
-      console.log('Current filter:', currentFilter);
       
       // Check if response has the expected structure
       if (response?.data?.content) {
@@ -311,7 +309,6 @@ export default function TestCategoriesPage() {
   };
 
   const handleCloseModal = () => {
-    console.log('Closing modal, current state:', isModalOpen);
     setIsModalOpen(false);
     setEditingCategory(null);
   };
@@ -349,8 +346,6 @@ export default function TestCategoriesPage() {
             size="sm"
             className="gap-2 shadow-sm px-8"
             onClick={() => {
-              console.log('Create Category button clicked');
-              console.log('Current isModalOpen:', isModalOpen);
               setIsModalOpen(true);
             }}
             suppressHydrationWarning

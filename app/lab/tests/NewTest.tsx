@@ -242,50 +242,30 @@ export default function NewTest({
       setLoadingDropdowns(true);
       try {
         // Load branches
-        console.log('🔍 Fetching branches...');
         const branchResponse = await branchApi.getAllBranches({ pageNo: 0, pageSize: 100 });
-        console.log('Branch API Response:', branchResponse);
         if (branchResponse?.data?.content) {
           setBranches(branchResponse.data.content);
-          console.log('✅ Branches loaded:', branchResponse.data.content.length);
         }
         
         // Load departments
-        console.log('🔍 Fetching departments...');
         const deptResponse = await departmentApi.getAllDepartments({ pageNo: 0, pageSize: 100 });
-        console.log('Department API Response:', deptResponse);
         if (deptResponse?.data?.content) {
           setDepartments(deptResponse.data.content);
-          console.log('✅ Departments loaded:', deptResponse.data.content.length);
         }
         
         // Load categories using fetchTestCategories
-        console.log('🔍 Fetching categories...');
         const catResponse = await fetchTestCategories(0, 1000);
-        console.log('📦 Category API Response (after fetchTestCategories):', catResponse);
-        console.log('📦 Response type:', typeof catResponse);
-        console.log('📦 Response keys:', Object.keys(catResponse || {}));
-        console.log('📦 catResponse.data:', catResponse?.data);
-        console.log('📦 catResponse.data.content:', catResponse?.data?.content);
-        console.log('📦 catResponse.data.content length:', catResponse?.data?.content?.length);
         
         // The structure should be: { data: { content: [...] }, message, response, status, timestamp }
         if (catResponse?.data?.content && Array.isArray(catResponse.data.content)) {
-          console.log('✅ Categories found in catResponse.data.content');
-          console.log('📋 Sample category:', catResponse.data.content[0]);
           setCategories(catResponse.data.content);
-          console.log('✅ Categories loaded:', catResponse.data.content.length);
-          console.log(' First category ID:', catResponse.data.content[0].id);
-          console.log('📋 First category name:', catResponse.data.content[0].categoryName);
         } else {
           console.warn('⚠️ No categories found or invalid structure');
           console.warn('Full response:', JSON.stringify(catResponse, null, 2));
           
           // Fallback: try accessing content directly if structure is different
           if ((catResponse as any)?.content && Array.isArray((catResponse as any).content)) {
-            console.log('🔄 Trying fallback: catResponse.content');
             setCategories((catResponse as any).content);
-            console.log('✅ Categories loaded via fallback:', (catResponse as any).content.length);
           }
         }
       } catch (error) {
@@ -301,13 +281,9 @@ export default function NewTest({
   // Populate form with edit data when in edit mode
   useEffect(() => {
     if (editData && isEditMode && isOpen) {
-      console.log('=== EDIT MODE - POPULATING FORM ===');
-      console.log('Edit data received:', editData);
-      console.log('Active tab:', activeTab);
       
       // Set sample requirements if in sample mode or if they exist
       if (activeTab === 'sample' && editData.sampleRequirements) {
-        console.log('Populating sample requirements:', editData.sampleRequirements);
       }
       
       setFormData({
@@ -496,7 +472,6 @@ export default function NewTest({
     }
 
     setErrors(newErrors);
-    console.log('Validation result:', Object.keys(newErrors).length === 0);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -507,7 +482,6 @@ export default function NewTest({
 
     
     const isValid = validateForm();
-    console.log('Validation Result:', isValid);
     
     if (!isValid) {
       // Scroll to first error or show a toast/alert
@@ -530,22 +504,18 @@ export default function NewTest({
           storageCondition: sampleReq.storageCondition,
         };
 
-        console.log('Sample requirement data:', JSON.stringify(sampleData, null, 2));
 
         let response;
         
         // Check if we're updating existing or creating new
         if (sampleReq.id && sampleReq.id > 0) {
           // UPDATE existing sample requirement using specific ID
-          console.log('📡 Updating existing sample requirement (ID:', sampleReq.id, ')');
           response = await updateSampleRequirement(editData.id, sampleReq.id, sampleData);
         } else {
           // CREATE new sample requirement
-          console.log('📡 Creating new sample requirement');
           response = await createSampleRequirement(editData.id, sampleData);
         }
         
-        console.log('✅ Sample requirement saved successfully:', response);
         
         // Notify parent to reload the list
         onSubmit(formData as any);
@@ -557,9 +527,6 @@ export default function NewTest({
       }
       // HANDLE PARAMETERS UPDATE (dedicated API)
       else if (isEditMode && editData?.id && activeTab === 'parameters') {
-        console.log('=== UPDATING PARAMETERS VIA DEDICATED API ===');
-        console.log('Test ID:', editData.id);
-        console.log('All parameters:', formData.parameters);
 
         // Check if we're editing a single parameter or all parameters
         const isSingleParameterEdit = (editData as any).editingParameterId;
@@ -568,9 +535,6 @@ export default function NewTest({
         if (isSingleParameterEdit && formData.parameters.length === 1) {
           // SINGLE PARAMETER UPDATE - Use the specific endpoint
           const param = formData.parameters[0];
-          console.log('📡 Updating single parameter via PUT /api/v1/tests/parameters/{parameterId}');
-          console.log('Parameter ID to update:', parameterIdToEdit);
-          console.log('Branch ID:', editData.branchId);
 
           const parameterData = {
             parameterName: param.parameterName,
@@ -583,11 +547,9 @@ export default function NewTest({
             referenceRanges: param.referenceRanges || [],
           };
 
-          console.log('Parameter data to update:', JSON.stringify(parameterData, null, 2));
 
           try {
             await updateTestParameter(parameterIdToEdit, parameterData, editData.branchId);
-            console.log('✅ Parameter updated successfully');
             onSubmit(formData as any);
             setFormData(initialFormData);
             setErrors({});
@@ -598,8 +560,6 @@ export default function NewTest({
           }
         } else {
           // MULTIPLE PARAMETERS UPDATE - Loop through all parameters
-          console.log('📡 Updating multiple parameters');
-          console.log('Branch ID:', editData.branchId);
           
           for (const param of formData.parameters) {
             const parameterData = {
@@ -614,15 +574,12 @@ export default function NewTest({
             };
 
             if (param.id && param.id > 0) {
-              console.log('📡 Updating existing parameter (ID:', param.id, ')');
               await updateTestParameter(param.id, parameterData, editData.branchId);
             } else {
-              console.log('📡 Creating new parameter');
               await createTestParameter(editData.id, parameterData, editData.branchId);
             }
           }
 
-          console.log('✅ Parameters saved successfully');
           onSubmit(formData as any);
           setFormData(initialFormData);
           setErrors({});
@@ -632,8 +589,6 @@ export default function NewTest({
       // HANDLE FULL TEST UPDATE
       else if (isEditMode && editData?.id) {
         // UPDATE EXISTING TEST
-        console.log('=== UPDATING EXISTING TEST ===');
-        console.log('Test ID:', editData.id);
 
         // Transform formData to match API UpdateTestInput
         const testData: UpdateTestInput = {
@@ -681,11 +636,9 @@ export default function NewTest({
           })),
         };
 
-        console.log('Transformed API data for UPDATE:', JSON.stringify(testData, null, 2));
 
         const response = await updateTest(editData.id, testData);
         
-        console.log('✅ Test updated successfully:', response);
         
         // Notify parent to reload the list
         onSubmit(formData);
@@ -741,11 +694,9 @@ export default function NewTest({
           })) : undefined,
         };
 
-        console.log('Complete test data with embedded parameters and samples:', JSON.stringify(testData, null, 2));
 
         // Single API call - creates test, parameters, and sample requirements together
         const testResponse = await createTest(testData);
-        console.log('✅ Test created successfully with all data:', testResponse);
         
         // Notify parent to reload the list
         onSubmit(formData);

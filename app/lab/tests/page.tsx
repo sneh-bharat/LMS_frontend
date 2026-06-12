@@ -280,7 +280,6 @@ export default function TestPackagePage() {
     setLoading(true);
     try {
       const status = statusFilter === 'All' ? undefined : statusFilter === 'Active' ? 'true' : 'false';
-      console.log('Converted status for API:', status);
       const trimmedSearch = search.trim();
       const selectedDepartmentId = departmentFilter
         ? Number(departmentFilter)
@@ -297,11 +296,9 @@ export default function TestPackagePage() {
       };
 
       if (trimmedSearch) {
-        console.log('🔍 Calling searchTestsByName with:', { name: trimmedSearch, currentPage, pageSize });
         const searchResponse = await searchTestsByName(trimmedSearch, currentPage, pageSize);
       
         const searchResults = searchResponse?.data?.content || [];
-        console.log('✅ Search results count:', searchResults.length);
 
         testsArray = applyStatusFilter(searchResults);
 
@@ -311,21 +308,10 @@ export default function TestPackagePage() {
           );
         }
         
-        console.log('🔎 Filtered results count:', testsArray.length);
         responseTotalElements = searchResponse?.data?.totalElements || testsArray.length;
         responseTotalPages = searchResponse?.data?.totalPages || 0;
         
-        console.log('📄 Pagination info:', {
-          totalPages: responseTotalPages,
-          totalElements: responseTotalElements,
-          currentPage: searchResponse?.data?.pageNo || 0
-        });
       } else if (selectedDepartmentId) {
-        console.log('📡 Calling fetchTestsByDepartment with:', {
-          departmentId: selectedDepartmentId,
-          currentPage,
-          pageSize,
-        });
         const response = await fetchTestsByDepartment(
           selectedDepartmentId,
           currentPage,
@@ -339,12 +325,6 @@ export default function TestPackagePage() {
           statusFilter === 'Active'
             ? await fetchActiveTests(currentPage, pageSize)
             : await fetchTests(currentPage, pageSize, undefined, status);
-        console.log(
-          statusFilter === 'Active'
-            ? '📡 Calling fetchActiveTests with:'
-            : '📡 Calling fetchTests with:',
-          { currentPage, pageSize, status }
-        );
 
         testsArray = response.data?.content || [];
         responseTotalPages = response.data?.totalPages || 0;
@@ -364,7 +344,6 @@ export default function TestPackagePage() {
       setTotalElements(0);
     } finally {
       setLoading(false);
-      console.log('🏁 Loading state set to false');
     }
   };
 
@@ -391,24 +370,17 @@ export default function TestPackagePage() {
   };
 
   const handleNewTestSubmit = async () => {
-    console.log('=== PARENT COMPONENT NOTIFICATION ===');
-    console.log('Test saved successfully, reloading list...');
     loadTests();
     setDetailsRefreshKey((key) => key + 1);
   };
 
   const handleEditSample = async (pkg: Test) => {
-    console.log('=== EDIT SAMPLE CLICKED ===');
-    console.log('Test ID:', pkg.id);
     
     try {
       // Fetch sample requirements from API
-      console.log('📡 Fetching sample requirements from API...');
       const response = await fetchSampleRequirements(pkg.id);
-      console.log('✅ Sample requirements response:', response);
       
       const samplePayload = response.data;
-      console.log('📦 Sample data received:', samplePayload);
 
       const normalizedSamples = Array.isArray(samplePayload)
         ? samplePayload
@@ -428,7 +400,6 @@ export default function TestPackagePage() {
         })),
       };
       
-      console.log('📝 Edit data with sample:', sampleEditData);
       setEditingPackage(sampleEditData);
       setActiveTab('sample');
       setIsModalOpen(true);
@@ -437,7 +408,6 @@ export default function TestPackagePage() {
       console.error('Error details:', error);
       
       // Fallback to using existing data if API fails
-      console.log('⚠️ Using fallback sample data from existing test');
       setEditingPackage(pkg);
       setActiveTab('sample');
       setIsModalOpen(true);
@@ -445,11 +415,8 @@ export default function TestPackagePage() {
   };
 
   const handleEditParameters = async (pkg: Test) => {
-    console.log('=== EDIT PARAMETERS CLICKED ===');
-    console.log('Test ID:', pkg.id);
 
     try {
-      console.log('📡 Fetching parameters from API...');
       const response = await fetchTestParameters(pkg.id);
       const normalizedParameters = unwrapParametersList(response.data).map(
         normalizeParameterForForm
@@ -474,7 +441,6 @@ export default function TestPackagePage() {
 
   const handleEditSingleParameter = async (pkg: Test, parameterId: number) => {
     try {
-      console.log('📡 Fetching parameters from API...');
       const response = await fetchTestParameters(pkg.id);
       const normalizedParameters = unwrapParametersList(response.data).map(
         normalizeParameterForForm
@@ -489,7 +455,6 @@ export default function TestPackagePage() {
         return;
       }
 
-      console.log('✅ Parameter found:', parameterToEdit);
       
       // Set editing data with only the selected parameter
       const parameterEditData = {
@@ -533,7 +498,6 @@ export default function TestPackagePage() {
 
     setIsDeleting(true);
     try {
-      console.log('🗑️ Deleting test with ID:', deletingTestId);
       await deleteTest(deletingTestId);
       
       toast.success('Test deleted successfully!');

@@ -361,7 +361,6 @@ export async function fetchTestsAscending(
     }
 
     const url = `/api/v1/tests/ascending?${params.toString()}`;
-    console.log('📡 Fetching tests (ascending) from:', url);
 
     const response = (await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url)) as any;
     return response;
@@ -398,11 +397,8 @@ export async function fetchTests(
     }
 
     const url = `/api/v1/tests?${params.toString()}`;
-    console.log('📡 Fetching tests from:', url);
 
     const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
-    console.log('✅ Tests loaded successfully');
-    console.log('Tests count:', response?.content?.length || 0);
     
     return response;
   } catch (error) {
@@ -429,10 +425,8 @@ export async function fetchTestsByDepartment(
     });
 
     const url = `/api/v1/tests/department/${departmentId}?${params.toString()}`;
-    console.log('📡 Fetching tests by department from:', url);
 
     const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
-    console.log('✅ Tests by department loaded successfully');
 
     return response;
   } catch (error) {
@@ -456,10 +450,8 @@ export async function fetchActiveTests(
     });
 
     const url = `/api/v1/tests/active?${params.toString()}`;
-    console.log('📡 Fetching active tests from:', url);
 
     const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
-    console.log('✅ Active tests loaded successfully');
     
     return response;
   } catch (error) {
@@ -475,10 +467,8 @@ export async function fetchActiveTests(
 export async function fetchTestById(testId: number): Promise<ApiResponse<Test>> {
   try {
     const url = `/api/v1/tests/${testId}`;
-    console.log('📡 Fetching test from:', url);
 
     const response = await labClient.get<ApiResponse<Test>>(url);
-    console.log('✅ Test loaded successfully');
     return response.data;
   } catch (error) {
     console.error('Error fetching test:', error);
@@ -508,10 +498,8 @@ export async function fetchTestByCode(testCode: string): Promise<ApiResponse<Tes
   try {
     const encodedCode = encodeURIComponent(testCode.trim());
     const url = `/api/v1/tests/code/${encodedCode}`;
-    console.log('📡 Fetching test by code from:', url);
 
     const response = await labClient.get<ApiResponse<Test>>(url);
-    console.log('✅ Test by code loaded successfully');
     
     return response.data;
   } catch (error: any) {
@@ -547,10 +535,8 @@ export async function searchTestsByName(
     });
 
     const url = `/api/v1/tests/search?${params.toString()}`;
-    console.log('📡 Searching tests by name from:', url);
 
     const response = await labClient.get<ApiResponse<PaginatedResponse<Test>>>(url) as any;
-    console.log('✅ Search results loaded successfully');
     
     return response;
   } catch (error) {
@@ -568,10 +554,8 @@ export async function createTest(
 ): Promise<ApiResponse<Test>> {
   try {
     const url = `/api/v1/tests`;
-    console.log('📡 Creating test...');
 
     const response = await labClient.post<ApiResponse<Test>>(url, input) as any;
-    console.log('✅ Test created successfully');
     
     return response;
   } catch (error) {
@@ -590,10 +574,8 @@ export async function updateTest(
 ): Promise<ApiResponse<Test>> {
   try {
     const url = `/api/v1/tests/${testId}`;
-    console.log('📡 Updating test...');
 
     const response = await labClient.put<ApiResponse<Test>>(url, input) as any;
-    console.log('✅ Test updated successfully');
     
     return response;
   } catch (error) {
@@ -609,10 +591,8 @@ export async function updateTest(
 export async function deleteTest(testId: number): Promise<ApiResponse<void>> {
   try {
     const url = `/api/v1/tests/${testId}`;
-    console.log('📡 Deleting test...');
 
     const response = await labClient.delete<ApiResponse<void>>(url) as any;
-    console.log('✅ Test deleted successfully');
     
     return response;
   } catch (error) {
@@ -631,10 +611,8 @@ export async function toggleTestStatus(
 ): Promise<ApiResponse<Test>> {
   try {
     const url = `/api/v1/tests/${testId}/status`;
-    console.log('📡 Toggling status...');
     
     const response = await labClient.patch<ApiResponse<Test>>(url, { isActive }) as any;
-    console.log('✅ Status toggled successfully');
     
     return response;
   } catch (error) {
@@ -654,10 +632,8 @@ export async function fetchSampleRequirements(
 ): Promise<ApiResponse<any>> {
   try {
     const url = `/api/v1/tests/${testId}/sample-requirements`;
-    console.log('📡 Fetching sample requirements from:', url);
     
     const response = await labClient.get<ApiResponse<any>>(url) as any;
-    console.log('✅ Sample requirements loaded successfully');
     return response;
   } catch (error: any) {
     if (error.response?.status === 404) {
@@ -684,10 +660,8 @@ export async function createSampleRequirement(
 ): Promise<ApiResponse<SampleRequirementResponse>> {
   try {
     const url = `/api/v1/tests/${testId}/sample-requirements`;
-    console.log('📡 Creating sample requirement...');
 
     const response = await labClient.post<ApiResponse<SampleRequirementResponse>>(url, input) as any;
-    console.log('✅ Sample requirement created successfully');
     return response;
   } catch (error) {
     console.error('Error creating sample requirement:', error);
@@ -706,10 +680,8 @@ export async function updateSampleRequirement(
 ): Promise<ApiResponse<SampleRequirementResponse>> {
   try {
     const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
-    console.log('📡 Updating sample requirement...');
 
     const response = await labClient.put<ApiResponse<SampleRequirementResponse>>(url, input) as any;
-    console.log('✅ Sample requirement updated successfully');
     return response;
   } catch (error) {
     console.error('Error updating sample requirement:', error);
@@ -727,10 +699,8 @@ export async function deleteSampleRequirement(
 ): Promise<ApiResponse<void>> {
   try {
     const url = `/api/v1/tests/${testId}/sample-requirements/${requirementId}`;
-    console.log('📡 Deleting sample requirement...');
 
     const response = await labClient.delete<ApiResponse<void>>(url) as any;
-    console.log('✅ Sample requirement deleted successfully');
     return response;
   } catch (error) {
     console.error('Error deleting sample requirement:', error);
@@ -760,10 +730,8 @@ export async function fetchAllParameters(
     }
 
     const url = `/api/v1/tests/parameters?${params.toString()}`;
-    console.log('📡 Fetching all parameters from:', url);
 
     const response = await labClient.get<ApiResponse<PaginatedResponse<ParameterResponse>>>(url) as any;
-    console.log('✅ All parameters loaded successfully');
     return response;
   } catch (error) {
     console.error('Error fetching all parameters:', error);
@@ -778,11 +746,9 @@ export async function fetchAllParameters(
 export async function fetchTestParameters(testId: number): Promise<ApiResponse<ParameterResponse[]>> {
   try {
     const url = `/api/v1/tests/${testId}/parameters`;
-    console.log('📡 Fetching test parameters from:', url);
 
     const response = await labClient.get<ApiResponse<ParameterResponse[]>>(url) as any;
     const list = unwrapParametersList(response?.data);
-    console.log('✅ Test parameters loaded successfully');
     return { ...response, data: list };
   } catch (error: any) {
     if (error.response?.status === 404) {
@@ -849,12 +815,8 @@ export async function createTestParameter(
       payload.referenceRanges = referenceRanges;
     }
 
-    console.log('📤 Create payload:', JSON.stringify(payload, null, 2));
-    console.log('🚀 Making POST request to:', url);
 
     const response = await labClient.post<ApiResponse<ParameterResponse>>(url, payload) as any;
-    console.log('✅ Test parameter created successfully');
-    console.log('📥 Response:', response);
     return response;
   } catch (error: any) {
     const status = error?.response?.status;
@@ -928,13 +890,9 @@ export async function updateTestParameter(
       payload.referenceRanges = referenceRanges;
     }
 
-    console.log('📤 Update payload:', JSON.stringify(payload, null, 2));
-    console.log('🚀 Making PUT request to:', url);
     
     const response = await labClient.put<ApiResponse<ParameterResponse>>(url, payload) as any;
     
-    console.log('✅ Test parameter updated successfully');
-    console.log('📥 Response:', response);
     return response;
   } catch (error: any) {
     const status = error?.response?.status;

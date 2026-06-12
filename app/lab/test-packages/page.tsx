@@ -134,7 +134,6 @@ function DeleteConfirmationDialog({
 }) {
   if (!isOpen) return null;
 
-  console.log('🗑️ Delete confirmation dialog shown for:', packageName);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -191,15 +190,12 @@ function PackageActions({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const handleDelete = async () => {
-    console.log('=== PACKAGE ACTIONS: HANDLE DELETE ===');
-    console.log('Package:', pkg.packageName, 'ID:', pkg.id);
     
     setIsDeleting(true);
     try {
       await onDelete(pkg);
       setShowMoreMenu(false);
       setShowConfirmDelete(false);
-      console.log('✅ Delete flow completed successfully');
     } catch (error) {
       console.error('❌ Delete flow failed:', error);
       setIsDeleting(false);
@@ -207,12 +203,10 @@ function PackageActions({
   };
 
   const handleApprove = () => {
-    console.log('Approve package:', pkg.packageName);
     // Add approve logic here
   };
 
   const handleReject = () => {
-    console.log('Reject package:', pkg.packageName);
     // Add reject logic here
   };
 
@@ -232,7 +226,6 @@ function PackageActions({
         {/* Delete Button */}
         <button
           onClick={() => {
-            console.log('🗑️ Delete button clicked for:', pkg.packageName);
             setShowConfirmDelete(true);
           }}
           className="p-2 hover:bg-rose-50 rounded-lg transition-all text-slate-400 hover:text-rose-600"
@@ -465,9 +458,6 @@ export default function TestPackagePage() {
       return;
     }
 
-    console.log('=== DELETE PACKAGE ===');
-    console.log('Package ID:', pkg.id);
-    console.log('Package Name:', pkg.packageName);
 
     const previousPackages = [...packages];
     const previousPagination = { ...pagination };
@@ -486,12 +476,10 @@ export default function TestPackagePage() {
         totalPages: newTotalPages,
       }));
 
-      console.log('🗑️ Calling delete API for package:', pkg.id);
       
       // Call delete API
       await deleteTestPackage(pkg.id);
 
-      console.log('✅ Package deleted successfully from backend');
 
       // Show success message
       setLoading({
@@ -501,7 +489,6 @@ export default function TestPackagePage() {
       });
 
       // Reload packages to ensure data consistency
-      console.log('🔄 Reloading packages to sync with backend...');
       await loadPackages();
 
       // Auto-dismiss success message after 3 seconds
@@ -512,7 +499,6 @@ export default function TestPackagePage() {
       console.error('❌ Failed to delete package:', error);
       
       // Rollback optimistic update
-      console.log('↩️ Rolling back to previous state...');
       setPackages(previousPackages);
       setPagination(previousPagination);
 

@@ -88,7 +88,6 @@ export default function TestDetailsView({
     setError(null);
 
     try {
-      console.log('🔄 Fetching test details for test ID:', testData.id);
 
       // Fetch all data in parallel, but handle errors individually
       const promises = [

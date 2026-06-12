@@ -121,7 +121,6 @@ export default function PolyclinicBooking() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Booking submitted:', formData);
     alert('Polyclinic booking submitted successfully!');
   };
 

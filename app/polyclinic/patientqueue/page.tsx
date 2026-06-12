@@ -123,7 +123,6 @@ export default function PatientQueuePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       // In real app, call API here to refresh data
-      console.log('Auto-refreshing queue...');
       // For demo, just update stats
       updateStats();
     }, 15000);

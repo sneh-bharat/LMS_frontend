@@ -29,7 +29,7 @@ referringDoctorAxios.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        ['token','refreshToken','role','tenantId','fullName'].forEach(k => localStorage.removeItem(k));
         window.location.href = '/login';
       }
     }

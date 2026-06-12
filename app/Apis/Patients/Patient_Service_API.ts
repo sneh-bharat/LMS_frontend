@@ -32,7 +32,6 @@ function staffAuthHeaders(extra?: Record<string, string>): Record<string, string
 const logger = {
   debug: (message: string, data?: unknown) => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[DEBUG] ${message}`, data);
     }
   },
   error: (message: string, error?: unknown) => {
