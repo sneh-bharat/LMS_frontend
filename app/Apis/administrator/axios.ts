@@ -1,17 +1,17 @@
 import axios from 'axios';
 
 /**
- * Blood collector API client — `NEXT_PUBLIC_API_AUTH`.
+ * Administrator API client — `NEXT_PUBLIC_API_AUTH`.
  * Bearer token from localStorage when present.
  */
-const tenantAxios = axios.create({
+const adminAxios = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_AUTH,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-tenantAxios.interceptors.request.use(
+adminAxios.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
@@ -24,7 +24,7 @@ tenantAxios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-tenantAxios.interceptors.response.use(
+adminAxios.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
@@ -40,4 +40,4 @@ tenantAxios.interceptors.response.use(
   }
 );
 
-export default tenantAxios;
+export default adminAxios;
