@@ -7,7 +7,7 @@ import DoctorSidebar from './DoctorSidebar';
 import DoctorTopbar from './DoctorTopbar';
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { usePathname } from 'next/navigation';
-import RoleGuard from '../RoleGuard';
+import RoleGuard from '@/components/guards/RoleGuard';
 import Providers from '@/components/Providers';
 
 export default function RootLayoutClient({

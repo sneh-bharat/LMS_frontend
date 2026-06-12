@@ -1,5 +1,5 @@
 import React from 'react';
-import DoctorGuard from '../components/DoctorGuard';
+import DoctorGuard from '@/components/guards/DoctorGuard';
 
 export default function DoctorLayout({
     children,
