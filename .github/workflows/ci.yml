@@ -1,0 +1,159 @@
+name: CI — LMS Frontend
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'fix/**']
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  # Stub env vars so Next.js build doesn't fail without real secrets
+  NEXT_PUBLIC_API_AUTH: https://placeholder.snehbharat.com/lims-auth
+  NEXT_PUBLIC_API_URL1: https://placeholder.snehbharat.com/lims-patient
+  NEXT_PUBLIC_API_Test: https://placeholder.snehbharat.com/test-catalog
+  NEXT_PUBLIC_API_Report: https://placeholder.snehbharat.com/report-service
+  NEXT_PUBLIC_API_Booking: https://placeholder.snehbharat.com/lims-booking
+
+jobs:
+  # ───────────────────────────────────────────────────────────────
+  lint:
+    name: Lint & Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+  # ───────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+          retention-days: 1
+
+  # ───────────────────────────────────────────────────────────────
+  # Uncomment when tests are added (Phase 2+)
+  # test:
+  #   name: Unit & Integration Tests
+  #   runs-on: ubuntu-latest
+  #   needs: lint
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: 'npm'
+  #     - run: npm ci
+  #     - run: npm test -- --coverage --passWithNoTests
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: coverage
+  #         path: coverage/
+
+  # ───────────────────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency vulnerability audit
+        # --audit-level=high: fail on high or critical vulnerabilities only
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Remove this line once known vulnerabilities are resolved
+
+      - name: Check for exposed secrets in env files
+        run: |
+          if grep -rn "NEXT_PUBLIC_SECRET" .env* 2>/dev/null; then
+            echo "::error::NEXT_PUBLIC_ prefixed secret detected in .env file!"
+            exit 1
+          fi
+          echo "No exposed secrets found."
+
+  # ───────────────────────────────────────────────────────────────
+  # E2E tests — uncomment in Phase 4
+  # e2e:
+  #   name: E2E Tests (Playwright)
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: 'npm'
+  #     - run: npm ci
+  #     - run: npx playwright install --with-deps chromium
+  #     - run: npx playwright test
+  #     - uses: actions/upload-artifact@v4
+  #       if: failure()
+  #       with:
+  #         name: playwright-report
+  #         path: playwright-report/
+
+  # ───────────────────────────────────────────────────────────────
+  notify:
+    name: Status Summary
+    runs-on: ubuntu-latest
+    needs: [lint, build, security]
+    if: always()
+    steps:
+      - name: Report status
+        run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
+            echo "::error::CI failed — lint or build did not pass."
+            exit 1
+          fi

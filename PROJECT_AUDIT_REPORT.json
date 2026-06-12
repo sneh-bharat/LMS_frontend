@@ -1,0 +1,245 @@
+{
+  "auditMeta": {
+    "auditDate": "2026-06-13",
+    "auditor": "Claude Code — Automated Static Analysis",
+    "branch": "feature/template-editor-upgrade",
+    "version": "1.0.0"
+  },
+  "executiveSummary": {
+    "projectName": "Lab Management System (LMS) Frontend — Snehbharat LIMS",
+    "nextjsVersion": "16.1.7",
+    "reactVersion": "19.2.3",
+    "nodejsVersion": "v24.13.0",
+    "typescriptVersion": "^5.x",
+    "totalFilesScanned": 335,
+    "totalPages": 87,
+    "totalApiRoutes": 0,
+    "totalComponents": 250,
+    "totalProductionDependencies": 42,
+    "totalDevDependencies": 9,
+    "totalDependencies": 51,
+    "totalAxiosInstances": 16,
+    "totalTestFiles": 0,
+    "totalConsoleLogStatements": 277,
+    "totalTypeScriptAnyUsages": 201,
+    "totalLocalStorageUsages": 116
+  },
+  "overallScores": {
+    "architecture": { "score": 5, "maxScore": 10, "grade": "C" },
+    "codeQuality": { "score": 4, "maxScore": 10, "grade": "D" },
+    "security": { "score": 3, "maxScore": 10, "grade": "F" },
+    "performance": { "score": 5, "maxScore": 10, "grade": "C" },
+    "seo": { "score": 2, "maxScore": 10, "grade": "F" },
+    "accessibility": { "score": 3, "maxScore": 10, "grade": "F" },
+    "productionReadiness": { "score": 2, "maxScore": 10, "grade": "F" },
+    "overallGrade": "D+",
+    "overallScore": 47,
+    "overallMaxScore": 100
+  },
+  "verdict": {
+    "productionReady": false,
+    "blockerCount": 7,
+    "highPriorityCount": 6,
+    "summary": "Not production-ready. Critical security vulnerabilities must be resolved before deployment."
+  },
+  "securityIssues": {
+    "critical": [
+      {
+        "id": "CRIT-1",
+        "title": "NEXT_PUBLIC_SECRET_KEY exposes cryptographic secret client-side",
+        "file": ".env",
+        "line": 1,
+        "risk": "Cryptographic key bundled into client JavaScript — visible to all users",
+        "fix": "Remove NEXT_PUBLIC_ prefix; use server-only environment variable"
+      },
+      {
+        "id": "CRIT-2",
+        "title": "Internal network IP exposed in public environment variable",
+        "file": ".env",
+        "line": 5,
+        "risk": "Internal IP 192.168.29.27 visible in client bundle; HTTP (not HTTPS) unencrypted",
+        "fix": "Use HTTPS domain name instead of raw IP"
+      }
+    ],
+    "high": [
+      {
+        "id": "HIGH-1",
+        "title": "JWT tokens stored in localStorage (XSS vulnerable)",
+        "files": ["app/login/Login.tsx", "app/Apis/Auth/apiClient.ts"],
+        "risk": "Any XSS attack can steal all authentication tokens",
+        "fix": "Migrate to httpOnly cookies set by Next.js API route"
+      },
+      {
+        "id": "HIGH-2",
+        "title": "No rate limiting on login endpoint",
+        "file": "app/login/Login.tsx",
+        "risk": "Brute-force and credential stuffing attacks possible",
+        "fix": "Implement client-side attempt counter and backend rate limiting"
+      },
+      {
+        "id": "HIGH-3",
+        "title": "No security headers configured",
+        "file": "next.config.ts",
+        "risk": "Vulnerable to clickjacking, MIME sniffing, XSS injection",
+        "fix": "Add CSP, X-Frame-Options, HSTS, X-Content-Type-Options headers"
+      },
+      {
+        "id": "HIGH-4",
+        "title": "DoctorGuard not applied to doctor routes",
+        "file": "app/components/layouts/RootLayoutClient.tsx",
+        "lines": [27, 43],
+        "risk": "Doctor portal routes are publicly accessible without authentication",
+        "fix": "Wrap isDoctorRoute branch with <DoctorGuard>"
+      },
+      {
+        "id": "HIGH-5",
+        "title": "277 console.log statements in production code",
+        "risk": "Leaks internal state, API responses, routing decisions to browser DevTools",
+        "fix": "Remove all console.log calls; use a logger with production level controls"
+      },
+      {
+        "id": "HIGH-6",
+        "title": "ReactQueryDevtools included unconditionally in production",
+        "file": "app/providers/QueryProvider.tsx",
+        "risk": "Exposes all cached patient and financial data in browser DevTools",
+        "fix": "Gate import behind process.env.NODE_ENV === 'development'"
+      }
+    ],
+    "medium": [
+      {
+        "id": "MED-1",
+        "title": "201 TypeScript 'any' usages reduce type safety",
+        "risk": "Runtime errors that TypeScript would normally prevent pass silently",
+        "fix": "Enable noImplicitAny and replace any with proper types or unknown"
+      },
+      {
+        "id": "MED-2",
+        "title": "No server-side route protection (no middleware.ts)",
+        "risk": "Client-side RoleGuard can be bypassed by disabling JavaScript",
+        "fix": "Create middleware.ts to check auth cookies before page renders"
+      },
+      {
+        "id": "MED-3",
+        "title": "localStorage.clear() on 401 destroys unrelated app state",
+        "files": ["app/Apis/Auth/apiClient.ts", "app/Apis/booking/axios.ts"],
+        "fix": "Remove only auth-specific keys: token, refreshToken, role, tenantId, fullName"
+      },
+      {
+        "id": "MED-4",
+        "title": "Forgot Password link is a dead href='#'",
+        "file": "app/login/Login.tsx",
+        "line": 112,
+        "fix": "Implement password recovery flow or remove the link"
+      }
+    ],
+    "low": [
+      {
+        "id": "LOW-1",
+        "title": "Logout does not call server-side invalidation API",
+        "risk": "Stolen tokens remain valid until natural expiry"
+      },
+      {
+        "id": "LOW-2",
+        "title": "Debug files included in production bundle",
+        "files": ["app/Apis/Patients/connection-test.ts", "app/patient-api-test/page.tsx"],
+        "fix": "Delete or move outside app/ directory"
+      },
+      {
+        "id": "LOW-3",
+        "title": ".env may be committed to version control",
+        "risk": "All secrets and internal IPs exposed in git history"
+      }
+    ]
+  },
+  "architectureIssues": [
+    "16 duplicate axios.ts instances with copy-pasted interceptor logic",
+    "No middleware.ts for server-side auth protection",
+    "DoctorGuard defined but not applied in layout",
+    "No React error boundaries",
+    "No Next.js API routes — all backend URLs exposed client-side",
+    "Mix of .jsx and .tsx files in layout components",
+    "Debug files in app/ directory (connection-test.ts, patient-api-test/)",
+    "Dashboard uses hardcoded mock data",
+    "Inconsistent file naming conventions (PascalCase, kebab-case, snake_case)",
+    "Typo in filename: doctot-details.tsx"
+  ],
+  "performanceIssues": [
+    "No bundle analyzer configured",
+    "Tiptap editor (17 packages) loaded eagerly — should be dynamic import",
+    "ReactQueryDevtools loaded in production",
+    "All 87 pages use 'use client' — no React Server Components",
+    "No ISR or static rendering for any pages",
+    "277 console.log statements add parse overhead in production",
+    "No request timeout on any of the 16 axios instances"
+  ],
+  "dependencyAudit": {
+    "potentiallyUnused": ["@base-ui/react", "recharts (dashboard has hardcoded data)"],
+    "shouldBePinnedExactly": ["@tiptap/*", "lucide-react"],
+    "shouldMoveToDevDependencies": ["@tanstack/react-query-devtools"],
+    "recommended": ["zod (runtime API validation)", "pino or @sentry/nextjs (logging/monitoring)"]
+  },
+  "productionReadinessChecklist": {
+    "authentication": "NEEDS_IMPROVEMENT",
+    "authorization": "NEEDS_IMPROVEMENT",
+    "securityHeaders": "MISSING",
+    "inputValidation": "NEEDS_IMPROVEMENT",
+    "errorBoundaries": "MISSING",
+    "logging": "MISSING",
+    "errorTracking": "MISSING",
+    "monitoring": "MISSING",
+    "cicd": "MISSING",
+    "automatedTests": "MISSING",
+    "environmentSeparation": "NEEDS_IMPROVEMENT",
+    "secretManagement": "MISSING",
+    "dependencyAuditInCI": "MISSING",
+    "performanceBudget": "MISSING",
+    "accessibilityTesting": "MISSING"
+  },
+  "scalabilityAssessment": {
+    "tenThousandUsers": {
+      "capable": true,
+      "conditions": ["Backend microservices must handle concurrent load", "CDN required for static assets", "Auth hardening must be in place"]
+    },
+    "oneHundredThousandUsers": {
+      "capable": false,
+      "blockers": ["No BFF/API gateway layer", "No token refresh logic", "No caching between frontend and APIs", "No rate limiting"]
+    },
+    "oneMillionUsers": {
+      "capable": false,
+      "blockers": ["No SSR/ISR for data-heavy pages", "No edge CDN", "No feature flags", "No observability stack", "No proven backend scaling"]
+    }
+  },
+  "refactoringRoadmap": {
+    "phase1_immediate": [
+      "Remove NEXT_PUBLIC_ prefix from SECRET_KEY",
+      "Apply DoctorGuard in RootLayoutClient for doctor routes",
+      "Remove all console.log from production files",
+      "Gate ReactQueryDevtools behind NODE_ENV check",
+      "Add security headers to next.config.ts",
+      "Delete connection-test.ts and patient-api-test/page.tsx"
+    ],
+    "phase2_shortTerm": [
+      "Consolidate 16 axios instances into single createApiClient factory",
+      "Create middleware.ts for server-side auth",
+      "Add 15s request timeout to all axios instances",
+      "Replace localStorage.clear() with targeted key removal",
+      "Migrate .jsx layout files to .tsx",
+      "Write smoke tests for RoleGuard, DoctorGuard, and login",
+      "Connect Dashboard to real APIs",
+      "Add dynamic import for AdvancedTemplateEditor",
+      "Implement Forgot Password flow"
+    ],
+    "phase3_longTerm": [
+      "Migrate tokens from localStorage to httpOnly cookies",
+      "Add login rate limiting",
+      "Resolve all 201 TypeScript any usages",
+      "Add zod schemas for API response validation",
+      "Integrate @sentry/nextjs for error tracking",
+      "Build real-time dashboard with live API data",
+      "Implement E2E tests with Playwright",
+      "Add robots.txt to prevent search engine indexing",
+      "Full accessibility pass (WCAG 2.1 AA)",
+      "Setup GitHub Actions CI/CD with lint, typecheck, test, build gates"
+    ]
+  }
+}

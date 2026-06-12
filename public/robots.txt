@@ -1,0 +1,8 @@
+# LMS Frontend — Snehbharat LIMS
+# This is an internal enterprise application. Search engine indexing is disabled.
+
+User-agent: *
+Disallow: /
+
+# Allow only the root for health checks
+Allow: /$

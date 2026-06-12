@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap for Snehbharat LIMS Frontend.
+  This is an internal enterprise application — robots.txt disallows all crawling.
+  This sitemap exists for completeness and potential internal tooling use only.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.snehbharat.com/</loc>
+    <lastmod>2026-06-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>
