@@ -51,6 +51,29 @@ import GetPaymentHistory from './GetPaymentHistory';
 import { fetchDoctorCommissions, type DoctorCommission } from '@/app/Apis/Commission/commissionPrice';
 import { doctorCommissionQueryKeys } from '@/app/Apis/Commission/useDoctorCommission';
 import PayDoctorCommission from './PayDoctorCommission';
+import {
+  listingBadge,
+  listingEmptyBox,
+  listingEmptyTitle,
+  listingFilterSelect,
+  listingLoadingBox,
+  listingLoadingText,
+  listingPaginationBtn,
+  listingPaginationText,
+  listingRefreshBtn,
+  listingRowMono,
+  listingRowPhone,
+  listingRowTitle,
+  listingRowValue,
+  listingSearchInput,
+  listingSubtitle,
+  listingTableCard,
+  listingTableFooter,
+  listingTableTh,
+  listingTitle,
+  listingToolbar,
+  listingToolbarInner,
+} from '@/lib/listingPageStyles';
 
 type CommissionDrawerState = {
   doctorId: number;
@@ -366,10 +389,10 @@ export default function DoctorsPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+          <h1 className={listingTitle}>
             Referring <span className="text-emerald-600">Doctors</span>
           </h1>
-          <p className="text-slate-500 text-sm font-medium max-w-xl">
+          <p className={`${listingSubtitle} max-w-xl`}>
             Manage referring physicians, login access, and marketing associations for your network.
           </p>
         </div>
@@ -381,11 +404,12 @@ export default function DoctorsPage() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+      <div className={listingToolbar}>
+        <div className={`${listingToolbarInner} flex-wrap`}>
         <div className="relative flex-1 group w-full min-w-0">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
+            size={16}
             aria-hidden
           />
           <input
@@ -393,7 +417,7 @@ export default function DoctorsPage() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder={searchBy === 'Mobile' ? 'Search by mobile…' : 'Search by doctor name…'}
-            className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            className={listingSearchInput}
             aria-label="Search doctors"
             disabled={isLoading}
           />
@@ -404,7 +428,7 @@ export default function DoctorsPage() {
             <select
               value={searchBy}
               onChange={(e) => setSearchBy(e.target.value as 'Name' | 'Mobile')}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              className={listingFilterSelect}
               aria-label="Search field"
               disabled={isLoading}
             >
@@ -413,23 +437,22 @@ export default function DoctorsPage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
           </div>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-lg p-2.5 border-slate-200 shrink-0"
+            className={listingRefreshBtn}
             onClick={() => refetch()}
             disabled={isLoading || isFetching}
             title="Refresh list"
           >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
-          </Button>
+            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+          </button>
         </div>
         {flashApiMessage ? (
           <span className="text-xs font-medium text-emerald-700 ml-auto shrink-0 animate-in fade-in duration-300">
             {flashApiMessage}
           </span>
         ) : null}
+        </div>
       </div>
 
       {isError ? (
@@ -443,35 +466,35 @@ export default function DoctorsPage() {
       ) : null}
 
       {isLoading ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+        <div className={listingLoadingBox}>
           <Loader className="text-slate-400 animate-spin" size={32} />
-          <p className="text-slate-600 font-medium">Loading referring doctors…</p>
+          <p className={listingLoadingText}>Loading referring doctors…</p>
         </div>
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
-          No referring doctors found for this filter or page.
+        <div className={listingEmptyBox}>
+          <p className={listingEmptyTitle}>No referring doctors found for this filter or page.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+        <div className={listingTableCard}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center w-14">
+                  <th className={`${listingTableTh} text-center w-14`}>
                     #
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Name, specialization & hospital
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mobile</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={listingTableTh}>Email</th>
+                  <th className={listingTableTh}>Mobile</th>
+                  <th className={`${listingTableTh} text-center`}>
                     Branch
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Status
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Actions
                   </th>
                 </tr>
@@ -487,7 +510,7 @@ export default function DoctorsPage() {
                   filteredRows.map((doc) => (
                     <tr key={doc.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-5 text-center">
-                        <Badge variant="secondary" className="px-2 py-0.5 border-slate-200 text-[10px] font-bold font-mono">
+                        <Badge variant="secondary" className={`px-2 py-0.5 border-slate-200 font-mono ${listingBadge}`}>
                           {doc.id}
                         </Badge>
                       </td>
@@ -497,7 +520,7 @@ export default function DoctorsPage() {
                             <Stethoscope size={18} aria-hidden />
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 text-sm tracking-tight group-hover:text-emerald-700 transition-colors">
+                            <div className={listingRowTitle}>
                               {doc.doctorName}
                               {doc.specialization ? (
                                 <span className="font-semibold text-slate-500 ml-2">{doc.specialization}</span>
@@ -507,18 +530,18 @@ export default function DoctorsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5 max-w-[200px]">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
+                        <div className={`flex items-center gap-1.5 truncate ${listingRowValue}`}>
                           <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
                           <span className="truncate">{doc.doctorEmail || '—'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
+                        <div className={`flex items-center gap-1.5 ${listingRowPhone}`}>
                           <Phone size={12} className="text-emerald-500 shrink-0" aria-hidden />
                           {doc.doctorPhone}
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-center text-xs font-mono font-bold text-slate-600">
+                      <td className={`px-6 py-5 text-center ${listingRowMono}`}>
                         {doc.branchName}
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -526,8 +549,8 @@ export default function DoctorsPage() {
                           variant={doc.isActive ? 'default' : 'secondary'}
                           className={
                             doc.isActive
-                              ? 'bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold'
-                              : 'text-[10px] font-bold'
+                              ? `bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge}`
+                              : listingBadge
                           }
                         >
                           {doc.isActive ? 'Active' : 'Inactive'}
@@ -554,8 +577,8 @@ export default function DoctorsPage() {
             </table>
           </div>
 
-          <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className={listingTableFooter}>
+            <div className={`flex items-center gap-2 ${listingPaginationText}`}>
               <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
               <span>
                 Page {pageNo + 1} of {Math.max(totalPages, 1)}
@@ -568,7 +591,7 @@ export default function DoctorsPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canPrev || isFetching}
                 onClick={() => setPageNo((p) => Math.max(0, p - 1))}
               >
@@ -578,7 +601,7 @@ export default function DoctorsPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canNext || isFetching}
                 onClick={() => setPageNo((p) => p + 1)}
               >

@@ -140,8 +140,10 @@ const NAV = [
             { label: 'Lab Coordinator', href: '/LabCoordinator' },
             { label: 'Referrers', href: '/referrer' },
             { label: 'Branch & B2B', href: '/branches' },
+            {label: 'Tenant Management', href: '/tenantManagement' },
             { label: 'Interface Monitor', href: '/management/InterfaceMonitor' },
-            { label: 'Patient Code Prefix', href: '/patient-code-prefix' },
+            { label: 'Admin Management', href: '/AdminRegistration' },
+          
         ]
     },
 

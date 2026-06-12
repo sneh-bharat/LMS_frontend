@@ -351,7 +351,7 @@ export default function EditCoordinator({
             ) : null}
           </div>
 
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="edit-branchId" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
               Branch *
             </Label>
@@ -385,7 +385,7 @@ export default function EditCoordinator({
                 <AlertCircle size={12} aria-hidden /> {errors.branchId}
               </p>
             ) : null}
-          </div>
+          </div> */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="department" className="text-xs font-bold text-slate-700 uppercase tracking-widest">

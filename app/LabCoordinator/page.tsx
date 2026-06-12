@@ -48,6 +48,27 @@ import {
 import AddCoordinator from './AddCoordinator';
 import EditCoordinator from './EditCoordinator';
 import LabCoordinatorDetailsView from './detailsCoordinator';
+import {
+  listingBadge,
+  listingEmptyBox,
+  listingEmptyTitle,
+  listingFilterSelect,
+  listingLoadingBox,
+  listingLoadingText,
+  listingPaginationBtn,
+  listingPaginationText,
+  listingRefreshBtn,
+  listingRowMono,
+  listingRowTitle,
+  listingSearchInput,
+  listingSubtitle,
+  listingTableCard,
+  listingTableFooter,
+  listingTableTh,
+  listingTitle,
+  listingToolbar,
+  listingToolbarInner,
+} from '@/lib/listingPageStyles';
 
 
 
@@ -286,10 +307,10 @@ export default function LabCoordinatorListPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+          <h1 className={listingTitle}>
             Lab <span className="text-emerald-600">Coordinators</span>
           </h1>
-          <p className="text-slate-500 text-sm font-medium max-w-xl">
+          <p className={`${listingSubtitle} max-w-xl`}>
             View and manage lab coordinator accounts and department assignments.
           </p>
         </div>
@@ -307,11 +328,12 @@ export default function LabCoordinatorListPage() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+      <div className={listingToolbar}>
+        <div className={listingToolbarInner}>
         <div className="relative flex-1 group w-full min-w-0">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
+            size={16}
             aria-hidden
           />
           <input
@@ -319,7 +341,7 @@ export default function LabCoordinatorListPage() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search lab coordinator Username"
-            className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            className={listingSearchInput}
             aria-label="Search lab coordinators"
             disabled={isLoading}
           />
@@ -336,7 +358,7 @@ export default function LabCoordinatorListPage() {
                 setStatusFilter(e.target.value as LabCoordinatorStatusFilter);
                 setPageNo(0);
               }}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
+              className={listingFilterSelect}
               aria-label="Filter by status"
               disabled={isLoading}
             >
@@ -371,17 +393,16 @@ export default function LabCoordinatorListPage() {
               size={14}
             />
           </div> */}
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-lg p-2.5 border-slate-200 shrink-0"
+            className={listingRefreshBtn}
             onClick={handleRefresh}
             disabled={isLoading || isFetching}
             title="Refresh list"
           >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} aria-hidden />
-          </Button>
+            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} aria-hidden />
+          </button>
+        </div>
         </div>
       </div>
 
@@ -404,45 +425,47 @@ export default function LabCoordinatorListPage() {
       ) : null}
 
       {isLoading ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+        <div className={listingLoadingBox}>
           <Loader className="text-slate-400 animate-spin" size={32} aria-hidden />
-          <p className="text-slate-600 font-medium">Loading lab coordinators…</p>
+          <p className={listingLoadingText}>Loading lab coordinators…</p>
         </div>
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
-          {isUsernameApiSearch
-            ? `No lab coordinator found with username "${debouncedSearch}".`
-            : 'No lab coordinators found.'}
+        <div className={listingEmptyBox}>
+          <p className={listingEmptyTitle}>
+            {isUsernameApiSearch
+              ? `No lab coordinator found with username "${debouncedSearch}".`
+              : 'No lab coordinators found.'}
+          </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+        <div className={listingTableCard}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Full Name
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Username
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Department
                   </th>
                  
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Branch
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Role
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Status
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Verified
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Actions
                   </th>
                 </tr>
@@ -472,13 +495,13 @@ export default function LabCoordinatorListPage() {
                               <FlaskConical size={18} aria-hidden />
                             </div>
                             <div className="min-w-0">
-                              <div className="font-bold text-slate-900 text-sm tracking-tight group-hover:text-emerald-700 transition-colors">
+                              <div className={listingRowTitle}>
                                 {getLabCoordinatorName(row)}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-sm font-semibold text-slate-700 font-mono">
+                        <td className={`px-6 py-5 ${listingRowMono}`}>
                           {row.username?.trim() || '—'}
                         </td>
                         <td className="px-6 py-5 text-sm font-semibold text-slate-700">
@@ -490,7 +513,7 @@ export default function LabCoordinatorListPage() {
                         <td className="px-6 py-5">
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-bold uppercase tracking-wide"
+                            className={`${listingBadge} uppercase tracking-wide`}
                           >
                             {row.role?.trim() || '—'}
                           </Badge>
@@ -500,8 +523,8 @@ export default function LabCoordinatorListPage() {
                             variant={active ? 'default' : 'secondary'}
                             className={
                               active
-                                ? 'bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold'
-                                : 'text-[10px] font-bold'
+                                ? `bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge}`
+                                : listingBadge
                             }
                           >
                             {getLabCoordinatorStatusLabel(row)}
@@ -512,8 +535,8 @@ export default function LabCoordinatorListPage() {
                             variant={verified ? 'default' : 'secondary'}
                             className={
                               verified
-                                ? 'bg-sky-600 hover:bg-sky-600 text-white text-[10px] font-bold'
-                                : 'text-[10px] font-bold'
+                                ? `bg-sky-600 hover:bg-sky-600 text-white ${listingBadge}`
+                                : listingBadge
                             }
                           >
                             {getLabCoordinatorVerifiedLabel(row)}
@@ -536,8 +559,8 @@ export default function LabCoordinatorListPage() {
             </table>
           </div>
 
-          <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className={listingTableFooter}>
+            <div className={`flex items-center gap-2 ${listingPaginationText}`}>
               <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
               <span>
                 Page {pageNo + 1} of {Math.max(totalPages, 1)}
@@ -550,7 +573,7 @@ export default function LabCoordinatorListPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canPrev || isFetching}
                 onClick={() => setPageNo((p) => Math.max(0, p - 1))}
               >
@@ -560,7 +583,7 @@ export default function LabCoordinatorListPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canNext || isFetching}
                 onClick={() => setPageNo((p) => p + 1)}
               >

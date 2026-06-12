@@ -33,6 +33,27 @@ import { getLabTechnicianName, type LabTechnician } from '@/app/Apis/LabTechnici
 import AddTechnician from './AddTechnician';
 import { LabTechnicianDetails } from './DetailsView';
 import { toast } from 'sonner';
+import {
+  listingBadge,
+  listingEmptyBox,
+  listingEmptyTitle,
+  listingLoadingBox,
+  listingLoadingText,
+  listingPaginationBtn,
+  listingPaginationText,
+  listingRefreshBtn,
+  listingRowMono,
+  listingRowTitle,
+  listingRowValue,
+  listingSearchInput,
+  listingSubtitle,
+  listingTableCard,
+  listingTableFooter,
+  listingTableTh,
+  listingTitle,
+  listingToolbar,
+  listingToolbarInner,
+} from '@/lib/listingPageStyles';
 
 const PAGE_SIZE = 10;
 
@@ -127,10 +148,10 @@ export default function LabTechnicianListPage() {
       {/* Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+          <h1 className={listingTitle}>
             Lab <span className="text-emerald-600">Technicians</span>
           </h1>
-          <p className="text-slate-500 text-sm font-medium max-w-xl">
+          <p className={`${listingSubtitle} max-w-xl`}>
             {listType === 'verified'
               ? 'View verified lab technicians, their departments, shifts, and status.'
               : 'View active lab technicians, their departments, shifts, and status.'}
@@ -183,11 +204,12 @@ export default function LabTechnicianListPage() {
       </div>
 
       {/* Search & Refresh */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+      <div className={listingToolbar}>
+        <div className={listingToolbarInner}>
         <div className="relative flex-1 group w-full min-w-0">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
+            size={16}
             aria-hidden
           />
           <input
@@ -204,7 +226,7 @@ export default function LabTechnicianListPage() {
               }
             }}
             placeholder="Search by  username"
-            className="input-refined w-full py-2.5 pl-12 pr-4 font-bold"
+            className={listingSearchInput}
             aria-label="Search lab technicians"
             disabled={isLoading}
           />
@@ -235,17 +257,16 @@ export default function LabTechnicianListPage() {
               Clear
             </Button>
           )}
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-lg p-2.5 border-slate-200 shrink-0"
+            className={listingRefreshBtn}
             onClick={() => refetch()}
             disabled={isLoading || isFetching}
             title="Refresh list"
           >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} aria-hidden />
-          </Button>
+            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} aria-hidden />
+          </button>
+        </div>
         </div>
       </div>
 
@@ -310,50 +331,50 @@ export default function LabTechnicianListPage() {
 
       {/* Table */}
       {isLoading || isUsernameLoading ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center gap-4">
+        <div className={listingLoadingBox}>
           <Loader className="text-slate-400 animate-spin" size={32} aria-hidden />
-          <p className="text-slate-600 font-medium">
+          <p className={listingLoadingText}>
             {isUsernameLoading ? 'Searching by username…' : 'Loading lab technicians…'}
           </p>
         </div>
       ) : displayRows.length === 0 && !isUsernameSearchActive ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-600 font-medium">
-          No lab technicians found.
+        <div className={listingEmptyBox}>
+          <p className={listingEmptyTitle}>No lab technicians found.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+        <div className={listingTableCard}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     ID
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Name
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Username
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Email
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Department
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Role
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className={listingTableTh}>
                     Shift
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Verified
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className={`${listingTableTh} text-center`}>
                     Active
                   </th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
+                  <th className={`${listingTableTh} text-right`}>
                     Actions
                   </th>
                 </tr>
@@ -384,8 +405,8 @@ export default function LabTechnicianListPage() {
 
           {/* Pagination */}
           {!isUsernameSearchActive && (
-          <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className={listingTableFooter}>
+            <div className={`flex items-center gap-2 ${listingPaginationText}`}>
               <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
               <span>
                 Page {page + 1} of {Math.max(totalPages, 1)}
@@ -398,7 +419,7 @@ export default function LabTechnicianListPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canPrev || isFetching}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
               >
@@ -408,7 +429,7 @@ export default function LabTechnicianListPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="font-bold border-slate-200"
+                className={listingPaginationBtn}
                 disabled={!canNext || isFetching}
                 onClick={() => setPage((p) => p + 1)}
               >
@@ -479,7 +500,7 @@ function LabTechnicianRow({ row, onView, onEdit, onDelete }: { row: LabTechnicia
             <FlaskConical size={18} aria-hidden />
           </div>
           <div className="min-w-0">
-            <div className="font-bold text-slate-900 text-sm tracking-tight group-hover:text-emerald-700 transition-colors">
+            <div className={listingRowTitle}>
               {getLabTechnicianName(row)}
             </div>
           </div>
@@ -487,13 +508,13 @@ function LabTechnicianRow({ row, onView, onEdit, onDelete }: { row: LabTechnicia
       </td>
 
       {/* Username */}
-      <td className="px-6 py-5 text-sm font-semibold text-slate-700 font-mono">
+      <td className={`px-6 py-5 ${listingRowMono}`}>
         {row.username?.trim() || '—'}
       </td>
 
       {/* Email */}
       <td className="px-6 py-5 max-w-55">
-        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
+        <div className={`flex items-center gap-1.5 truncate ${listingRowValue}`}>
           <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
           {row.email?.trim() ? (
             <a
@@ -510,14 +531,14 @@ function LabTechnicianRow({ row, onView, onEdit, onDelete }: { row: LabTechnicia
 
       {/* Department */}
       <td className="px-6 py-5">
-        <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wide">
+        <Badge variant="secondary" className={`${listingBadge} uppercase tracking-wide`}>
           {row.department?.trim() || '—'}
         </Badge>
       </td>
 
       {/* Role */}
       <td className="px-6 py-5">
-        <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wide">
+        <Badge variant="outline" className={`${listingBadge} uppercase tracking-wide`}>
           {row.role?.trim() || '—'}
         </Badge>
       </td>
@@ -530,12 +551,12 @@ function LabTechnicianRow({ row, onView, onEdit, onDelete }: { row: LabTechnicia
       {/* Verified */}
       <td className="px-6 py-5 text-center">
         {isVerified ? (
-          <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold gap-1">
+          <Badge className={`bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge} gap-1`}>
             <CheckCircle2 size={12} />
             Yes
           </Badge>
         ) : (
-          <Badge variant="secondary" className="text-[10px] font-bold gap-1">
+          <Badge variant="secondary" className={`${listingBadge} gap-1`}>
             <XCircle size={12} />
             No
           </Badge>
@@ -548,8 +569,8 @@ function LabTechnicianRow({ row, onView, onEdit, onDelete }: { row: LabTechnicia
           variant={isActive ? 'default' : 'secondary'}
           className={
             isActive
-              ? 'bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] font-bold'
-              : 'text-[10px] font-bold'
+              ? `bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge}`
+              : listingBadge
           }
         >
           {isActive ? 'Active' : 'Inactive'}
