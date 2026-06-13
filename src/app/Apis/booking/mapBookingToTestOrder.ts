@@ -1,4 +1,4 @@
-import { BOOKING_DISEASES } from '@/app/diagnosis/diagnostic-booking/patientFormUtils';
+import { BOOKING_DISEASES } from '@/app/(admin)/diagnosis/diagnostic-booking/patientFormUtils';
 import {
   MEMBERSHIP_CARD_PAYMENT_MODE,
   MEMBERSHIP_CARD_PAYMENT_MODE_API,
