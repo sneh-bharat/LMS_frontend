@@ -5,28 +5,22 @@ import {
   User,
   Phone,
   Mail,
-  MapPin,
   Calendar as CalendarIcon,
   Search,
-  Edit2,
-  Shield,
-  Zap,
-  X,
   UserPlus,
-  MoreVertical,
   Trash2,
   Database,
-  ArrowRightCircle,
   Loader,
   AlertCircle,
   CheckCircle2,
-  LayoutGrid,
-  Activity,
   RefreshCw,
   Link2,
   Receipt,
+  MoreHorizontal,
+  Eye,
+  Pencil,
 } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
@@ -36,6 +30,12 @@ import { EditPatient } from './EditPatient';
 import { PatientDetails } from './PatientDetails';
 import { PatientInvoices } from './patient-invoice';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatPatientFullName, sanitizeMiddleName } from '../Apis/Patients/patientDisplayUtils';
 import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../Apis/Patients/Patient_Service_API';
 
@@ -100,6 +100,84 @@ function SuccessAlert({ message, onDismiss }: { message: string; onDismiss: () =
         ✕
       </button>
     </div>
+  );
+}
+
+function PatientActions({
+  patient,
+  isDeleting,
+  onView,
+  onEdit,
+  onViewInvoices,
+  onDelete,
+}: {
+  patient: Patient;
+  isDeleting: boolean;
+  onView: (patientId: number) => void;
+  onEdit: (patient: Patient) => void;
+  onViewInvoices: (patient: Patient) => void;
+  onDelete: (patientId: number) => void;
+}) {
+  const router = useRouter();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+            aria-label="Patient actions"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-44 p-1.5 rounded-2xl border-slate-100 shadow-2xl"
+      >
+        <DropdownMenuItem
+          onClick={() => patient.id && onView(patient.id)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+        >
+          <Eye size={14} />
+          View
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onEdit(patient)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-blue-600 focus:bg-blue-50 focus:text-blue-700"
+        >
+          <Pencil size={14} />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onViewInvoices(patient)}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-600 focus:bg-amber-50 focus:text-amber-700"
+        >
+          <Receipt size={14} />
+          Invoices
+        </DropdownMenuItem>
+        {patient.id ? (
+          <DropdownMenuItem
+            onClick={() => router.push(`/patient-family-link?patientId=${patient.id}`)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-sky-600 focus:bg-sky-50 focus:text-sky-700"
+          >
+            <Link2 size={14} />
+            Family Links
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem
+          onClick={() => patient.id && onDelete(patient.id)}
+          disabled={isDeleting}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+        >
+          <Trash2 size={14} />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -579,48 +657,14 @@ export default function FindRegisterPatientPage() {
                         )}
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="View Details"
-                            onClick={() => patient.id && handleViewDetails(patient.id)}
-                          >
-                            <ArrowRightCircle size={14} />
-                          </Button>
-                          <Button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="Edit Patient"
-                            onClick={() => handleEditPatient(patient)}
-                          >
-                            <Edit2 size={14} />
-                          </Button>
-                          <Button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="View Invoices"
-                            aria-label="View patient invoices"
-                            onClick={() => openPatientInvoices(patient)}
-                          >
-                            <Receipt size={14} />
-                          </Button>
-                          {patient.id ? (
-                            <Link
-                              href={`/patient-family-link?patientId=${patient.id}`}
-                              className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-sm transition-all inline-flex items-center justify-center"
-                              title="Family links by patient ID"
-                              aria-label="Family links by patient ID"
-                            >
-                              <Link2 size={14} />
-                            </Link>
-                          ) : null}
-                          <Button
-                            className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm transition-all"
-                            title="Delete Patient"
-                            onClick={() => patient.id && handleDeletePatient(patient.id)}
-                            disabled={isDeleting}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
+                        <PatientActions
+                          patient={patient}
+                          isDeleting={isDeleting}
+                          onView={handleViewDetails}
+                          onEdit={handleEditPatient}
+                          onViewInvoices={openPatientInvoices}
+                          onDelete={handleDeletePatient}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -665,19 +709,6 @@ export default function FindRegisterPatientPage() {
           </div>
         </>
       )}
-
-      {/* ═══ STATUS BANNER ═════════════════════════════════════════════════ */}
-      <div className="bg-emerald-50 rounded-[2.5rem] p-8 flex items-center justify-between border border-emerald-100 shadow-xl shadow-green-500/5">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-emerald-600">
-            <Activity size={24} />
-          </div>
-          <p className="text-xs font-black text-emerald-900 uppercase tracking-tight italic">
-            Patient master indexing active. Real-time synchronization enabled.
-          </p>
-        </div>
-        <Badge variant="success" className="px-5 py-2">System Optimal</Badge>
-      </div>
     </div>
   );
 }

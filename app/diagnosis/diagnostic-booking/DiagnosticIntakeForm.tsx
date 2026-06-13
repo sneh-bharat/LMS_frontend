@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import {
   Activity,
   Building2,
@@ -40,6 +41,7 @@ import {
 } from '@/app/Apis/booking/mapBookingToTestOrder';
 import {
   ORDER_PRIORITIES,
+  isEmergencyPriority,
   orderPriorityLabel,
   orderPriorityTurnaroundHours,
 } from '@/app/Apis/booking/orderPriority';
@@ -52,6 +54,13 @@ import {
   type EstimationMetaState,
 } from './bookingFormTypes';
 import { todayIsoDate } from './booking/bookingFormDefaults';
+import {
+  blockInvalidChargeKey,
+  CHARGE_MAX,
+  CHARGE_MIN,
+  normalizeChargeOnBlur,
+  parseChargeInput,
+} from '@/app/Apis/booking/chargeLimits';
 
 function referringDoctorMeta(doctor: ReferringDoctor) {
   const parts: string[] = [];
@@ -120,6 +129,24 @@ export default function DiagnosticIntakeForm({
       const value = typeof e === 'string' ? e : e.target.value;
       setForm((f) => ({ ...f, [key]: value }));
     };
+
+  const setChargeField =
+    (key: 'emergencyCharge' | 'contrast') => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((f) => ({ ...f, [key]: parseChargeInput(e.target.value) }));
+    };
+
+  const normalizeChargeField =
+    (key: 'emergencyCharge' | 'contrast') => (e: React.FocusEvent<HTMLInputElement>) => {
+      setForm((f) => ({ ...f, [key]: normalizeChargeOnBlur(e.target.value) }));
+    };
+
+  const emergencyPriority = isEmergencyPriority(form.processing);
+
+  useEffect(() => {
+    if (!emergencyPriority && form.emergencyCharge) {
+      setForm((f) => ({ ...f, emergencyCharge: '' }));
+    }
+  }, [emergencyPriority, form.emergencyCharge, setForm]);
 
   const financials = computeBookingFinancials(investigations, form);
 
@@ -731,23 +758,46 @@ export default function DiagnosticIntakeForm({
                   <span className="font-bold text-slate-400 flex items-center gap-2 italic">
                     <Timer size={14} className="text-rose-500" /> Emergency Charge
                   </span>
-                  <input
-                    type="number"
-                    value={form.emergencyCharge}
-                    onChange={set('emergencyCharge')}
-                    placeholder="0"
-                    className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900"
-                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-400">₹</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      value={form.emergencyCharge}
+                      onChange={setChargeField('emergencyCharge')}
+                      onBlur={normalizeChargeField('emergencyCharge')}
+                      onKeyDown={blockInvalidChargeKey}
+                      placeholder={`${CHARGE_MIN}`}
+                      disabled={!emergencyPriority}
+                      title={
+                        emergencyPriority
+                          ? `Emergency charge (₹${CHARGE_MIN}–₹${CHARGE_MAX})`
+                          : 'Available for Urgent or Stat priority only'
+                      }
+                      className="w-24 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-bold text-slate-400">Contrast Charge</span>
-                  <input
-                    type="number"
-                    value={form.contrast}
-                    onChange={set('contrast')}
-                    placeholder="0"
-                    className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900"
-                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-400">₹</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      value={form.contrast}
+                      onChange={setChargeField('contrast')}
+                      onBlur={normalizeChargeField('contrast')}
+                      onKeyDown={blockInvalidChargeKey}
+                      placeholder={`${CHARGE_MIN}`}
+                      title={`Contrast charge (₹${CHARGE_MIN}–₹${CHARGE_MAX})`}
+                      className="w-24 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-xs font-black text-slate-900 uppercase">Actual Payable</span>

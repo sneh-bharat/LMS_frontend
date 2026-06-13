@@ -22,7 +22,7 @@ import {
   ArrowRightCircle,
   ArrowLeft,
   Download,
-  MoreVertical,
+  MoreHorizontal,
   Zap,
   Loader2,
   Info,
@@ -43,6 +43,12 @@ import {
   SelectItem,
   Table
 } from '@/components/ui';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Branch } from '@/app/Apis/branch/branchApi';
 import SelectBranch from '../select-branch';
@@ -120,6 +126,43 @@ function referrerMeta(referrer: Referrer) {
   const phone = getReferrerPhone(referrer);
   if (phone !== '—') parts.push(phone);
   return parts.join(' · ') || 'Referrer';
+}
+
+function BookingRowActions({
+  ariaLabel,
+  onRemove,
+}: {
+  ariaLabel: string;
+  onRemove: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+            aria-label={ariaLabel}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-52 p-1.5 rounded-2xl border-slate-100 shadow-2xl"
+      >
+        <DropdownMenuItem
+          onClick={onRemove}
+          className="rounded-lg py-2.5 text-xs font-black uppercase text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+        >
+          <Trash2 size={14} />
+          Remove
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 interface FormState {
@@ -799,13 +842,13 @@ function DiagnosticBookingContent() {
             onChange={handleBranchChange}
             autoSelectFirst={false}
           />
-          {!isEditMode ? (
+          {/* {!isEditMode ? (
             <>
               <Button className="rounded-xl custom-gradient text-white font-bold text-xs gap-2 shadow-lg shadow-emerald-500/10 px-6">
                 <Zap size={16} /> Smart Sync
               </Button>
             </>
-          ) : null}
+          ) : null} */}
         </div>
       </div>
 
@@ -1052,9 +1095,9 @@ function DiagnosticBookingContent() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => {
+                          <BookingRowActions
+                            ariaLabel="Referrer actions"
+                            onRemove={() => {
                               setSelectedReferrer(null);
                               setForm((f) => ({
                                 ...f,
@@ -1062,10 +1105,7 @@ function DiagnosticBookingContent() {
                                 referrer: '',
                               }));
                             }}
-                            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          />
                         </td>
                       </tr>
                     </tbody>
@@ -1133,13 +1173,10 @@ function DiagnosticBookingContent() {
                             </Badge>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeReferringDoctor(doctor.id)}
-                              className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            <BookingRowActions
+                              ariaLabel="Doctor actions"
+                              onRemove={() => removeReferringDoctor(doctor.id)}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -1224,9 +1261,10 @@ function DiagnosticBookingContent() {
                           </td>
                           {!isEditMode ? (
                             <td className="px-6 py-4 text-center">
-                              <button onClick={() => removeInvestigation(inv.id)} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                                <Trash2 size={16} />
-                              </button>
+                              <BookingRowActions
+                                ariaLabel="Investigation actions"
+                                onRemove={() => removeInvestigation(inv.id)}
+                              />
                             </td>
                           ) : null}
                         </tr>
@@ -1248,7 +1286,8 @@ function DiagnosticBookingContent() {
         </div>
 
         {/* ── Summary Column ── */}
-        <div className="xl:col-span-4 space-y-8 sticky top-24">
+        {/* <div className="xl:col-span-4 space-y-8 sticky top-24"> */}
+        <div className="xl:col-span-4 space-y-8 top-24">
           <Card className="p-0 border-gray-300 overflow-hidden shadow-xl">
             <div className="p-6 bg-blue-900 text-white">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 opacity-80 mb-1">
@@ -1300,11 +1339,33 @@ function DiagnosticBookingContent() {
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-bold text-slate-400 flex items-center gap-2 italic"><Timer size={14} className="text-rose-500" /> Emergency Charge</span>
-                    <input type="number" value={form.emergencyCharge} onChange={set('emergencyCharge')} placeholder="0" className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      value={form.emergencyCharge}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                        setForm((f) => ({ ...f, emergencyCharge: value }));
+                      }}
+                      placeholder="0"
+                      className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900"
+                    />
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-bold text-slate-400">Contrast Charge</span>
-                    <input type="number" value={form.contrast} onChange={set('contrast')} placeholder="0" className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      value={form.contrast}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                        setForm((f) => ({ ...f, contrast: value }));
+                      }}
+                      placeholder="0"
+                      className="w-20 text-right bg-white border border-gray-300 rounded-lg px-2 py-1.5 focus:border-emerald-500 outline-none font-black text-slate-900"
+                    />
                   </div>
                   <div className="flex justify-between items-center pt-2">
                     <span className="text-xs font-black text-slate-900 uppercase">Actual Payable</span>

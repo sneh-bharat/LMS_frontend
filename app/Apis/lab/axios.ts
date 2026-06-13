@@ -44,8 +44,19 @@ labClient.interceptors.response.use(
         }
 
         // Extract meaningful message from backend response
-        const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
-        return Promise.reject({ ...error, message });
+        const data = error.response?.data;
+        const message =
+            (typeof data === 'string' ? data : null) ||
+            data?.message ||
+            data?.error ||
+            (Array.isArray(data?.errors) ? data.errors.join(', ') : null) ||
+            error.message ||
+            'An unexpected error occurred';
+        return Promise.reject({
+            message,
+            status: error.response?.status,
+            data,
+        });
     }
 );
 

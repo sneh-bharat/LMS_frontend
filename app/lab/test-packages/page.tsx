@@ -5,28 +5,26 @@ import {
   Plus,
   Search,
   Filter,
-  MoreHorizontal,
+  MoreVertical,
   Edit2,
   Trash2,
   Settings,
   CheckCircle2,
-  XCircle,
   Package,
-  Clock,
-  CreditCard,
-  Zap,
   LayoutGrid,
   ChevronDown,
   AlertCircle,
   Loader,
-  FlaskConical,
-  Activity,
-  Check,
-  X
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import Input from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import NewTest from './NewTest';
 import PackageDetailsView from './PackageDetailsView';
 import {
@@ -188,95 +186,60 @@ function PackageActions({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const handleDelete = async () => {
-    console.log('=== PACKAGE ACTIONS: HANDLE DELETE ===');
-    console.log('Package:', pkg.packageName, 'ID:', pkg.id);
-    
     setIsDeleting(true);
     try {
       await onDelete(pkg);
-      setShowMoreMenu(false);
       setShowConfirmDelete(false);
-      console.log('✅ Delete flow completed successfully');
-    } catch (error) {
-      console.error('❌ Delete flow failed:', error);
+    } catch {
       setIsDeleting(false);
     }
   };
 
-  const handleApprove = () => {
-    console.log('Approve package:', pkg.packageName);
-    // Add approve logic here
-  };
-
-  const handleReject = () => {
-    console.log('Reject package:', pkg.packageName);
-    // Add reject logic here
-  };
-
   return (
     <>
-      <div className="flex items-center justify-center gap-1">
-        {/* Edit Button */}
-        <button
-          onClick={() => onEdit(pkg)}
-          className="p-2 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
-          title="Edit Package"
-          aria-label="Edit package"
-        >
-          <Edit2 size={18} />
-        </button>
-
-        {/* Delete Button */}
-        <button
-          onClick={() => {
-            console.log('🗑️ Delete button clicked for:', pkg.packageName);
-            setShowConfirmDelete(true);
-          }}
-          className="p-2 hover:bg-rose-50 rounded-lg transition-all text-slate-400 hover:text-rose-600"
-          title="Delete Package"
-          aria-label="Delete package"
-        >
-          <Trash2 size={18} />
-        </button>
-
-        {/* More Options Button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-slate-600"
-            title="More Options"
-            aria-label="More package actions"
-            aria-expanded={showMoreMenu}
-          >
-            <MoreHorizontal size={18} />
-          </button>
-          
-          {showMoreMenu && (
-            <>
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowMoreMenu(false)}
-              />
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
-                <button
-                  onClick={() => {
-                    onViewDetails(pkg);
-                    setShowMoreMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
-                >
-                  <Package size={14} /> View Details
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+      <div className="flex items-center justify-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300"
+                title="More actions"
+                aria-label="More package actions"
+              >
+                <MoreVertical size={15} strokeWidth={2} />
+              </Button>
+            }
+          />
+          <DropdownMenuContent className="min-w-56 p-1.5 rounded-xl border-slate-100 shadow-2xl">
+            <DropdownMenuItem
+              onClick={() => onViewDetails(pkg)}
+              className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+            >
+              <Package size={16} className="mr-3 text-emerald-500" />
+              <span>View Details</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onEdit(pkg)}
+              className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-blue-700"
+            >
+              <Edit2 size={16} className="mr-3 text-blue-500" />
+              <span>Edit Package</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="my-1.5 bg-slate-50" />
+            <DropdownMenuItem
+              onClick={() => setShowConfirmDelete(true)}
+              className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
+            >
+              <Trash2 size={16} className="mr-3" />
+              <span>Delete Package</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog
         isOpen={showConfirmDelete}
         packageName={pkg.packageName}
@@ -398,6 +361,8 @@ export default function TestPackagePage() {
             id: packageData.id,
             packageCode: packageData.packageCode,
             packageName: packageData.packageName,
+            branchId: packageData.branchId ?? pkg.branchId,
+            branchName: packageData.branchName || pkg.branchName,
             description: packageData.description,
             packagePrice: packageData.packagePrice,
             specialInstructions: packageData.specialInstructions,
@@ -555,13 +520,14 @@ export default function TestPackagePage() {
         setLoading(prev => ({ ...prev, success: null }));
       }, 3000);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to save package';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to save package';
       setLoading({
         isLoading: false,
         error: errorMessage,
         success: null,
       });
-      // Keep modal open on error
+      throw error instanceof Error ? error : new Error(errorMessage);
     }
   };
 
@@ -699,7 +665,7 @@ export default function TestPackagePage() {
                       Package Details
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      Tests
+                      Branch Name
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       Price
@@ -737,23 +703,8 @@ export default function TestPackagePage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="primary" className="px-2 py-1 text-[10px]">
-                              {pkg.tests?.length || 0} Tests
-                            </Badge>
-                            <div className="flex -space-x-2">
-                              {pkg.tests?.slice(0, 3).map((test, idx) => (
-                                <div
-                                  key={test.testId || idx}
-                                  className="w-6 h-6 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-emerald-700"
-                                  title={test.testName || 'Test'}
-                                >
-                                  {((test as any).testCode || (test as any).testName || '?')
-                                    .substring(0, 2)
-                                    .toUpperCase()}
-                                </div>
-                              ))}
-                            </div>
+                          <div className="text-sm font-bold text-slate-900 tracking-tight font-mono">
+                            {pkg.branchName}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -766,7 +717,7 @@ export default function TestPackagePage() {
                             {pkg.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <PackageActions
                             pkg={pkg}
                             onEdit={handleEdit}

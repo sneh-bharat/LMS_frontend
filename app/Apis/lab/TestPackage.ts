@@ -31,6 +31,121 @@ const logger = {
 
 // ─── Error Handler Utility ──────────────────────────────────────────────────
 
+export function getLabApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const apiError = error as {
+      message?: string;
+      data?: unknown;
+      status?: number;
+      response?: { data?: unknown; status?: number };
+    };
+
+    const responseData = apiError.data ?? apiError.response?.data;
+
+    if (typeof responseData === 'string' && responseData.trim()) {
+      return responseData;
+    }
+
+    if (responseData && typeof responseData === 'object') {
+      const body = responseData as {
+        message?: string;
+        error?: string;
+        errors?: string[] | Record<string, string>;
+        data?: { fieldErrors?: Record<string, string>; message?: string };
+        fieldErrors?: Record<string, string>;
+      };
+
+      const fieldErrors = body.fieldErrors ?? body.data?.fieldErrors;
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        const formatted = Object.entries(fieldErrors)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+        if (formatted) return formatted;
+      }
+
+      if (body.message) return body.message;
+      if (body.error) return body.error;
+      if (Array.isArray(body.errors)) return body.errors.join(', ');
+      if (body.errors && typeof body.errors === 'object') {
+        return Object.values(body.errors).join(', ');
+      }
+    }
+
+    if (apiError.message) return apiError.message;
+  }
+
+  return fallback;
+}
+
+function normalizeTestPackageTests(
+  tests: Array<{ testId?: number; id?: number; displayOrder?: number; sortOrder?: number }>
+): Array<{ testId: number; displayOrder: number }> {
+  return tests
+    .map((test, index) => {
+      const testId = Number(test.testId ?? test.id);
+      if (!Number.isFinite(testId) || testId <= 0) return null;
+
+      const displayOrder = Number(test.displayOrder ?? test.sortOrder ?? index + 1);
+      return {
+        testId,
+        displayOrder: Number.isFinite(displayOrder) && displayOrder > 0 ? displayOrder : index + 1,
+      };
+    })
+    .filter((test): test is { testId: number; displayOrder: number } => test !== null);
+}
+
+function normalizeTestDetailItems(tests: TestDetailItem[]): TestDetailItem[] {
+  return tests.flatMap((test, index) => {
+    const rawTest = test as TestDetailItem & { id?: number };
+    const testId = Number(rawTest.testId ?? rawTest.id);
+    if (!Number.isFinite(testId) || testId <= 0) return [];
+
+    const item: TestDetailItem = {
+      ...test,
+      testId,
+      displayOrder: test.displayOrder ?? test.sortOrder ?? index + 1,
+    };
+    return [item];
+  });
+}
+
+function sanitizeUpdateTestPackagePayload(
+  input: UpdateTestPackageInput
+): UpdateTestPackageInput {
+  const payload: UpdateTestPackageInput = {
+    packageName: input.packageName.trim(),
+  };
+
+  if (input.description !== undefined) {
+    payload.description = input.description.trim();
+  }
+  if (input.packagePrice !== undefined) {
+    payload.packagePrice = Number(input.packagePrice);
+  }
+  if (input.specialInstructions !== undefined) {
+    payload.specialInstructions = input.specialInstructions.trim();
+  }
+  if (input.isActive !== undefined) {
+    payload.isActive = input.isActive;
+  }
+  if (input.branchId !== undefined) {
+    payload.branchId = Number(input.branchId);
+  }
+  if (input.tests !== undefined) {
+    payload.tests = normalizeTestPackageTests(input.tests);
+  }
+
+  return payload;
+}
+
 class ApiErrorHandler {
   static handle(response: Response, responseText: string): { code: string; message: string; details?: unknown } {
     try {
@@ -80,6 +195,7 @@ export interface TestDetailItem extends TestPackageItem {
   testCode: string;
   category: string;
   displayOrder?: number;
+  sortOrder?: number;
   discount?: number;
 }
 
@@ -87,6 +203,8 @@ export interface TestPackage {
   id?: number;
   packageCode: string;
   packageName: string;
+  branchId?: number;
+  branchName: string;
   description?: string;
   packagePrice: number;
   specialInstructions?: string;
@@ -99,6 +217,8 @@ export interface TestPackageDetail {
   id: number;
   packageCode: string;
   packageName: string;
+  branchId?: number;
+  branchName: string;
   description?: string;
   packagePrice: number;
   specialInstructions?: string;
@@ -111,6 +231,8 @@ interface PackageInfoResponse {
   id: number;
   packageCode: string;
   packageName: string;
+  branchId?: number;
+  branchName?: string;
   description?: string;
   packagePrice: number;
   specialInstructions?: string;
@@ -155,14 +277,14 @@ export interface CreateTestPackageInput {
 }
 
 export interface UpdateTestPackageInput {
-  packageCode: string;
+  /** Always required by PUT /api/v1/test-packages/{id} */
   packageName: string;
   description?: string;
-  packagePrice: number;
+  packagePrice?: number;
   specialInstructions?: string;
-  isActive: boolean;
-  branchId: number;
-  tests: Array<{
+  isActive?: boolean;
+  branchId?: number;
+  tests?: Array<{
     testId: number;
     displayOrder?: number;
   }>;
@@ -264,6 +386,8 @@ export async function fetchTestPackageById(
         id: detail.id,
         packageCode: detail.packageCode,
         packageName: detail.packageName,
+        branchId: (detail as { branchId?: number }).branchId,
+        branchName: (detail as { branchName?: string }).branchName,
         description: detail.description,
         packagePrice: detail.packagePrice,
         specialInstructions: detail.specialInstructions,
@@ -272,8 +396,17 @@ export async function fetchTestPackageById(
       tests = detail.tests || [];
     }
 
+    tests = normalizeTestDetailItems(tests);
+
     const transformedData: TestPackageDetail = {
       id: packageInfo.id,
+      branchId:
+        packageInfo.branchId ??
+        (detail as { branchId?: number }).branchId,
+      branchName:
+        packageInfo.branchName ??
+        (detail as { branchName?: string }).branchName ??
+        '',
       packageCode: packageInfo.packageCode,
       packageName: packageInfo.packageName,
       description: packageInfo.description,
@@ -347,61 +480,53 @@ export async function createTestPackage(
  * 
  * PUT /api/v1/test-packages/{packageId}
  * 
- * Request Body:
- * - packageCode (required)
- * - packageName (required)
- * - description (optional)
- * - packagePrice (required)
- * - specialInstructions (optional)
- * - isActive (required)
- * - branchId (required)
- * - tests (required) - Array of { testId, displayOrder }
+ * Sends packageName (required) plus only the other fields that changed. Uses PUT, not PATCH.
+ * Example: { "packageName": "Health Checkup", "description": "Updated text" }
  * 
  * @param packageId - ID of package to update
- * @param input - Updated package data
+ * @param input - Only the fields that were modified
  * @returns Updated package
  */
 export async function updateTestPackage(
   packageId: number,
   input: UpdateTestPackageInput
 ): Promise<ApiResponse<TestPackage>> {
+  const payload = sanitizeUpdateTestPackagePayload(input);
+
   try {
+    const validationErrors = validateUpdateTestPackageData(payload);
+    if (validationErrors.length > 0) {
+      logger.warn('Validation errors in update package data', validationErrors);
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+    }
+
     const url = `/api/v1/test-packages/${packageId}`;
     
-    logger.debug('Updating test package', { 
+    logger.debug('Updating test package (partial PUT)', { 
       packageId,
       url,
-      payload: input,
-      hasName: !!input.packageName,
-      hasDescription: !!input.description,
-      hasPrice: input.packagePrice !== undefined,
-      hasInstructions: !!input.specialInstructions,
-      hasIsActive: input.isActive !== undefined,
-      testCount: input.tests?.length || 0,
-      tests: input.tests,
+      payload,
     });
 
-    const response: ApiResponse<TestPackage> = await labClient.put<ApiResponse<TestPackage>>(url, input) as any;
+    const response: ApiResponse<TestPackage> = await labClient.put<ApiResponse<TestPackage>>(url, payload) as any;
     
-    // Check if the response indicates an error
-    if (response.response === false) {
+    if (response && typeof response === 'object' && response.response === false) {
       throw new Error(response.message || 'Failed to update test package');
     }
     
     logger.debug('Successfully updated test package', { 
       packageId,
-      updatedData: response.data,
+      updatedData: response?.data,
     });
 
     return response;
-  } catch (error: any) {
-    logger.error('Failed to update test package', { 
+  } catch (error: unknown) {
+    const message = getLabApiErrorMessage(error, 'Failed to update test package');
+    logger.error(`Failed to update test package: ${message}`, {
       packageId,
-      error: error.message || error,
-      response: error.response?.data,
-      payload: input,
+      payload,
     });
-    throw error;
+    throw new Error(message);
   }
 }
 
@@ -504,75 +629,62 @@ export function validateTestPackageData(data: Partial<CreateTestPackageInput>): 
 }
 
 /**
- * Validate update package data
+ * Validate partial update package data — only validates fields present in the payload.
  */
-export function validateUpdateTestPackageData(data: Partial<UpdateTestPackageInput>): string[] {
+export function validateUpdateTestPackageData(data: UpdateTestPackageInput): string[] {
   const errors: string[] = [];
 
-  // Package Code
-  if (!data.packageCode?.trim()) {
-    errors.push('Package code is required');
-  } else if (data.packageCode.length > 20) {
-    errors.push('Package code must be 20 characters or less');
-  }
-
-  // Package Name
   if (!data.packageName?.trim()) {
     errors.push('Package name is required');
   } else if (data.packageName.length > 100) {
     errors.push('Package name must be 100 characters or less');
   }
 
-  // Price
-  if (data.packagePrice === undefined || data.packagePrice === null) {
-    errors.push('Package price is required');
-  } else if (typeof data.packagePrice !== 'number') {
-    errors.push('Package price must be a number');
-  } else if (data.packagePrice < 0) {
-    errors.push('Package price cannot be negative');
-  } else if (data.packagePrice === 0) {
-    errors.push('Package price must be greater than 0');
+  if (data.packagePrice !== undefined) {
+    if (typeof data.packagePrice !== 'number' || Number.isNaN(data.packagePrice)) {
+      errors.push('Package price must be a number');
+    } else if (data.packagePrice < 0) {
+      errors.push('Package price cannot be negative');
+    } else if (data.packagePrice === 0) {
+      errors.push('Package price must be greater than 0');
+    }
   }
 
-  // Active Status
-  if (typeof data.isActive !== 'boolean') {
-    errors.push('Active status is required');
+  if (data.isActive !== undefined && typeof data.isActive !== 'boolean') {
+    errors.push('Active status must be a boolean');
   }
 
-  // Branch ID
-  if (!data.branchId || data.branchId <= 0) {
-    errors.push('Branch ID is required and must be a positive number');
+  if (data.branchId !== undefined && (!data.branchId || data.branchId <= 0)) {
+    errors.push('Branch ID must be a positive number');
   }
 
-  // Tests
-  if (!data.tests || !Array.isArray(data.tests)) {
-    errors.push('Tests array is required');
-  } else if (data.tests.length === 0) {
-    errors.push('At least one test must be included in the package');
-  } else {
-    const testIds = new Set<number>();
-    
-    data.tests.forEach((test, index) => {
-      // Check for duplicate tests
-      if (testIds.has(test.testId)) {
-        errors.push(`Duplicate test at index ${index}: Test ID ${test.testId} is already included`);
-      }
-      testIds.add(test.testId);
+  if (data.tests !== undefined) {
+    if (!Array.isArray(data.tests)) {
+      errors.push('Tests must be an array');
+    } else if (data.tests.length === 0) {
+      errors.push('At least one test must be included in the package');
+    } else {
+      const testIds = new Set<number>();
 
-      // Validate test ID
-      if (!test.testId || typeof test.testId !== 'number') {
-        errors.push(`Test ID is required and must be a number (index ${index})`);
-      }
-
-      // Validate displayOrder (optional, but must be positive if provided)
-      if (test.displayOrder !== undefined && test.displayOrder !== null) {
-        if (typeof test.displayOrder !== 'number') {
-          errors.push(`Display order must be a number (test index ${index})`);
-        } else if (test.displayOrder < 1) {
-          errors.push(`Display order must be at least 1 (test index ${index})`);
+      data.tests.forEach((test, index) => {
+        if (testIds.has(test.testId)) {
+          errors.push(`Duplicate test at index ${index}: Test ID ${test.testId} is already included`);
         }
-      }
-    });
+        testIds.add(test.testId);
+
+        if (!test.testId || typeof test.testId !== 'number') {
+          errors.push(`Test ID is required and must be a number (index ${index})`);
+        }
+
+        if (test.displayOrder !== undefined && test.displayOrder !== null) {
+          if (typeof test.displayOrder !== 'number') {
+            errors.push(`Display order must be a number (test index ${index})`);
+          } else if (test.displayOrder < 1) {
+            errors.push(`Display order must be at least 1 (test index ${index})`);
+          }
+        }
+      });
+    }
   }
 
   return errors;
