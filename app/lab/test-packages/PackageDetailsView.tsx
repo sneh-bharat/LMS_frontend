@@ -58,8 +58,7 @@ export default function PackageDetailsView({
 
   const formattedPrice = packageData.packagePrice.toLocaleString('en-IN');
   const testCount = packageData.tests?.length || 0;
-  const totalDiscount = packageData.tests?.reduce((sum, test) => sum + (test.discount || 0), 0) || 0;
-  const averageDiscount = testCount > 0 ? Math.round(totalDiscount / testCount) : 0;
+ 
 
   const footer = (
     <div className="flex gap-3 justify-end w-full flex-wrap">
@@ -178,7 +177,6 @@ export default function PackageDetailsView({
               ₹{formattedPrice}
             </p>
           </div>
-
           <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-[#FF671F] transition-all">
             <div className="flex items-center gap-2 mb-2">
               <Beaker size={16} className="text-[#FF671F]" />
@@ -190,16 +188,15 @@ export default function PackageDetailsView({
               {testCount} Tests
             </p>
           </div>
-
           <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-[#FF671F] transition-all">
             <div className="flex items-center gap-2 mb-2">
               <Tag size={16} className="text-[#FF671F]" />
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                Avg. Discount
+                Branch Name
               </span>
             </div>
             <p className="text-lg font-bold text-slate-900">
-              {averageDiscount}%
+              {packageData.branchName}
             </p>
           </div>
         </div>
@@ -260,16 +257,9 @@ export default function PackageDetailsView({
                       <p className="font-bold text-slate-900 text-sm">{test.testName}</p>
                       <p className="text-xs text-slate-500 font-mono">{test.testCode}</p>
                     </div>
+
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500 uppercase font-bold">Discount</p>
-                      <p className="text-sm font-bold text-emerald-600">{test.discount}%</p>
-                    </div>
-                    <Badge variant="secondary" className="px-2 py-1 text-[10px]">
-                      {test.category || 'N/A'}
-                    </Badge>
-                  </div>
+                  
                 </div>
               ))}
             </div>
@@ -311,12 +301,7 @@ export default function PackageDetailsView({
               Package Info
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600 font-medium">Package ID</span>
-                <span className="text-sm font-bold text-slate-900 font-mono">
-                  #{packageData.id}
-                </span>
-              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600 font-medium">Total Tests</span>
                 <span className="text-sm font-bold text-slate-900">

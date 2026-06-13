@@ -28,6 +28,7 @@ import {
 
 // ─── API Service Imports ──────────────────────────────────────────────────────
 
+
 import {
   CreateTestPackageInput,
   UpdateTestPackageInput,
@@ -77,23 +78,113 @@ interface NewTestProps {
   isEditMode?: boolean;
 }
 
-// ─── Default Available Tests ──────────────────────────────────────────────────
+function resolveBranchId(
+  editData: TestPackageDetail | null | undefined,
+  branches: Branch[],
+  fallback = 1
+): number {
+  if (editData?.branchId && editData.branchId > 0) {
+    return editData.branchId;
+  }
 
-const DEFAULT_AVAILABLE_TESTS: AvailableTest[] = [
-  { id: 1, testId: 1, testName: 'Complete Blood Count', testCode: 'CBC', category: 'Hematology' },
-  { id: 2, testId: 2, testName: 'Lipid Profile', testCode: 'LP', category: 'Biochemistry' },
-  { id: 3, testId: 3, testName: 'Liver Function Test', testCode: 'LFT', category: 'Biochemistry' },
-  { id: 4, testId: 4, testName: 'Troponin T', testCode: 'TNT', category: 'Cardiology' },
-  { id: 5, testId: 5, testName: 'NT-proBNP', testCode: 'NTBNP', category: 'Cardiology' },
-  { id: 6, testId: 6, testName: 'Homocysteine', testCode: 'HCY', category: 'Biochemistry' },
-  { id: 7, testId: 7, testName: 'HbA1c', testCode: 'HBA1C', category: 'Biochemistry' },
-  { id: 8, testId: 8, testName: 'Fasting Insulin', testCode: 'FINS', category: 'Endocrinology' },
-  { id: 9, testId: 9, testName: 'Microalbuminuria', testCode: 'MAU', category: 'Urinalysis' },
-  { id: 10, testId: 10, testName: 'T3 Total', testCode: 'T3', category: 'Endocrinology' },
-  { id: 11, testId: 11, testName: 'T4 Total', testCode: 'T4', category: 'Endocrinology' },
-  { id: 12, testId: 12, testName: 'TSH', testCode: 'TSH', category: 'Endocrinology' },
-  { id: 13, testId: 13, testName: 'Anti-TPO', testCode: 'ATPO', category: 'Immunology' },
-];
+  if (editData?.branchName && branches.length > 0) {
+    const normalizedName = editData.branchName.trim().toLowerCase();
+    const match = branches.find((branch) => {
+      const branchName = branch.branchName.trim().toLowerCase();
+      return (
+        branchName === normalizedName ||
+        branchName.includes(normalizedName) ||
+        normalizedName.includes(branchName)
+      );
+    });
+    if (match) {
+      return match.id;
+    }
+  }
+
+  if (branches.length > 0) {
+    return branches[0].id;
+  }
+
+  return fallback;
+}
+
+function cloneFormData(data: FormData): FormData {
+  return {
+    ...data,
+    tests: data.tests.map((test) => ({ ...test })),
+  };
+}
+
+function testsAreEqual(
+  current: TestWithDiscount[],
+  original: TestWithDiscount[]
+): boolean {
+  if (current.length !== original.length) return false;
+
+  return current.every(
+    (test, index) => Number(test.testId) === Number(original[index]?.testId)
+  );
+}
+
+function buildUpdatedFields(
+  current: FormData,
+  original: FormData
+): UpdateTestPackageInput {
+  const updates: UpdateTestPackageInput = {
+    packageName: current.packageName.trim(),
+  };
+
+  const currentDescription = current.description.trim();
+  const originalDescription = original.description.trim();
+  if (currentDescription !== originalDescription) {
+    updates.description = currentDescription;
+  }
+
+  const currentPrice = Number(current.packagePrice);
+  const originalPrice = Number(original.packagePrice);
+  if (currentPrice !== originalPrice) {
+    updates.packagePrice = currentPrice;
+  }
+
+  const currentInstructions = current.specialInstructions.trim();
+  const originalInstructions = original.specialInstructions.trim();
+  if (currentInstructions !== originalInstructions) {
+    updates.specialInstructions = currentInstructions;
+  }
+
+  if (current.isActive !== original.isActive) {
+    updates.isActive = current.isActive;
+  }
+
+  if (current.branchId !== original.branchId) {
+    updates.branchId = current.branchId;
+  }
+
+  if (!testsAreEqual(current.tests, original.tests)) {
+    updates.tests = current.tests
+      .map((test, index) => ({
+        testId: Number(test.testId),
+        displayOrder: index + 1,
+      }))
+      .filter((test) => Number.isFinite(test.testId) && test.testId > 0);
+  }
+
+  return updates;
+}
+
+function hasNonNameChanges(
+  current: FormData,
+  original: FormData
+): boolean {
+  if (current.description.trim() !== original.description.trim()) return true;
+  if (Number(current.packagePrice) !== Number(original.packagePrice)) return true;
+  if (current.specialInstructions.trim() !== original.specialInstructions.trim()) return true;
+  if (current.isActive !== original.isActive) return true;
+  if (current.branchId !== original.branchId) return true;
+  if (!testsAreEqual(current.tests, original.tests)) return true;
+  return false;
+}
 
 // ─── NewTest Component ────────────────────────────────────────────────────────
 
@@ -118,7 +209,7 @@ export default function NewTest({
             : '',
         specialInstructions: editData.specialInstructions || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
-        branchId: 1, // Default branch ID
+        branchId: editData.branchId && editData.branchId > 0 ? editData.branchId : 1,
         tests: editData.tests?.map((t, index) => ({
           testId: t.testId,
           testName: t.testName,
@@ -136,7 +227,7 @@ export default function NewTest({
       packagePrice: '',
       specialInstructions: '',
       isActive: true,
-      branchId: 1, // Default branch ID
+      branchId: 1,
       tests: [],
     };
   });
@@ -149,6 +240,7 @@ export default function NewTest({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('1');
+  const [originalFormData, setOriginalFormData] = useState<FormData | null>(null);
 
   // ─── Effects ───────────────────────────────────────────────────────────
 
@@ -173,15 +265,6 @@ export default function NewTest({
     loadBranches();
   }, []);
 
-  // Set selected branch ID when editData changes and branches are loaded
-  useEffect(() => {
-    if (editData && isOpen && branches.length > 0 && formData.branchId) {
-      const branchIdStr = formData.branchId.toString();
-      setSelectedBranchId(branchIdStr);
-      console.log('Set selected branch ID to:', branchIdStr);
-    }
-  }, [branches, editData, isOpen, formData.branchId]);
-
   // Fetch tests from API when component opens
   useEffect(() => {
     const loadTests = async () => {
@@ -200,7 +283,6 @@ export default function NewTest({
           setApiTests(mappedTests);
         } catch (error) {
           console.error('Error loading tests from API:', error);
-          setApiTests(DEFAULT_AVAILABLE_TESTS);
         } finally {
           setIsLoadingTests(false);
         }
@@ -213,7 +295,6 @@ export default function NewTest({
   // Update form when editData changes
   useEffect(() => {
     if (isOpen && editData) {
-      // Map tests with available test info
       const mappedTests = editData.tests?.map((t, index) => ({
         testId: t.testId,
         testName: t.testName,
@@ -221,8 +302,10 @@ export default function NewTest({
         category: t.category,
         displayOrder: index + 1,
       })) || [];
+      const branchId = resolveBranchId(editData, branches);
 
-      setFormData({
+      setSelectedBranchId(branchId.toString());
+      const nextFormData: FormData = {
         packageCode: editData.packageCode || '',
         packageName: editData.packageName || '',
         description: editData.description || '',
@@ -232,11 +315,14 @@ export default function NewTest({
             : '',
         specialInstructions: editData.specialInstructions || '',
         isActive: editData.isActive !== undefined ? editData.isActive : true,
-        branchId: 1,
+        branchId,
         tests: mappedTests,
-      });
+      };
+      setFormData(nextFormData);
+      setOriginalFormData(cloneFormData(nextFormData));
     } else if (isOpen && !editData && !isEditMode) {
-      // Reset form for create mode
+      setSelectedBranchId('1');
+      setOriginalFormData(null);
       setFormData({
         packageCode: '',
         packageName: '',
@@ -244,11 +330,11 @@ export default function NewTest({
         packagePrice: '',
         specialInstructions: '',
         isActive: true,
-        branchId: 1,
+        branchId: branches[0]?.id ?? 1,
         tests: [],
       });
     }
-  }, [isOpen, editData, isEditMode]);
+  }, [isOpen, editData, isEditMode, branches]);
 
   // ─── Event Handlers ────────────────────────────────────────────────────
 
@@ -303,6 +389,10 @@ export default function NewTest({
       newErrors.tests = 'At least one test must be added';
     }
 
+    if (!formData.branchId || formData.branchId <= 0) {
+      newErrors.branchId = 'Branch is required';
+    }
+
     // Check for duplicate tests
     const testIds = new Set<number>();
     formData.tests.forEach((test, index) => {
@@ -346,30 +436,76 @@ export default function NewTest({
 
     setIsSubmitting(true);
     try {
-      // Common payload structure - same for both create and update
-      const apiData: CreateTestPackageInput | UpdateTestPackageInput = {
-        packageCode: formData.packageCode,
-        packageName: formData.packageName,
-        description: formData.description || undefined,
-        packagePrice: Number(formData.packagePrice),
-        specialInstructions: formData.specialInstructions || undefined,
-        isActive: formData.isActive,
-        branchId: formData.branchId,
-        tests: formData.tests.map((t, index) => ({
-          testId: t.testId,
-          displayOrder: index + 1,
-        })),
-      };
+      if (isEditMode && editData && originalFormData) {
+        const branchId =
+          formData.branchId > 0
+            ? formData.branchId
+            : resolveBranchId(editData, branches);
 
-      console.log('=== SUBMITTING PACKAGE ===');
-      console.log('Mode:', isEditMode ? 'UPDATE' : 'CREATE');
-      console.log('Payload:', JSON.stringify(apiData, null, 2));
+        const currentFormData: FormData = {
+          ...formData,
+          branchId,
+        };
 
-      await onSubmit(apiData);
+        const updatedFields = buildUpdatedFields(currentFormData, originalFormData);
+        const nameChanged =
+          currentFormData.packageName.trim() !== originalFormData.packageName.trim();
+
+        if (!nameChanged && !hasNonNameChanges(currentFormData, originalFormData)) {
+          setErrors((prev) => ({
+            ...prev,
+            submit: 'No changes to save',
+          }));
+          return;
+        }
+
+        if (updatedFields.tests && updatedFields.tests.length === 0) {
+          setErrors((prev) => ({
+            ...prev,
+            tests: 'At least one valid test must be included',
+          }));
+          return;
+        }
+
+        await onSubmit(updatedFields);
+      } else {
+        const branchId =
+          formData.branchId > 0
+            ? formData.branchId
+            : resolveBranchId(editData, branches);
+
+        const apiData: CreateTestPackageInput = {
+          packageCode: formData.packageCode.trim(),
+          packageName: formData.packageName.trim(),
+          description: formData.description.trim() || undefined,
+          packagePrice: Number(formData.packagePrice),
+          specialInstructions: formData.specialInstructions.trim() || undefined,
+          isActive: formData.isActive,
+          branchId,
+          tests: formData.tests
+            .map((t, index) => ({
+              testId: Number(t.testId),
+              displayOrder: index + 1,
+            }))
+            .filter((t) => Number.isFinite(t.testId) && t.testId > 0),
+        };
+
+        if (apiData.tests.length === 0) {
+          setErrors((prev) => ({
+            ...prev,
+            tests: 'At least one valid test must be included',
+          }));
+          return;
+        }
+
+        await onSubmit(apiData);
+      }
+
       handleClose();
     } catch (error) {
-      console.error('Error submitting form:', error);
-      // Error handling is done in parent component
+      const message =
+        error instanceof Error ? error.message : 'Failed to save package';
+      setErrors((prev) => ({ ...prev, submit: message }));
     } finally {
       setIsSubmitting(false);
     }
@@ -388,12 +524,11 @@ export default function NewTest({
     });
     setErrors({});
     setShowTestModal(false);
+    setOriginalFormData(null);
     onClose();
   };
 
   if (!isOpen) return null;
-
-  const availableTests = apiTests.length > 0 ? apiTests : DEFAULT_AVAILABLE_TESTS;
 
   const footer = (
     <div className="flex gap-3 justify-end w-full">
@@ -436,6 +571,12 @@ export default function NewTest({
         maxWidth="xl"
       >
         <div className="space-y-6">
+          {errors.submit && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="text-rose-500 shrink-0 mt-0.5" size={18} />
+              <p className="text-sm text-rose-700">{errors.submit}</p>
+            </div>
+          )}
           {/* Package Code and Name */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -535,6 +676,11 @@ export default function NewTest({
                     )}
                   </SelectContent>
                 </Select>
+              )}
+              {errors.branchId && (
+                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.branchId}
+                </p>
               )}
             </div>
 
@@ -685,7 +831,7 @@ export default function NewTest({
           onClose={() => setShowTestModal(false)}
           onAdd={handleAddTest}
           selectedTestIds={formData.tests.map(t => t.testId)}
-          availableTests={availableTests}
+          availableTests={apiTests}
           isLoading={isLoadingTests}
         />
       )}
@@ -864,3 +1010,6 @@ function TestSelectionModal({
     </RightDrawer>
   );
 }
+
+
+

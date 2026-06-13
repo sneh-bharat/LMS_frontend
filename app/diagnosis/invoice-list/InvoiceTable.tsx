@@ -2,8 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import {
-  FileText,
-  ArrowRightCircle,
   Trash2,
   Ban,
   ClipboardList,
@@ -15,6 +13,7 @@ import {
   Receipt,
   FlaskConical,
   MoreVertical,
+  Eye,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -381,17 +380,7 @@ export default function InvoiceTable({
                   </TableCell>
 
                   <TableCell className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        type="button"
-                        className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-xl hover:shadow-emerald-100 transition-all duration-300"
-                        title="View details"
-                        aria-label="View booking details"
-                        onClick={() => handleView(invoice)}
-                      >
-                        <ArrowRightCircle size={15} strokeWidth={2} />
-                      </Button>
-
+                    <div className="flex items-center justify-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
@@ -406,6 +395,13 @@ export default function InvoiceTable({
                           }
                         />
                         <DropdownMenuContent className="min-w-56 p-1.5 rounded-xl border-slate-100 shadow-2xl">
+                          <DropdownMenuItem
+                            onClick={() => handleView(invoice)}
+                            className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+                          >
+                            <Eye size={16} className="mr-3 text-emerald-500" />
+                            <span>View Booking Details</span>
+                          </DropdownMenuItem>
                           {onRegisterSample && !isCancelled && (
                             <DropdownMenuItem onClick={() => onRegisterSample(invoice)} className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-teal-700">
                               <FlaskConical size={16} className="mr-3 text-teal-500" />
