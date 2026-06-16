@@ -22,8 +22,8 @@ import {
   type BillingCycle,
   type CreateOrganizationPayload,
   type OrganizationType,
-} from '@/app/Apis/organizations/organization';
-import { useCreateOrganization } from '@/app/Apis/organizations/useOrganizations';
+} from '../services/organization.service';
+import { useCreateOrganization } from '../services/organization.service';
 import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
 
 const FORM_ID = 'add-new-organization-form';

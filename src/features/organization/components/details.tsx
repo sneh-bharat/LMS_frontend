@@ -22,8 +22,8 @@ import {
   getOrganizationStatus,
   getOrganizationType,
   type Organization,
-} from '@/app/Apis/organizations/organization';
-import { useOrganizationById } from '@/app/Apis/organizations/useOrganizations';
+} from '../services/organization.service';
+import { useOrganizationById } from '../services/organization.service';
 
 function statusBadgeVariant(status: string) {
   const s = status.toUpperCase();

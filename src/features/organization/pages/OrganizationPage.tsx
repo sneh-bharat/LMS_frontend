@@ -44,14 +44,14 @@ import {
   getOrganizationStatus,
   getOrganizationType,
   type Organization,
-} from '@/app/Apis/organizations/organization';
+} from '../services/organization.service';
 import {
   useOrganizations,
   useOrganizationStatistics,
   useApproveOrganization,
   useToggleOrganizationStatus,
   useDeleteOrganization,
-} from '@/app/Apis/organizations/useOrganizations';
+} from '../services/organization.service';
 import { useBranchesAll } from '@/app/Apis/branch/useBranchApi';
 import type { Branch } from '@/app/Apis/branch/branchApi';
 import OrganizationDetailsDrawer from '../components/details';

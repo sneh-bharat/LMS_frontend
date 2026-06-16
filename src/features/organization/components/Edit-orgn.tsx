@@ -23,8 +23,8 @@ import {
     type Organization,
     type OrganizationType,
     type UpdateOrganizationPayload,
-} from '@/app/Apis/organizations/organization';
-import { useUpdateOrganization } from '@/app/Apis/organizations/useOrganizations';
+} from '../services/organization.service';
+import { useUpdateOrganization } from '../services/organization.service';
 
 const FORM_ID = 'edit-organization-form';
 const FIELD_LABEL =
