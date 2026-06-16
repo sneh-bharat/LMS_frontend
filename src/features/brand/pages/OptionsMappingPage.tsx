@@ -15,15 +15,7 @@ const lbl: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block',
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Template {
-  id: number; title: string; applicableFor: string; content: string;
-}
-interface Investigation {
-  id: number; name: string; category: string; subCategory: string;
-  templates: Template[]; configured: boolean;
-  configParams: string[];  // selected parameter names
-}
+import type { Investigation, Template } from '../types/brand.types';
 
 // ─── Static data ─────────────────────────────────────────────────────────────
 const CATEGORIES  = ['All', 'Pathology', 'Radiology', 'Microbiology', 'Biochemistry'];

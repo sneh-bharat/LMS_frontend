@@ -26,18 +26,7 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
-interface Investigation {
-  id: number;
-  category: string;
-  subCategory: string;
-  name: string;
-  container?: string;
-  tat: string;
-  cost: number;
-  point: number;
-  mrp: number;
-  status: 'Active' | 'Inactive';
-}
+import type { Investigation } from '../types/investigation.types';
 
 const SAMPLE: Investigation[] = [
   { id: 1, category: 'Pathology', subCategory: 'ALLRGY', name: 'ASO TITRE (ASO)', tat: '0 Day', cost: 0, point: 0, mrp: 200, status: 'Active' },

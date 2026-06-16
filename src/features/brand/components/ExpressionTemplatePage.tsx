@@ -2,15 +2,7 @@
 
 import { useState } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Template {
-  id: number; title: string; applicableFor: string; content: string;
-}
-interface Investigation {
-  id: number; name: string; category: string; subCategory: string;
-  templates: Template[]; configured: boolean;
-  configParams: string[];
-}
+import type { Investigation, Template } from '../types/brand.types';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const inp: React.CSSProperties = {

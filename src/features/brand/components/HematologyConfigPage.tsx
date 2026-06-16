@@ -2,12 +2,7 @@
 
 import { useState } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Investigation {
-  id: number; name: string; category: string; subCategory: string;
-  templates: any[]; configured: boolean;
-  configParams: string[];
-}
+import type { Investigation } from '../types/brand.types';
 
 // ─── Static Data ─────────────────────────────────────────────────────────────
 const HEMATOLOGY_PARAMS = [
