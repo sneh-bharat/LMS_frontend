@@ -1,7 +1,5 @@
-import React from 'react'
+import { ForDoctorsPage } from '@/features/doctor-portal';
 
-export default function page() {
-    return (
-        <div>Doctor Portal</div>
-    )
+export default function Page() {
+  return <ForDoctorsPage />;
 }

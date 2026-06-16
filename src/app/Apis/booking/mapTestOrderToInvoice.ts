@@ -5,7 +5,7 @@ import {
   patientAgeYears,
 } from '@/app/Apis/Patients/patientDisplayUtils';
 import type { TestOrder } from './testOrderApi';
-import type { Invoice } from '@/app/(admin)/diagnosis/invoice-list/types';
+import type { Invoice } from '@/features/diagnosis/invoice-list/types';
 
 function resolveTestLabel(
   testId: number,

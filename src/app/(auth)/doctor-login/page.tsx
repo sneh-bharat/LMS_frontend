@@ -1,5 +1,5 @@
-import LoginPage from './Login';
+import { DoctorLoginPage } from '@/features/auth';
 
-export default function DoctorLoginPage() {
-  return <LoginPage />;
+export default function Page() {
+  return <DoctorLoginPage />;
 }

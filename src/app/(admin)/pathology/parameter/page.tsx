@@ -1,14 +1,5 @@
-'use client';
+import { PathologyParameterPage } from '@/features/pathology';
 
-import React from 'react';
-
-export default function PathologyParameterMainPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Pathology Parameters</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>Pathology parameter management will be implemented here.</p>
-      </div>
-    </div>
-  );
+export default function Page() {
+  return <PathologyParameterPage />;
 }

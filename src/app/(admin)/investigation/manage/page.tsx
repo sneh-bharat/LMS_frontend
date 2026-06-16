@@ -1,14 +1,5 @@
-'use client';
+import { InvestigationManagePage } from '@/features/investigation';
 
-import React from 'react';
-
-export default function InvestigationManagePage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Manage Investigations</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>Investigation management tools will be implemented here.</p>
-      </div>
-    </div>
-  );
+export default function Page() {
+  return <InvestigationManagePage />;
 }

@@ -1,4 +1,4 @@
-import { BOOKING_DISEASES } from '@/app/(admin)/diagnosis/diagnostic-booking/patientFormUtils';
+import { BOOKING_DISEASES } from '@/features/diagnosis/diagnostic-booking/patientFormUtils';
 import type {
   CreateEstimationPayload,
   EstimationItemCreatePayload,

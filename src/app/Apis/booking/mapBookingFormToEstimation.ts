@@ -1,12 +1,12 @@
-import type { DiagnosticBookingFormState } from '@/app/(admin)/diagnosis/diagnostic-booking/bookingFormTypes';
-import type { EstimationMetaState } from '@/app/(admin)/diagnosis/diagnostic-booking/bookingFormTypes';
+import type { DiagnosticBookingFormState } from '@/features/diagnosis/diagnostic-booking/bookingFormTypes';
+import type { EstimationMetaState } from '@/features/diagnosis/diagnostic-booking/bookingFormTypes';
 import {
   computeBookingFinancials,
   type BookingInvestigation,
 } from './mapBookingToTestOrder';
 import type { CreateEstimationPayload, EstimationItemCreatePayload } from './estimation';
 import { isEmergencyPriority, normalizeOrderPriority } from './orderPriority';
-import { BOOKING_DISEASES } from '@/app/(admin)/diagnosis/diagnostic-booking/patientFormUtils';
+import { BOOKING_DISEASES } from '@/features/diagnosis/diagnostic-booking/patientFormUtils';
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;

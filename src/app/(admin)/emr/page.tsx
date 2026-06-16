@@ -1,14 +1,5 @@
-'use client';
+import { EmrPage } from '@/features/emr';
 
-import React from 'react';
-
-export default function EMRPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Electronic Medical Records (EMR)</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>EMR functionality will be implemented here.</p>
-      </div>
-    </div>
-  );
+export default function Page() {
+  return <EmrPage />;
 }

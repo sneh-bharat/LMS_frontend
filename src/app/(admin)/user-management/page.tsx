@@ -1,7 +1,5 @@
-import React from 'react'
+import { UserManagementPage } from '@/features/user-management';
 
-export default function page() {
-  return (
-    <div>page</div>
-  )
+export default function Page() {
+  return <UserManagementPage />;
 }
