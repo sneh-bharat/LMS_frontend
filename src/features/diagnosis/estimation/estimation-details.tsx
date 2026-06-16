@@ -24,15 +24,15 @@ import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { fetchPatientById } from '@/app/Apis/Patients/Patient_Service_API';
 import { formatPatientFullName } from '@/app/Apis/Patients/patientDisplayUtils';
-import { useEstimationDetail } from '@/app/Apis/booking/useEstimations';
+import { useEstimationDetail } from '@/features/diagnosis/services/booking.service';
 import {
   estimationToDiseases,
   formatEstimationCurrency,
   formatEstimationDate,
   formatEstimationDateTime,
   formatEstimationLabel,
-} from '@/app/Apis/booking/estimation';
-import { orderPriorityLabel } from '@/app/Apis/booking/orderPriority';
+} from '@/features/diagnosis/services/booking.service';
+import { orderPriorityLabel } from '@/features/diagnosis/services/booking.service';
 
 export interface EstimationDetailsProps {
   isOpen: boolean;

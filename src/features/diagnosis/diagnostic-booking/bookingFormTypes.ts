@@ -1,4 +1,4 @@
-import { DEFAULT_ORDER_PRIORITY } from '@/app/Apis/booking/orderPriority';
+import { DEFAULT_ORDER_PRIORITY } from '@/features/diagnosis/services/booking.service';
 import {
   DEFAULT_COLLECTION_TIME,
   isoDateOffset,

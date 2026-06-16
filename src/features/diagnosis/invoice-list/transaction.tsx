@@ -7,12 +7,12 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { Table } from '@/components/ui';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 import {
   usePaymentTransactions,
   useProcessPaymentRefund,
-} from '@/app/Apis/booking/usePayments';
-import type { PaymentTransaction } from '@/app/Apis/booking/paymentApi';
+} from '@/features/diagnosis/services/booking.service';
+import type { PaymentTransaction } from '@/features/diagnosis/services/booking.service';
 import Refunds, { type RefundFormValues } from './refunds';
 
 export interface TransactionDetailsProps {

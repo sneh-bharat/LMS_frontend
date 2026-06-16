@@ -27,7 +27,7 @@ import type { Branch } from '@/app/Apis/branch/branchApi';
 import { fetchPatientById, type Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import { fetchReferringDoctorById, type ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
 import type { Referrer } from '@/app/Apis/Referrer/referrerApi';
-import { useCreateEstimation } from '@/app/Apis/booking/useEstimations';
+import { useCreateEstimation } from '@/features/diagnosis/services/booking.service';
 import { mapBookingFormToEstimationPayload } from '@/app/Apis/booking/mapBookingFormToEstimation';
 import type { BookingInvestigation } from '@/app/Apis/booking/mapBookingToTestOrder';
 import { getLoggedInFullName } from '@/app/utils/loggedInUser';

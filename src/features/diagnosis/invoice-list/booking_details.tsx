@@ -20,12 +20,12 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 import { fetchPatientById } from '@/app/Apis/Patients/Patient_Service_API';
 import { formatPatientFullName } from '@/app/Apis/Patients/patientDisplayUtils';
 import { testOrderToDiseases } from '@/app/Apis/booking/mapTestOrderEdit';
-import { orderPriorityLabel } from '@/app/Apis/booking/orderPriority';
-import { useTestOrderDetail } from '@/app/Apis/booking/useTestOrders';
+import { orderPriorityLabel } from '@/features/diagnosis/services/booking.service';
+import { useTestOrderDetail } from '@/features/diagnosis/services/booking.service';
 import { useTestsByIds } from '@/app/Apis/lab/useTestsByIds';
 
 export interface BookingDetailsProps {

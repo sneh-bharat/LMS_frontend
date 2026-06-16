@@ -15,13 +15,13 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 import type {
   LifecycleModification,
   OrderCancellationDetails,
   OrderLifecycleTrackData,
-} from '@/app/Apis/booking/orderLifecycleApi';
-import { useTrackOrderLifecycle } from '@/app/Apis/booking/useOrderLifecycle';
+} from '@/features/diagnosis/services/booking.service';
+import { useTrackOrderLifecycle } from '@/features/diagnosis/services/booking.service';
 
 export interface TrackLifecycleProps {
   isOpen: boolean;

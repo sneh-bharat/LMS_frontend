@@ -14,7 +14,7 @@ import {
 } from '@/components/ui';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import { cn } from '@/lib/utils';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 
 export interface ProcessPaymentFormValues {
   amount: string;

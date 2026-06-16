@@ -18,8 +18,8 @@ import {
   ESTIMATION_STATUSES,
   formatEstimationLabel,
   type EstimationStatus,
-} from '@/app/Apis/booking/estimation';
-import { useUpdateEstimationStatus } from '@/app/Apis/booking/useEstimations';
+} from '@/features/diagnosis/services/booking.service';
+import { useUpdateEstimationStatus } from '@/features/diagnosis/services/booking.service';
 
 const FIELD_LABEL =
   'text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1';

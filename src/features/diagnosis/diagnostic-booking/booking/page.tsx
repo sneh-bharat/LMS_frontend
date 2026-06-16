@@ -87,14 +87,14 @@ import {
   ORDER_PRIORITIES,
   orderPriorityLabel,
   orderPriorityTurnaroundHours,
-} from '@/app/Apis/booking/orderPriority';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+} from '@/features/diagnosis/services/booking.service';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 import {
   useCreateTestOrder,
   useTestOrderDetail,
   useUpdateTestOrderFinancial,
   useUpdateTestOrderMedical,
-} from '@/app/Apis/booking/useTestOrders';
+} from '@/features/diagnosis/services/booking.service';
 import { fetchPatientById } from '@/app/Apis/Patients/Patient_Service_API';
 import { toast } from 'sonner';
 import {

@@ -21,7 +21,7 @@ import { CancelDetails } from './cancel-details';
 import { TrackLifecycle } from './track-lifecycle';
 import AddNewReceipt from './AddNewReceipt';
 import type { Invoice } from './types';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
 import {
   useBulkDeleteTestOrders,
   useDeleteTestOrder,
@@ -32,8 +32,8 @@ import {
   useTestOrdersByStatus,
   useTestOrdersList,
   useTestOrderDetail,
-} from '@/app/Apis/booking/useTestOrders';
-import { useCancelTestOrder, useProcessOrderPayment } from '@/app/Apis/booking/useOrderLifecycle';
+} from '@/features/diagnosis/services/booking.service';
+import { useCancelTestOrder, useProcessOrderPayment } from '@/features/diagnosis/services/booking.service';
 import { mapTestOrderToInvoice } from '@/app/Apis/booking/mapTestOrderToInvoice';
 import { usePatientsByIds } from '@/app/Apis/Patients/usePatientsByIds';
 import { useTestsByIds } from '@/app/Apis/lab/useTestsByIds';

@@ -28,13 +28,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useEstimationsList } from '@/app/Apis/booking/useEstimations';
+import { useEstimationsList } from '@/features/diagnosis/services/booking.service';
 import {
   formatEstimationCurrency,
   formatEstimationDate,
   formatEstimationLabel,
   type Estimation,
-} from '@/app/Apis/booking/estimation';
+} from '@/features/diagnosis/services/booking.service';
 import NewEstimation from './New-Estimation';
 import EstimationDetails from '@/features/diagnosis/estimation/estimation-details';
 import EstimationStatusUpdate from './status-update';

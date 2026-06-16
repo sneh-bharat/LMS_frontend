@@ -14,8 +14,8 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import type { TestOrder } from '@/app/Apis/booking/testOrderApi';
-import { useCancellationDetails } from '@/app/Apis/booking/useOrderLifecycle';
+import type { TestOrder } from '@/features/diagnosis/services/booking.service';
+import { useCancellationDetails } from '@/features/diagnosis/services/booking.service';
 
 export interface CancelDetailsProps {
   isOpen: boolean;

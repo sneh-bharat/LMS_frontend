@@ -10,7 +10,7 @@ import {
   User,
 } from 'lucide-react';
 import Badge from '@/components/ui/badge';
-import { usePatientLastVisit } from '@/app/Apis/booking/useTestOrders';
+import { usePatientLastVisit } from '@/features/diagnosis/services/booking.service';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '—';

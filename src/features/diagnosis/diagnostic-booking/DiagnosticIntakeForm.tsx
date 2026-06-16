@@ -42,7 +42,7 @@ import {
   ORDER_PRIORITIES,
   orderPriorityLabel,
   orderPriorityTurnaroundHours,
-} from '@/app/Apis/booking/orderPriority';
+} from '@/features/diagnosis/services/booking.service';
 import type { ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
 import {
   DISC_TYPES,

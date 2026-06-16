@@ -21,8 +21,8 @@ import {
   type OrderPaymentSummaryData,
   type PaymentHistoryItem,
   type PaymentTransaction,
-} from '@/app/Apis/booking/paymentApi';
-import { usePaymentTransactions } from '@/app/Apis/booking/usePayments';
+} from '@/features/diagnosis/services/booking.service';
+import { usePaymentTransactions } from '@/features/diagnosis/services/booking.service';
 
 function formatCurrency(amount: number | null | undefined) {
   return `₹${(amount ?? 0).toLocaleString('en-IN', {
