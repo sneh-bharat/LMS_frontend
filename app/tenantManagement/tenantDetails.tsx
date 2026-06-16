@@ -195,6 +195,7 @@ export interface TenantDetailsDrawerProps {
     onClose: () => void;
     tenantId: number | null;
     onEdit?: (tenantId: number) => void;
+    onRenew?: (tenantId: number) => void;
 }
 
 export default function TenantDetailsDrawer({
@@ -202,6 +203,7 @@ export default function TenantDetailsDrawer({
     onClose,
     tenantId,
     onEdit,
+    onRenew,
 }: TenantDetailsDrawerProps) {
     const { data, isLoading, isError, error, refetch } = useTenantById(tenantId, {
         enabled: isOpen && tenantId != null,
@@ -234,7 +236,7 @@ export default function TenantDetailsDrawer({
             }
             maxWidth="xl"
             footer={
-                <div className="flex w-full gap-3">
+                <div className="flex w-full flex-col sm:flex-row gap-3">
                     <Button
                         type="button"
                         variant="outline"
@@ -243,6 +245,16 @@ export default function TenantDetailsDrawer({
                     >
                         Close
                     </Button>
+                    {onRenew && tenant ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1 font-bold border-amber-200 text-amber-800 hover:bg-amber-50"
+                            onClick={() => onRenew(tenant.id)}
+                        >
+                            Renew subscription
+                        </Button>
+                    ) : null}
                     {onEdit && tenant ? (
                         <Button
                             type="button"

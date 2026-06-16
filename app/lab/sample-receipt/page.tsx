@@ -140,6 +140,106 @@ function ConditionBadge({
   );
 }
 
+type SampleActionsMenuProps = {
+  receipt: Receipt;
+  isDeletePending: boolean;
+  onAccept: (sampleId: string) => void;
+  onViewDetails: (id: number) => void;
+  onOpenProcessForm: (receipt: Receipt) => void;
+  onViewProcessingDetails: (receipt: Receipt) => void;
+  onOpenStatusForm: (receipt: Receipt) => void;
+  onEdit: (receipt: Receipt) => void;
+  onDelete: (id: number) => void;
+};
+
+function SampleActionsMenu({
+  receipt,
+  isDeletePending,
+  onAccept,
+  onViewDetails,
+  onOpenProcessForm,
+  onViewProcessingDetails,
+  onOpenStatusForm,
+  onEdit,
+  onDelete,
+}: SampleActionsMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300 shrink-0"
+            title="More actions"
+            aria-label="More actions"
+            disabled={isDeletePending}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical size={15} strokeWidth={2} />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="min-w-56 p-1.5 rounded-xl border-slate-100 shadow-2xl"
+      >
+        {receipt.status === 'pending' && (
+          <DropdownMenuItem
+            onClick={() => onAccept(receipt.sampleId)}
+            className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+          >
+            <CheckCircle size={16} className="mr-3 text-emerald-500" />
+            <span>Accept Sample</span>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          onClick={() => onViewDetails(receipt.id)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+        >
+          <Eye size={16} className="mr-3 text-emerald-500" />
+          <span>View Details</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onOpenProcessForm(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+        >
+          <Activity size={16} className="mr-3 text-amber-500" />
+          <span>Record Processing</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onViewProcessingDetails(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+        >
+          <ClipboardList size={16} className="mr-3 text-amber-600" />
+          <span>Processing Details</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onOpenStatusForm(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-blue-700"
+        >
+          <RefreshCcw size={16} className="mr-3 text-blue-500" />
+          <span>Update Status</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1.5 bg-slate-50" />
+        <DropdownMenuItem
+          onClick={() => onEdit(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+        >
+          <Edit3 size={16} className="mr-3 text-emerald-500" />
+          <span>Edit Sample</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onDelete(receipt.id)}
+          className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
+        >
+          <Trash2 size={16} className="mr-3" />
+          <span>Delete Sample</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SampleReceiptPage() {
   const [pageNo, setPageNo] = useState(0);
@@ -426,7 +526,7 @@ export default function SampleReceiptPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <SampleDetails
         isOpen={detailsOpen}
         onClose={handleCloseDetails}
@@ -469,24 +569,25 @@ export default function SampleReceiptPage() {
       />
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-            <Microscope size={20} />
+      <div className="flex flex-col gap-4 sm:gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+            <Microscope size={18} className="sm:hidden" />
+            <Microscope size={20} className="hidden sm:block" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight mb-1 leading-tight">
               Sample <span className="text-[#FF671F]">Collection & Acceptance</span>
             </h1>
-            <p className="text-slate-500 text-sm font-medium max-w-xl">
+            <p className="text-slate-500 text-xs sm:text-sm font-medium max-w-xl">
               Manage and track diagnostic sample collections.
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2.5 shadow-sm">
+        <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 sm:px-4 sm:py-2.5 shadow-sm self-start md:self-auto">
           <Badge
             variant="secondary"
-            className="px-4 py-1.5 bg-white text-emerald-800 border border-emerald-200 font-bold"
+            className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white text-emerald-800 border border-emerald-200 font-bold text-xs sm:text-sm"
           >
             {totalElements} Samples
           </Badge>
@@ -501,36 +602,37 @@ export default function SampleReceiptPage() {
         </div>
       ) : null}
 
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 shadow-sm">
+      <div className="bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm">
         {isStatisticsLoading ? (
           <div className="flex items-center justify-center gap-2 py-6 text-slate-400">
             <Loader2 size={20} className="animate-spin" />
             <span className="text-sm font-semibold">Loading statistics…</span>
           </div>
         ) : (
-          <div className="flex flex-nowrap items-stretch gap-0 overflow-x-auto pb-1 scrollbar-thin">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:flex xl:flex-nowrap xl:items-stretch xl:gap-0 xl:overflow-x-auto xl:pb-1 scrollbar-thin">
             {SAMPLE_STAT_CARDS.map((card, index) => {
               const Icon = card.icon;
               const count = statistics != null ? statistics[card.key] : null;
               return (
                 <div
                   key={card.key}
-                  className={`flex min-w-[9.5rem] flex-1 flex-col items-center justify-center px-3 py-1 text-center sm:min-w-0 ${
+                  className={`flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white/80 px-2 py-3 text-center sm:px-3 xl:min-w-[9.5rem] xl:flex-1 xl:rounded-none xl:border-0 xl:bg-transparent xl:py-1 ${
                     index < SAMPLE_STAT_CARDS.length - 1
-                      ? 'border-r border-slate-200/70'
+                      ? 'xl:border-r xl:border-slate-200/70'
                       : ''
                   }`}
                 >
                   <div
-                    className={`mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}
+                    className={`mb-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl ${card.bg}`}
                   >
-                    <Icon size={18} className={card.tone} />
+                    <Icon size={16} className={`sm:hidden ${card.tone}`} />
+                    <Icon size={18} className={`hidden sm:block ${card.tone}`} />
                   </div>
-                  <span className="mb-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
+                  <span className="mb-1 text-[9px] sm:text-[10px] font-bold uppercase leading-tight tracking-wider text-slate-500">
                     {card.label}
                   </span>
                   <span
-                    className={`text-lg font-black leading-none sm:text-xl ${
+                    className={`text-base sm:text-lg font-black leading-none lg:text-xl ${
                       card.key === 'receivedCount' || card.key === 'collectedCount'
                         ? 'text-emerald-600'
                         : card.key === 'rejectedCount'
@@ -553,20 +655,20 @@ export default function SampleReceiptPage() {
       </div>
 
       {/* ── Control Bar ── */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
-        <div className="relative group flex-1 w-full">
+      <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
+        <div className="relative group flex-1 w-full min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search Sample ID or Patient..."
-            className="input-refined w-full py-2.5 pl-10 pr-4 font-bold"
+            className="input-refined w-full py-2.5 pl-10 pr-4 font-bold text-sm sm:text-base"
             suppressHydrationWarning
           />
         </div>
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="relative flex-1 lg:w-40">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 sm:min-w-[9rem] lg:w-40">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
             <select
               value={deptFilter}
@@ -577,7 +679,7 @@ export default function SampleReceiptPage() {
               {SAMPLE_TYPES.map(type => <option key={type}>{type}</option>)}
             </select>
           </div>
-          <div className="relative flex-1 lg:w-40">
+          <div className="relative flex-1 sm:min-w-[9rem] lg:w-40">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
             <select
               value={statusFilter}
@@ -614,16 +716,16 @@ export default function SampleReceiptPage() {
       ) : null}
 
       {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50/80 px-4 py-3">
+        <div className="flex flex-col gap-3 rounded-xl border border-rose-100 bg-rose-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <p className="text-sm font-semibold text-rose-900">
             {selectedIds.length} sample{selectedIds.length === 1 ? '' : 's'} selected
           </p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="font-bold border-slate-200 bg-white"
+              className="font-bold border-slate-200 bg-white w-full sm:w-auto"
               disabled={isDeletePending}
               onClick={() => setSelectedIds([])}
             >
@@ -632,7 +734,7 @@ export default function SampleReceiptPage() {
             <Button
               type="button"
               size="sm"
-              className="font-bold gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+              className="font-bold gap-2 bg-rose-600 hover:bg-rose-700 text-white w-full sm:w-auto"
               disabled={isDeletePending}
               onClick={handleBulkDeleteClick}
             >
@@ -643,214 +745,233 @@ export default function SampleReceiptPage() {
         </div>
       ) : null}
 
-      {/* ── Receipts Table ── */}
+      {/* ── Receipts Table / Mobile Cards ── */}
       <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="w-12 px-4 py-4 text-center">
-                <input
-                  type="checkbox"
-                  checked={allPageSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = somePageSelected;
-                  }}
-                  onChange={handleToggleSelectAll}
-                  disabled={isDeletePending || filtered.length === 0}
-                  className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
-                  aria-label="Select all samples on this page"
-                />
-              </th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample ID</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected By</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order No.</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample Type</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected At</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Condition</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={9} className="px-6 py-16 text-center text-slate-500">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 size={20} className="animate-spin text-emerald-600" />
-                    <span className="text-sm font-semibold">Loading samples…</span>
-                  </div>
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-6 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center text-slate-200 border border-slate-100">
-                      <Package size={32} />
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-slate-900 tracking-tight">No samples found</p>
-                      <p className="text-xs font-medium text-slate-400">Try adjusting your filters.</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ) : filtered.map((receipt) => {
-              const isSelected = selectedSet.has(receipt.id);
-              return (
-              <tr
-                key={receipt.id}
-                className={`hover:bg-slate-50 transition-colors group ${
-                  isSelected ? 'bg-emerald-50/60' : ''
-                }`}
-              >
-                <td className="w-12 px-4 py-4 text-center">
+        {isLoading ? (
+          <div className="px-4 sm:px-6 py-16 text-center text-slate-500">
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 size={20} className="animate-spin text-emerald-600" />
+              <span className="text-sm font-semibold">Loading samples…</span>
+            </div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-4 sm:px-6 py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center text-slate-200 border border-slate-100">
+                <Package size={32} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-slate-900 tracking-tight">No samples found</p>
+                <p className="text-xs font-medium text-slate-400">Try adjusting your filters.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleToggleSelect(receipt.id)}
-                    disabled={isDeletePending}
+                    checked={allPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = somePageSelected;
+                    }}
+                    onChange={handleToggleSelectAll}
+                    disabled={isDeletePending || filtered.length === 0}
                     className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
-                    aria-label={`Select ${receipt.sampleId}`}
+                    aria-label="Select all samples on this page"
                   />
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-xs font-bold text-slate-600 font-mono">
-                    {receipt.sampleId}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                      <User size={20} />
-                    </div>
-                    <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm">
-                      {receipt.patient}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  {receipt.orderNumber ? (
-                    <Badge variant="primary" className="text-[9px] px-2 py-0.5 font-mono">
-                      {receipt.orderNumber}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-slate-400">—</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <Badge variant="secondary" className="px-2.5 py-1 text-[10px] font-bold uppercase">
-                    {receipt.sampleType}
-                  </Badge>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-1.5 text-slate-600">
-                    <Clock size={14} className="text-slate-400" />
-                    <span className="text-sm font-semibold">{receipt.collectedAt}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <StatusBadge label={receipt.statusLabel} workflow={receipt.status} />
-                </td>
-                <td className="px-6 py-4">
-                  <ConditionBadge label={receipt.conditionLabel} condition={receipt.condition} />
-                </td>
-                <td
-                  className="px-6 py-4 text-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-xl hover:shadow-emerald-100 transition-all duration-300"
-                      title="View sample details"
-                      aria-label="View sample details"
-                      onClick={() => handleViewDetails(receipt.id)}
-                    >
-                      <ArrowRightCircle size={15} strokeWidth={2} />
-                    </Button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            type="button"
-                            className="p-1.5 h-auto bg-slate-50 border border-slate-100 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all duration-300"
-                            title="More actions"
-                            aria-label="More actions"
-                            disabled={isDeletePending}
-                          >
-                            <MoreVertical size={15} strokeWidth={2} />
-                          </Button>
-                        }
+                  Select all on page
+                </label>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {filtered.length} shown
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+              {filtered.map((receipt) => {
+                const isSelected = selectedSet.has(receipt.id);
+                return (
+                  <div
+                    key={receipt.id}
+                    className={`p-4 transition-colors ${isSelected ? 'bg-emerald-50/60' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(receipt.id)}
+                          disabled={isDeletePending}
+                          className="mt-1 w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300 shrink-0"
+                          aria-label={`Select ${receipt.sampleId}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-slate-600 font-mono">
+                              {receipt.sampleId}
+                            </span>
+                            {receipt.orderNumber ? (
+                              <Badge variant="primary" className="text-[9px] px-2 py-0.5 font-mono">
+                                {receipt.orderNumber}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+                              <User size={16} />
+                            </div>
+                            <p className="font-bold text-slate-900 text-sm truncate">
+                              {receipt.patient}
+                            </p>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="px-2.5 py-1 text-[10px] font-bold uppercase">
+                              {receipt.sampleType}
+                            </Badge>
+                            <ConditionBadge label={receipt.conditionLabel} condition={receipt.condition} />
+                          </div>
+                          <div className="mt-2 flex items-center gap-1.5 text-slate-500">
+                            <Clock size={13} className="text-slate-400 shrink-0" />
+                            <span className="text-xs font-semibold">{receipt.collectedAt}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <SampleActionsMenu
+                        receipt={receipt}
+                        isDeletePending={isDeletePending}
+                        onAccept={handleAccept}
+                        onViewDetails={handleViewDetails}
+                        onOpenProcessForm={handleOpenProcessForm}
+                        onViewProcessingDetails={handleViewProcessingDetails}
+                        onOpenStatusForm={handleOpenStatusForm}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
                       />
-                      <DropdownMenuContent className="min-w-56 p-1.5 rounded-xl border-slate-100 shadow-2xl">
-                        {receipt.status === 'pending' && (
-                          <DropdownMenuItem
-                            onClick={() => handleAccept(receipt.sampleId)}
-                            className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
-                          >
-                            <CheckCircle size={16} className="mr-3 text-emerald-500" />
-                            <span>Accept Sample</span>
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => handleOpenProcessForm(receipt)}
-                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
-                        >
-                          <Activity size={16} className="mr-3 text-amber-500" />
-                          <span>Record Processing</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleViewProcessingDetails(receipt)}
-                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
-                        >
-                          <ClipboardList size={16} className="mr-3 text-amber-600" />
-                          <span>Processing Details</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleOpenStatusForm(receipt)}
-                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-blue-700"
-                        >
-                          <RefreshCcw size={16} className="mr-3 text-blue-500" />
-                          <span>Update Status</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleViewDetails(receipt.id)}
-                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
-                        >
-                          <Eye size={16} className="mr-3 text-emerald-500" />
-                          <span>View Details</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="my-1.5 bg-slate-50" />
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(receipt)}
-                          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
-                        >
-                          <Edit3 size={16} className="mr-3 text-emerald-500" />
-                          <span>Edit Sample</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(receipt.id)}
-                          className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
-                        >
-                          <Trash2 size={16} className="mr-3" />
-                          <span>Delete Sample</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    </div>
                   </div>
-                </td>
-              </tr>
-            );
-            })}
-          </tbody>
-        </table>
+                );
+              })}
+              </div>
+            </div>
 
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Desktop / tablet table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[880px] text-left">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="w-12 px-3 lg:px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = somePageSelected;
+                        }}
+                        onChange={handleToggleSelectAll}
+                        disabled={isDeletePending || filtered.length === 0}
+                        className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                        aria-label="Select all samples on this page"
+                      />
+                    </th>
+                    <th className="px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample ID</th>
+                    <th className="px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected By</th>
+                    <th className="hidden lg:table-cell px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order No.</th>
+                    <th className="px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sample Type</th>
+                    <th className="hidden xl:table-cell px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Collected At</th>
+                    <th className="px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Condition</th>
+                    <th className="px-4 lg:px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map((receipt) => {
+                    const isSelected = selectedSet.has(receipt.id);
+                    return (
+                      <tr
+                        key={receipt.id}
+                        className={`hover:bg-slate-50 transition-colors group ${
+                          isSelected ? 'bg-emerald-50/60' : ''
+                        }`}
+                      >
+                        <td className="w-12 px-3 lg:px-4 py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(receipt.id)}
+                            disabled={isDeletePending}
+                            className="w-4 h-4 accent-emerald-600 cursor-pointer rounded border-slate-300"
+                            aria-label={`Select ${receipt.sampleId}`}
+                          />
+                        </td>
+                        <td className="px-4 lg:px-6 py-4">
+                          <span className="text-xs font-bold text-slate-600 font-mono">
+                            {receipt.sampleId}
+                          </span>
+                        </td>
+                        <td className="px-4 lg:px-6 py-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
+                              <User size={20} />
+                            </div>
+                            <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm truncate max-w-[12rem] xl:max-w-none">
+                              {receipt.patient}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden lg:table-cell px-4 lg:px-6 py-4">
+                          {receipt.orderNumber ? (
+                            <Badge variant="primary" className="text-[9px] px-2 py-0.5 font-mono">
+                              {receipt.orderNumber}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4">
+                          <Badge variant="secondary" className="px-2.5 py-1 text-[10px] font-bold uppercase">
+                            {receipt.sampleType}
+                          </Badge>
+                        </td>
+                        <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-slate-600">
+                            <Clock size={14} className="text-slate-400 shrink-0" />
+                            <span className="text-sm font-semibold whitespace-nowrap">{receipt.collectedAt}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 lg:px-6 py-4">
+                          <ConditionBadge label={receipt.conditionLabel} condition={receipt.condition} />
+                        </td>
+                        <td
+                          className="px-4 lg:px-6 py-4 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-center">
+                            <SampleActionsMenu
+                              receipt={receipt}
+                              isDeletePending={isDeletePending}
+                              onAccept={handleAccept}
+                              onViewDetails={handleViewDetails}
+                              onOpenProcessForm={handleOpenProcessForm}
+                              onViewProcessingDetails={handleViewProcessingDetails}
+                              onOpenStatusForm={handleOpenStatusForm}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        <div className="bg-slate-50 px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
             <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
-            <span>
+            <span className="leading-relaxed">
               Page {pageNo + 1} of {Math.max(totalPages, 1)}
               <span className="text-slate-400 mx-2">·</span>
               {totalElements} total samples
@@ -861,7 +982,7 @@ export default function SampleReceiptPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="font-bold border-slate-200"
+              className="font-bold border-slate-200 flex-1 sm:flex-none"
               disabled={!canPrev || isFetching}
               onClick={() => setPageNo((p) => Math.max(0, p - 1))}
             >
@@ -872,7 +993,7 @@ export default function SampleReceiptPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="font-bold border-slate-200"
+              className="font-bold border-slate-200 flex-1 sm:flex-none"
               disabled={!canNext || isFetching}
               onClick={() => setPageNo((p) => p + 1)}
             >
