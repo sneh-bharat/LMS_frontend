@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
-import { Patient, fetchPatientImage } from '@/app/Apis/Patients/Patient_Service_API';
+import { Patient, fetchPatientImage } from '../services/patient.service';
 import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';

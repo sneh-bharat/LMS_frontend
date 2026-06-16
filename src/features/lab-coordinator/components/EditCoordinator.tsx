@@ -10,9 +10,9 @@ import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import {
   useLabCoordinatorById,
   useUpdateLabCoordinator,
-} from '@/app/Apis/LabCoordinator/useLabCoordinators';
+} from '\.\.\/services\/lab\-coordinator\.service';
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
-import { getLabCoordinatorName } from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
+import { getLabCoordinatorName } from '\.\.\/services\/lab\-coordinator\.service';
 
 export interface EditCoordinatorProps {
   isOpen: boolean;

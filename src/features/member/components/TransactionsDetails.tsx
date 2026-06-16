@@ -17,8 +17,8 @@ import {
   getMemberCardTransactionStatus,
   getMemberCardTransactionType,
   type MemberCardTransaction,
-} from '@/app/Apis/membership/membership';
-import { useMemberCardTransactions } from '@/app/Apis/membership/useMembership';
+} from '\.\.\/services\/member\.service';
+import { useMemberCardTransactions } from '\.\.\/services\/member\.service';
 
 const PAGE_SIZE = 10;
 

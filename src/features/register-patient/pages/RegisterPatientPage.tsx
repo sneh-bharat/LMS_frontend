@@ -37,7 +37,7 @@ import { PatientDetails } from '../components/PatientDetails';
 import { PatientInvoices } from '../components/patient-invoice';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import { formatPatientFullName, sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
-import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '@/app/Apis/Patients/Patient_Service_API';
+import { fetchPatients, Patient, ApiResponse, PaginatedResponse, fetchPatientById, deletePatient } from '../services/patient.service';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 interface PatientListState {

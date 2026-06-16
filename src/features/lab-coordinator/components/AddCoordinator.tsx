@@ -11,8 +11,8 @@ import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
 import {
   isLabCoordinatorMutationSuccess,
   normalizeLabCoordinatorPhone,
-} from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
-import { useCreateLabCoordinator } from '@/app/Apis/LabCoordinator/useLabCoordinators';
+} from '\.\.\/services\/lab\-coordinator\.service';
+import { useCreateLabCoordinator } from '\.\.\/services\/lab\-coordinator\.service';
 
 export interface AddCoordinatorProps {
   isOpen: boolean;

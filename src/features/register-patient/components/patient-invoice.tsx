@@ -12,8 +12,8 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import { usePatientInvoices } from '@/app/Apis/booking/useTestOrders';
-import type { PatientInvoiceItem } from '@/app/Apis/booking/testOrderApi';
+import { usePatientInvoices } from '\.\.\/services\/patient\.service';
+import type { PatientInvoiceItem } from '\.\.\/services\/patient\.service';
 
 /** Load all invoices in one request (no pagination UI). */
 const FETCH_PAGE_SIZE = 100;

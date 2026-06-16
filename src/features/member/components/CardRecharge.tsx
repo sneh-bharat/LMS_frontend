@@ -5,7 +5,7 @@ import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
-import { useAllocateMemberCardLimit } from '@/app/Apis/membership/useMembership';
+import { useAllocateMemberCardLimit } from '\.\.\/services\/member\.service';
 
 interface CardRechargeProps {
   isOpen: boolean;

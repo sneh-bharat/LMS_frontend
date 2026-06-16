@@ -23,8 +23,8 @@ import {
   getLabCoordinatorVerifiedLabel,
   isLabCoordinatorActive,
   type LabCoordinator,
-} from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
-import { useLabCoordinatorById } from '@/app/Apis/LabCoordinator/useLabCoordinators';
+} from '\.\.\/services\/lab\-coordinator\.service';
+import { useLabCoordinatorById } from '\.\.\/services\/lab\-coordinator\.service';
 
 function DetailField({
   label,

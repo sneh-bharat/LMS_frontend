@@ -21,7 +21,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { branchApi } from '@/app/Apis/branch/branchApi';
-import { useLabTechnician } from '@/app/Apis/LabTechnician/useLabTechnicians';
+import { useLabTechnician } from '\.\.\/services\/lab\-technician\.service';
 
 export interface LabTechnicianDetailsProps {
   isOpen: boolean;

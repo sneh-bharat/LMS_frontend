@@ -25,8 +25,8 @@ import {
   formatMemberCardLabel,
   type CreateMemberCardPayload,
   type MemberCardType,
-} from '@/app/Apis/membership/membership';
-import { useCreateMemberCard } from '@/app/Apis/membership/useMembership';
+} from '\.\.\/services\/member\.service';
+import { useCreateMemberCard } from '\.\.\/services\/member\.service';
 
 const FORM_ID = 'create-member-card-form';
 const FIELD_LABEL =

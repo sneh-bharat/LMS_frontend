@@ -20,12 +20,12 @@ import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import { sanitizeMiddleName } from '@/app/Apis/Patients/patientDisplayUtils';
-import type { PatientFamilyLinkRow } from '@/app/Apis/Patients/patientFamilyLinkApi';
+import type { PatientFamilyLinkRow } from '\.\.\/services\/family\-link\.service';
 import {
   useFamilyLinksByPatientId,
   usePatientForFamilyLinkHeader,
   useDeleteFamilyLink,
-} from '@/app/Apis/Patients/usePatientFamilyLinks';
+} from '\.\.\/services\/family\-link\.service';
 
 function patientHeading(p: Patient | null): string {
   if (!p) return '';

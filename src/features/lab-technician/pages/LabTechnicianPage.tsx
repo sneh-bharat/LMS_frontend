@@ -26,10 +26,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { useLabTechnicians } from '@/app/Apis/LabTechnician/useLabTechnicians';
-import { useDeleteLabTechnician } from '@/app/Apis/LabTechnician/useLabTechnicians';
-import { useLabTechnicianByUsername } from '@/app/Apis/LabTechnician/useLabTechnicians';
-import { getLabTechnicianName, type LabTechnician } from '@/app/Apis/LabTechnician/labtechnicianApi';
+import { useLabTechnicians } from '\.\.\/services\/lab\-technician\.service';
+import { useDeleteLabTechnician } from '\.\.\/services\/lab\-technician\.service';
+import { useLabTechnicianByUsername } from '\.\.\/services\/lab\-technician\.service';
+import { getLabTechnicianName, type LabTechnician } from '\.\.\/services\/lab\-technician\.service';
 import AddTechnician from '../components/AddTechnician';
 import { LabTechnicianDetails } from '../components/DetailsView';
 import { toast } from 'sonner';

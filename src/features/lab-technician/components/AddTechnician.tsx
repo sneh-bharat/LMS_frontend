@@ -11,11 +11,11 @@ import {
   useCreateLabTechnician,
   useLabTechnician,
   useUpdateLabTechnician,
-} from '@/app/Apis/LabTechnician/useLabTechnicians';
+} from '\.\.\/services\/lab\-technician\.service';
 import type {
   CreateLabTechnicianPayload,
   UpdateLabTechnicianPayload,
-} from '@/app/Apis/LabTechnician/labtechnicianApi';
+} from '\.\.\/services\/lab\-technician\.service';
 
 export interface AddTechnicianProps {
   isOpen: boolean;

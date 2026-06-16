@@ -62,7 +62,7 @@ import {
   normalizeMemberCardStatusKey,
   MEMBER_CARD_TYPES,
   type MemberCard,
-} from '@/app/Apis/membership/membership';
+} from '\.\.\/services\/member\.service';
 import {
   useActivateMemberCard,
   useDeleteMemberCard,
@@ -72,7 +72,7 @@ import {
   useExpiringMemberCards,
   useSuspendMemberCard,
   useUnblockMemberCard,
-} from '@/app/Apis/membership/useMembership';
+} from '\.\.\/services\/member\.service';
 import AddMemberModal from '../components/AddMemberModal';
 import CardBalanceDetails from '../components/card-details';
 import MemberDetailsView from '../components/details-view';

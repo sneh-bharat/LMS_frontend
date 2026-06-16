@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Badge, Button, RightDrawer } from '@/components/ui';
-import { useMemberCardBalanceById } from '@/app/Apis/membership/useMembership';
+import { useMemberCardBalanceById } from '\.\.\/services\/member\.service';
 import {
   formatMemberCardCurrency,
   formatMemberCardDate,
@@ -26,7 +26,7 @@ import {
   getMemberCardType,
   getMemberCardUsedAmount,
   memberCardFromBalanceData,
-} from '@/app/Apis/membership/membership';
+} from '\.\.\/services\/member\.service';
 import { useCallback, useMemo, useState } from 'react';
 import CardRecharge from './CardRecharge';
 

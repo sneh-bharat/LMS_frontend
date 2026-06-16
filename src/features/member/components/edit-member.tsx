@@ -26,8 +26,8 @@ import {
   type MemberCard,
   type MemberCardType,
   type UpdateMemberCardPayload,
-} from '@/app/Apis/membership/membership';
-import { useMemberCardById, useUpdateMemberCard } from '@/app/Apis/membership/useMembership';
+} from '\.\.\/services\/member\.service';
+import { useMemberCardById, useUpdateMemberCard } from '\.\.\/services\/member\.service';
 
 const FORM_ID = 'edit-member-card-form';
 const FIELD_LABEL =

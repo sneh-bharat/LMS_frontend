@@ -13,8 +13,8 @@ import {
   FAMILY_RELATIONS,
   type FamilyRelation,
   type PatientFamilyLink,
-} from '@/app/Apis/Patients/patientFamilyLinkApi';
-import { useCreateFamilyLink } from '@/app/Apis/Patients/usePatientFamilyLinks';
+} from '\.\.\/services\/family\-link\.service';
+import { useCreateFamilyLink } from '\.\.\/services\/family\-link\.service';
 
 const LABEL_CLASS = 'text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block';
 const SECTION_HEAD =

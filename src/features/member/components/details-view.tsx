@@ -28,8 +28,8 @@ import {
   getMemberCardUsedAmount,
   getMemberCardholderName,
   type MemberCard,
-} from '@/app/Apis/membership/membership';
-import { useMemberCardById } from '@/app/Apis/membership/useMembership';
+} from '\.\.\/services\/member\.service';
+import { useMemberCardById } from '\.\.\/services\/member\.service';
 
 function statusBadgeVariant(status: string) {
   const s = status.toUpperCase();

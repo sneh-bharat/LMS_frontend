@@ -36,7 +36,7 @@ import {
   type LabCoordinator,
   type LabCoordinatorMutationApiResponse,
   type LabCoordinatorStatusFilter,
-} from '@/app/Apis/LabCoordinator/LabCoordinatorApi';
+} from '\.\.\/services\/lab\-coordinator\.service';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog';
 import {
@@ -44,7 +44,7 @@ import {
   useDeleteLabCoordinator,
   useLabCoordinatorByUsername,
   useLabCoordinatorsList,
-} from '@/app/Apis/LabCoordinator/useLabCoordinators';
+} from '\.\.\/services\/lab\-coordinator\.service';
 import AddCoordinator from '../components/AddCoordinator';
 import EditCoordinator from '../components/EditCoordinator';
 import LabCoordinatorDetailsView from '../components/detailsCoordinator';

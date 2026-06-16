@@ -28,7 +28,7 @@ import {
     Patient,
     fetchPatientById,
     fetchPatientImage,
-} from '@/app/Apis/Patients/Patient_Service_API';
+} from '../services/patient.service';
 import { sanitizeAddressesForEdit, sanitizeAllergiesForEdit } from '@/app/Apis/Patients/patientPayloadUtils';
 import { getBase64ImageSource } from '@/app/functions/getBase64';
 

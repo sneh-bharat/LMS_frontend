@@ -26,7 +26,7 @@ import {
   createPatient,
   CreatePatientInput,
   Patient,
-} from '@/app/Apis/Patients/Patient_Service_API';
+} from '../services/patient.service';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
