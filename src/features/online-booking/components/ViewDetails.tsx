@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import RightDrawer from '@/components/ui/right-drawer';
 import { Button } from '@/components/ui/button';
-import { OnlineBooking } from '../pages/OnlineBookingPage';
+import { OnlineBooking } from '../types/online-booking.types';
 
 interface ViewDetailsProps {
   booking: OnlineBooking;
