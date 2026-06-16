@@ -165,7 +165,7 @@ export async function fetchBranchManagerByBranchId(
   branchId: number
 ): Promise<BranchManagerDetailResponse> {
   return branchManagerAxios.get(
-    `/api/v1/branch-managers/branch/${branchId}`
+    `/api/v1/branch-managers/all?page=0&size=10&${branchId}`
   ) as Promise<BranchManagerDetailResponse>;
 }
 
