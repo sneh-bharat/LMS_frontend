@@ -27,82 +27,9 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { RightDrawer } from '@/components/ui/right-drawer';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface SampleRow {
-  barcode: string;
-  patientName: string;
-  investigation: string;
-  collectedAt: string;
-  collectedBy: string;
-  status: 'Collected' | 'Pending' | 'Processing' | 'Dispatched' | 'Received';
-  department: string;
-}
-
-const STATUS_ICONS: Record<string, { icon: any; color: string }> = {
-  Collected: { icon: <CheckCircle2 size={12} />, color: 'emerald' },
-  Pending: { icon: <Clock size={12} />, color: 'amber' },
-  Processing: { icon: <Activity size={12} />, color: 'blue' },
-  Dispatched: { icon: <Truck size={12} />, color: 'purple' },
-  Received: { icon: <Package size={12} />, color: 'cyan' },
-};
-
-// ─── Bulk Collection Modal ────────────────────────────────────────────────────
-function BulkCollectionModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [barcodes, setBarcodes] = useState('');
-  const [status, setStatus] = useState('Collected');
-
-  if (!isOpen) return null;
-
-  const footer = (
-    <div className="flex gap-3 w-full">
-      <Button variant="outline" onClick={onClose} className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider">Cancel</Button>
-      <Button variant="gradient" className="flex-1 rounded-lg py-2.5 font-bold uppercase text-xs tracking-wider shadow-sm">Update Batch</Button>
-    </div>
-  );
-
-  return (
-    <RightDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={
-        <>
-          Bulk <span className="text-emerald-200">Collection</span>
-        </>
-      }
-      description="Process multiple specimens"
-      footer={footer}
-      maxWidth="sm"
-    >
-      <div className="space-y-5">
-        <div className="space-y-1.5">
-          <label className="label-refined">Scan or Paste Barcodes</label>
-          <textarea
-            value={barcodes}
-            onChange={e => setBarcodes(e.target.value)}
-            placeholder="Enter barcodes, one per line..."
-            rows={8}
-            className="input-refined w-full p-4 font-bold text-slate-700 resize-none"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="label-refined">Target Status</label>
-          <div className="relative">
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              className="input-refined w-full px-10 appearance-none font-bold"
-            >
-              {Object.keys(STATUS_ICONS).map(s => <option key={s}>{s}</option>)}
-            </select>
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              {STATUS_ICONS[status].icon}
-            </div>
-          </div>
-        </div>
-      </div>
-    </RightDrawer>
-  );
-}
+import type { SampleRow } from '../types/sample-tracking.types';
+import { STATUS_ICONS } from '../constants/sample-status';
+import { BulkCollectionModal } from '../components/BulkCollectionModal';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SampleTrackingPage() {

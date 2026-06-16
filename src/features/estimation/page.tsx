@@ -7,34 +7,11 @@ import Card from '@/components/ui/card';
 import Input from '@/components/ui/input';
 import Button from '@/components/ui/button';
 import Table from '@/components/ui/table';
-
-interface Estimation {
-  id: number;
-  estimationInfo: string;
-  contactNumber: string;
-  date: string;
-  amount: number;
-}
-
-const initialEstimations: Estimation[] = [
-  {
-    id: 1,
-    estimationInfo: 'Blood Test Package',
-    contactNumber: '9876543210',
-    date: '12/10/2025',
-    amount: 1200,
-  },
-  {
-    id: 2,
-    estimationInfo: 'Full Body Checkup',
-    contactNumber: '9123456780',
-    date: '12/15/2025',
-    amount: 3500,
-  },
-];
+import type { Estimation } from './types/estimation.types';
+import { INITIAL_ESTIMATIONS } from './constants/estimation';
 
 export default function EstimationsPage() {
-  const [estimations] = useState<Estimation[]>(initialEstimations);
+  const [estimations] = useState<Estimation[]>(INITIAL_ESTIMATIONS);
   const [patientName, setPatientName] = useState('');
   const [dateRange] = useState('12/01/2025 - 01/31/2026');
 
