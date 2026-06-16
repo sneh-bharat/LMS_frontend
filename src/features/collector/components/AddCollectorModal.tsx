@@ -7,7 +7,9 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
-import { useCreateBloodCollector } from '@/app/Apis/collector/useCollectors';
+import { useCreateBloodCollector } from '../services/collector.service';
+import { zodFieldErrors } from '@/lib/zod';
+import { collectorSchema } from '../schemas/collector.schema';
 
 export interface AddCollectorModalProps {
   isOpen: boolean;
@@ -103,19 +105,13 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
   };
 
   const validate = (): boolean => {
-    const next: Record<string, string> = {};
-    if (!form.branchId || form.branchId < 1) next.branchId = 'Branch is required.';
-    if (!form.fullName.trim()) next.fullName = 'Full name is required.';
-    if (!form.username.trim()) next.username = 'Username is required.';
-    if (!form.password.trim()) next.password = 'Password is required.';
-    else if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
-    if (!form.phone.trim()) next.phone = 'Phone is required.';
-    const email = form.email.trim();
-    if (!email) next.email = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
-
-    setErrors(next);
-    return Object.keys(next).length === 0;
+    const parsed = collectorSchema.safeParse(form);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleSubmit = (e: React.FormEvent) => {

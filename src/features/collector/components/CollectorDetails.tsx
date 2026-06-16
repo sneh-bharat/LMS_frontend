@@ -10,7 +10,7 @@ import {
   getCollectorStatusLabel,
   getCollectorVerifiedLabel,
   type BloodCollector,
-} from '@/app/Apis/collector/CollectorsApi';
+} from '../services/collector.service';
 
 interface CollectorDetailsProps {
   isOpen: boolean;

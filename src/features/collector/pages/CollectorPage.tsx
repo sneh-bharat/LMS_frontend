@@ -39,13 +39,13 @@ import {
   type BloodCollector,
   type BloodCollectorMutationApiResponse,
   type BloodCollectorStatusFilter,
-} from '@/app/Apis/collector/CollectorsApi';
+} from '../services/collector.service';
 import {
   useActivateBloodCollector,
   useBloodCollectorsList,
   useBloodCollectorByUsername,
   useDeleteBloodCollector,
-} from '@/app/Apis/collector/useCollectors';
+} from '../services/collector.service';
 import AddCollectorModal from '../components/AddCollectorModal';
 import EditCollector from '../components/EditCollector';
 import CollectorDetails from '../components/CollectorDetails';

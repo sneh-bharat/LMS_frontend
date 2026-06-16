@@ -7,10 +7,9 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
-import {
-  useUpdateBloodCollector,
-} from '@/app/Apis/collector/useCollectors';
-import type { BloodCollector } from '@/app/Apis/collector/CollectorsApi';
+import { useUpdateBloodCollector, type BloodCollector } from '../services/collector.service';
+import { zodFieldErrors } from '@/lib/zod';
+import { editCollectorSchema } from '../schemas/collector.schema';
 
 export interface EditCollectorProps {
   isOpen: boolean;
@@ -155,20 +154,13 @@ export default function EditCollector({
   };
 
   const validate = (): boolean => {
-    const next: Record<string, string> = {};
-    if (!form.branchId || form.branchId < 1) next.branchId = 'Branch is required.';
-    if (!form.fullName.trim()) next.fullName = 'Full name is required.';
-    if (!form.username.trim()) next.username = 'Username is required.';
-    if (form.password.trim() && form.password.length < 6) {
-      next.password = 'Password must be at least 6 characters.';
+    const parsed = editCollectorSchema.safeParse(form);
+    if (parsed.success) {
+      setErrors({});
+      return true;
     }
-    if (!form.phone.trim()) next.phone = 'Phone is required.';
-    const email = form.email.trim();
-    if (!email) next.email = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
-
-    setErrors(next);
-    return Object.keys(next).length === 0;
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
