@@ -45,11 +45,13 @@ export default function AddDepartment({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
 
-  // Load branches when drawer opens: GET /tenants/{tenantId}/branches/all
+  const isEditing = Boolean(editData?.id);
+
+  // Load branches when creating a new department
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isEditing) return;
     loadBranches();
-  }, [isOpen]);
+  }, [isOpen, isEditing]);
 
   useEffect(() => {
     if (editData && isOpen) {
@@ -336,7 +338,7 @@ export default function AddDepartment({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {!isEditing ? (
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
                 Branch *
@@ -344,11 +346,7 @@ export default function AddDepartment({
               {loadingBranches ? (
                 <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2">
                   <Loader size={16} className="animate-spin text-slate-400" />
-                  <span className="text-sm text-slate-400">
-                    {editData?.branchName
-                      ? `Loading branches (${editData.branchName})...`
-                      : 'Loading branches...'}
-                  </span>
+                  <span className="text-sm text-slate-400">Loading branches...</span>
                 </div>
               ) : (
                 <select
@@ -374,47 +372,7 @@ export default function AddDepartment({
                 </p>
               )}
             </div>
-
-            {/* <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Display Order
-              </label>
-              <input
-                type="number"
-                name="displayOrder"
-                value={formData.displayOrder || 1}
-                onChange={handleChange}
-                placeholder="1"
-                min="0"
-                className={`w-full px-4 py-3 rounded-xl border transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-4 ${
-                  errors.displayOrder
-                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10'
-                    : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'
-                }`}
-              />
-              {errors.displayOrder && (
-                <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.displayOrder}
-                </p>
-              )}
-            </div> */}
-          </div>
-
-          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
-                Location
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location || ''}
-                onChange={handleChange}
-                placeholder="e.g., Building A, Floor 2"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-              />
-            </div>
-          </div> */}
+          ) : null}
 
           <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <input

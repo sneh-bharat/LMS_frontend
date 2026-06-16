@@ -1,19 +1,22 @@
 import tenantAxios from './axios';
-
-/** Single tenant record from auth service. */
 export interface Tenant {
     id?: number;
     tenantName: string;
     companyName: string;
-    domainName: string;
+    domainName?: string;
+    domain?: string | null;
     subscriptionPlan: string;
     contactPhone: string;
-    tenantEmail: string;
+    tenantEmail?: string;
+    adminEmail?: string;
+    contactEmail?: string;
     status: string;
     isActive: boolean;
-    isDeleted: boolean;
+    isDeleted?: boolean;
     maxBranches: number;
     maxUsersPerBranch: number;
+    totalBranches?: number;
+    totalUsers?: number | null;
 }
 
 export interface CreateTenantPayload {
@@ -31,8 +34,25 @@ export interface CreateTenantPayload {
     "subscriptionPlan": string;
     "maxBranches": number;
     "maxUsersPerBranch": number;
+    isActive?: boolean;
 }
 
+export interface UpdateTenantPayload {
+    tenantName?: string;
+    companyName?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    adminEmail?: string;
+    subscriptionPlan?: string;
+    maxBranches?: number;
+    maxUsersPerBranch?: number;
+    isActive?: boolean;
+}
 
 export interface TenantsPage {
     content: Tenant[];
@@ -92,6 +112,7 @@ export interface TenantDetail {
     totalBranches: number;
     activeBranches: number;
     totalUsers: number | null;
+    tenantCode?: string;
 }
 
 export interface TenantDetailApiResponse {
@@ -101,6 +122,20 @@ export interface TenantDetailApiResponse {
     status: string;
     timestamp?: string;
 }
+
+export interface ExpiringTenantsApiResponse {
+    data: TenantDetail[];
+    message: string;
+    response: boolean;
+    status: string;
+    timestamp?: string;
+}
+
+export const EXPIRING_DAYS_OPTIONS = [30, 60, 90, 180, 360] as const;
+export type ExpiringDaysOption = (typeof EXPIRING_DAYS_OPTIONS)[number];
+
+export const RENEW_SUBSCRIPTION_MONTH_OPTIONS = [3, 6, 12, 24] as const;
+export type RenewSubscriptionMonths = (typeof RENEW_SUBSCRIPTION_MONTH_OPTIONS)[number];
 
 export type SubscriptionPlan = 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
 
@@ -142,7 +177,40 @@ export type CreateTenantFormInput = {
     subscriptionPlan: string;
     maxBranches: string | number;
     maxUsersPerBranch: string | number;
+    isActive?: boolean;
 };
+
+export type UpdateTenantFormInput = Omit<CreateTenantFormInput, 'tenantCode'> & {
+    isActive?: boolean;
+};
+
+/** Map validated form values to the update API contract. */
+export function buildUpdateTenantPayload(values: UpdateTenantFormInput): UpdateTenantPayload {
+    const maxBranches = parseInt(String(values.maxBranches), 10);
+    const maxUsersPerBranch = parseInt(String(values.maxUsersPerBranch), 10);
+    const subscriptionPlan = String(values.subscriptionPlan).trim().toUpperCase();
+
+    if (!SUBSCRIPTION_PLAN_OPTIONS.includes(subscriptionPlan as SubscriptionPlan)) {
+        throw new Error('Please select a valid subscription plan.');
+    }
+
+    return {
+        tenantName: String(values.tenantName).trim(),
+        companyName: String(values.companyName).trim(),
+        contactEmail: String(values.contactEmail).trim().toLowerCase(),
+        contactPhone: normalizeContactPhone(String(values.contactPhone)),
+        address: String(values.address).trim(),
+        city: String(values.city).trim(),
+        state: String(values.state).trim(),
+        country: String(values.country).trim(),
+        postalCode: String(values.postalCode).trim().replace(/\s+/g, ''),
+        adminEmail: String(values.adminEmail).trim().toLowerCase(),
+        subscriptionPlan,
+        maxBranches,
+        maxUsersPerBranch,
+        isActive: Boolean(values.isActive),
+    };
+}
 
 /** Map validated form values to the API contract. */
 export function buildCreateTenantPayload(values: CreateTenantFormInput): CreateTenantPayload {
@@ -169,12 +237,17 @@ export function buildCreateTenantPayload(values: CreateTenantFormInput): CreateT
         subscriptionPlan,
         maxBranches,
         maxUsersPerBranch,
+        isActive: Boolean(values.isActive),
     };
 }
 
 export interface FetchTenantsParams {
     page: number;
     size: number;
+}
+
+export interface SearchTenantsParams extends FetchTenantsParams {
+    term: string;
 }
 
 export function getTenantName(row: Tenant): string {
@@ -186,7 +259,11 @@ export function getTenantCompanyName(row: Tenant): string {
 }
 
 export function getTenantAdminEmail(row: Tenant): string {
-    return row.tenantEmail?.trim() || '—';
+    return row.tenantEmail?.trim() || row.adminEmail?.trim() || '—';
+}
+
+export function getTenantDomain(row: Tenant): string {
+    return row.domainName?.trim() || row.domain?.trim() || '';
 }
 
 export function getTenantAdminPhone(row: Tenant): string {
@@ -213,7 +290,7 @@ export function isTenantActive(row: Tenant): boolean {
 
 export function getTenantRowKey(row: Tenant, index: number): string {
     if (row.id != null) return String(row.id);
-    const domain = row.domainName?.trim();
+    const domain = getTenantDomain(row);
     if (domain) return domain;
     return `${row.tenantName ?? 'tenant'}-${index}`;
 }
@@ -229,6 +306,68 @@ export async function fetchTenants(
     return tenantAxios.get('/api/v1/tenants/all', {
         params: { page, size },
     }) as Promise<TenantsApiResponse>;
+}
+
+/** GET search tenants by tenant name — `/api/v1/tenants/search?term=&page=&size=`. */
+export async function searchTenantsByName(
+    params: SearchTenantsParams
+): Promise<TenantsApiResponse> {
+    const { term, page, size } = params;
+    return tenantAxios.get('/api/v1/tenants/search', {
+        params: { term: term.trim(), page, size },
+    }) as Promise<TenantsApiResponse>;
+}
+
+/** GET active tenants — `/api/v1/tenants/active?page=&size=`. */
+export async function getActiveTenants(
+    params: FetchTenantsParams
+): Promise<TenantsApiResponse> {
+    const { page, size } = params;
+    return tenantAxios.get('/api/v1/tenants/active', {
+        params: { page, size },
+    }) as Promise<TenantsApiResponse>;
+}
+
+/**
+ * Inactive tenants — loads all pages from `/all` and returns only non-active rows
+ * with client-side pagination (no dedicated inactive endpoint).
+ */
+export async function fetchInactiveTenants(
+    params: FetchTenantsParams
+): Promise<TenantsApiResponse> {
+    const { page, size } = params;
+    const inactive: Tenant[] = [];
+    let currentPage = 0;
+    let last = false;
+
+    while (!last) {
+        const res = await fetchTenants({ page: currentPage, size: 100 });
+        const batch = res.data?.content ?? [];
+        inactive.push(...batch.filter((tenant) => !isTenantActive(tenant)));
+        last = res.data?.last ?? batch.length === 0;
+        currentPage += 1;
+        if (currentPage > 100) break;
+    }
+
+    const totalElements = inactive.length;
+    const totalPages = Math.max(1, Math.ceil(totalElements / size));
+    const start = page * size;
+    const content = inactive.slice(start, start + size);
+
+    return {
+        response: true,
+        message: 'Inactive tenants loaded',
+        status: '200 OK',
+        data: {
+            content,
+            pageNo: page,
+            pageSize: size,
+            totalElements,
+            totalPages,
+            first: page === 0,
+            last: page >= totalPages - 1,
+        },
+    };
 }
 
 /**
@@ -254,6 +393,19 @@ export function formatTenantDate(value: string | null | undefined): string {
     });
 }
 
+/** Whole days from today until `dateStr` (negative if already past). */
+export function getDaysUntilDate(dateStr: string | null | undefined): number | null {
+    if (!dateStr?.trim()) return null;
+    const end = new Date(dateStr);
+    if (Number.isNaN(end.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export function displayTenantValue(value: string | number | null | undefined): string {
     if (value == null) return '—';
     if (typeof value === 'string' && !value.trim()) return '—';
@@ -272,4 +424,40 @@ export async function getTenantDetails(tenantId: number): Promise<TenantDetailAp
  */
 export async function deleteTenant(tenantId: number): Promise<TenantApiResponse> {
     return tenantAxios.delete(`/api/v1/tenants/${tenantId}`) as Promise<TenantApiResponse>;
+}
+
+/** update tenant by id `/api/v1/tenants/{tenantId}`
+ * PUT `{NEXT_PUBLIC_API_AUTH}/api/v1/tenants/{tenantId}`
+ */
+export async function updateTenant(tenantId: number, payload: UpdateTenantPayload): Promise<TenantApiResponse> {
+    return tenantAxios.put(`/api/v1/tenants/${tenantId}`, payload) as Promise<TenantApiResponse>;
+}
+
+/** GET `/api/v1/tenants/expiring?days=` — tenants expiring within N days. */
+export async function getExpiringTenants(days: number): Promise<ExpiringTenantsApiResponse> {
+    return tenantAxios.get('/api/v1/tenants/expiring', {
+        params: { days },
+    }) as Promise<ExpiringTenantsApiResponse>;
+}
+
+/** PUT `/api/v1/tenants/{tenantId}/renew?months=` — renew tenant subscription. */
+export async function renewTenantSubscription(
+    tenantId: number,
+    months: number
+): Promise<TenantApiResponse> {
+    return tenantAxios.put(`/api/v1/tenants/${tenantId}/renew`, null, {
+        params: { months },
+    }) as Promise<TenantApiResponse>;
+}
+
+/** 
+ * PUT `{NEXT_PUBLIC_API_AUTH}/api/v1/tenants/{tenantId}/activate?active=true|false`
+ */
+export async function activateTenant(
+    tenantId: number,
+    isActive: boolean
+): Promise<TenantApiResponse> {
+    return tenantAxios.put(`/api/v1/tenants/${tenantId}/activate`, null, {
+        params: { active: isActive },
+    }) as Promise<TenantApiResponse>;
 }

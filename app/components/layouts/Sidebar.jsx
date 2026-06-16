@@ -62,8 +62,8 @@ const NAV = [
       { label: "Tracking Order", href: "/diagnosis/tracking-order" },
       { label: "Estimation", href: "/diagnosis/estimation" },
       { label: "Polyclinic Booking", href: "/polyclinic/booking" },
-      { label: "Appointments", href: "/Appointments" },
-      { label: "Test Order", href: "/lab/test-order" },
+      // { label: "Appointments", href: "/Appointments" },
+      // { label: "Test Order", href: "/lab/test-order" },
     ],
   },
   {

@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FlaskConical, ArrowRightCircle, Building2 } from 'lucide-react';
-import { Button, Card, Label, Badge } from '@/components/ui';
-import SelectBranch from './select-branch';
+import { Button, Card, Label } from '@/components/ui';
+import SelectBranch, { BranchTypeBadge, getBranchDisplayName } from './select-branch';
 import type { Branch } from '@/app/Apis/branch/branchApi';
 
 export default function DiagnosticBookingBranchPage() {
@@ -81,11 +81,13 @@ export default function DiagnosticBookingBranchPage() {
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
                     Active Selection
                   </p>
-                  <p className="text-xl font-black text-slate-900">{branch.branchName}</p>
-                  <div className="flex gap-2 items-center">
-                    <Badge className="bg-teal-100 text-teal-700 border-teal-200 font-black text-[9px] px-2 py-0 rounded-md tracking-wider uppercase">
-                      {branch.branchType.replace(/_/g, ' ')}
-                    </Badge>
+                  <p className="truncate text-xl font-black text-slate-900">
+                    {getBranchDisplayName(branch)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {branch.branchType ? (
+                      <BranchTypeBadge branchType={branch.branchType} />
+                    ) : null}
                     {branch.branchCode && (
                       <span className="text-[10px] font-mono font-bold text-slate-400">#{branch.branchCode}</span>
                     )}

@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '@/components/ui/button';
@@ -32,6 +33,7 @@ import {
   getTenantAdminEmail,
   getTenantAdminPhone,
   getTenantCompanyName,
+  getTenantDomain,
   getTenantName,
   getTenantRowKey,
   getTenantStatusLabel,
@@ -41,9 +43,17 @@ import {
   type Tenant,
   type TenantApiResponse,
 } from '@/app/Apis/tenant/tenantApi';
-import { useDeleteTenant, useTenantsList } from '@/app/Apis/tenant/useTenants';
+import {
+  useActivateTenant,
+  useDeleteTenant,
+  useSearchTenants,
+  useTenantsList,
+} from '@/app/Apis/tenant/useTenants';
+import EditTenant from './EditTenant';
+import ExpiringTenantsPanel from './ExpiringTenantsPanel';
 import NewTenant from './NewTenant';
 import TenantDetailsDrawer from './tenantDetails';
+import UpdateSubscription from './updateSubscription';
 import {
   listingBadge,
   listingEmptyBox,
@@ -77,13 +87,18 @@ function TenantActions({
   onEdit,
   onDelete,
   canDelete,
+  onActivate,
+  onDeactivate,
 }: {
   tenant: Tenant;
   onView: (tenant: Tenant) => void;
   onEdit: (tenant: Tenant) => void;
   onDelete: (tenant: Tenant) => void;
+  onActivate: (tenant: Tenant) => void;
+  onDeactivate: (tenant: Tenant) => void;
   canDelete: boolean;
 }) {
+  const active = isTenantActive(tenant);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -125,6 +140,23 @@ function TenantActions({
             Delete
           </DropdownMenuItem>
         ) : null}
+        {!active ? (
+          <DropdownMenuItem
+            onClick={() => onActivate(tenant)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700"
+          >
+            <Zap size={14} />
+            Activate
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onClick={() => onDeactivate(tenant)}
+            className="rounded-lg py-2.5 text-xs font-black uppercase text-amber-700 focus:bg-amber-50 focus:text-amber-800"
+          >
+            <Zap size={14} />
+            Deactivate
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -136,6 +168,8 @@ export default function TenantManagementPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editTenantId, setEditTenantId] = useState<number | null>(null);
+  const [renewTenantId, setRenewTenantId] = useState<number | null>(null);
   const [viewTenantId, setViewTenantId] = useState<number | null>(null);
   const [deleteTenant, setDeleteTenant] = useState<Tenant | null>(null);
   const [role, setRole] = useState('');
@@ -146,15 +180,26 @@ export default function TenantManagementPage() {
 
   const canDelete = role !== 'ADMIN';
   const deleteMutation = useDeleteTenant();
+  const activateMutation = useActivateTenant();
+  const isSearching = debouncedSearch.length > 0;
+
+  const listQuery = useTenantsList(
+    { page: pageNo, size: PAGE_SIZE, mode: statusFilter },
+    { enabled: !isSearching }
+  );
+
+  const searchQuery = useSearchTenants(
+    { term: debouncedSearch, page: pageNo, size: PAGE_SIZE },
+    { enabled: isSearching }
+  );
 
   const {
     data,
     isLoading,
     isError,
     error,
-    refetch,
     isFetching,
-  } = useTenantsList({ page: pageNo, size: PAGE_SIZE });
+  } = isSearching ? searchQuery : listQuery;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -172,32 +217,14 @@ export default function TenantManagementPage() {
   const rows = page?.content ?? [];
 
   const filteredRows = useMemo(() => {
-    let list = rows;
+    if (!isSearching || statusFilter === 'all') return rows;
 
     if (statusFilter === 'active') {
-      list = list.filter((row) => isTenantActive(row));
-    } else if (statusFilter === 'inactive') {
-      list = list.filter((row) => !isTenantActive(row));
+      return rows.filter((row) => isTenantActive(row));
     }
 
-    const term = debouncedSearch.toLowerCase();
-    if (!term) return list;
-
-    return list.filter((row) => {
-      const haystack = [
-        getTenantName(row),
-        getTenantCompanyName(row),
-        getTenantAdminEmail(row),
-        getTenantAdminPhone(row),
-        getTenantSubscriptionPlan(row),
-        row.domainName,
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return haystack.includes(term);
-    });
-  }, [rows, debouncedSearch, statusFilter]);
+    return rows.filter((row) => !isTenantActive(row));
+  }, [rows, statusFilter, isSearching]);
 
   const totalPages = page?.totalPages ?? 0;
   const totalElements = page?.totalElements ?? 0;
@@ -208,7 +235,11 @@ export default function TenantManagementPage() {
   const showInitialLoader = isLoading && rows.length === 0;
 
   const handleRefresh = () => {
-    void refetch();
+    if (isSearching) {
+      void searchQuery.refetch();
+    } else {
+      void listQuery.refetch();
+    }
   };
 
   const handleView = (tenant: Tenant) => {
@@ -217,8 +248,17 @@ export default function TenantManagementPage() {
     }
   };
 
-  const handleEdit = (_tenant: Tenant) => {
-    // Placeholder for future edit modal
+  const handleEdit = (tenant: Tenant) => {
+    if (tenant.id != null && tenant.id > 0) {
+      setViewTenantId(null);
+      setEditTenantId(tenant.id);
+    }
+  };
+
+  const handleRenew = (tenant: Tenant) => {
+    if (tenant.id != null && tenant.id > 0) {
+      setRenewTenantId(tenant.id);
+    }
   };
 
   const handleDelete = (tenant: Tenant) => {
@@ -239,27 +279,69 @@ export default function TenantManagementPage() {
           setViewTenantId(null);
         }
         setDeleteTenant(null);
-        void refetch();
       },
       onError: (err: Error) => {
         toast.error(err.message || 'Failed to delete tenant.');
       },
     });
   };
+  const handleSetTenantActive = (tenant: Tenant, isActive: boolean) => {
+    if (tenant.id == null || tenant.id <= 0) return;
+
+    activateMutation.mutate(
+      { tenantId: tenant.id, isActive },
+      {
+        onSuccess: (res: TenantApiResponse) => {
+          if (!isTenantMutationSuccess(res)) {
+            toast.error(res.message || `Failed to ${isActive ? 'activate' : 'deactivate'} tenant.`);
+            return;
+          }
+          toast.success(
+            res.message?.trim() ||
+              `Tenant ${isActive ? 'activated' : 'deactivated'} successfully.`
+          );
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || `Failed to ${isActive ? 'activate' : 'deactivate'} tenant.`);
+        },
+      }
+    );
+  };
+
+  const handleActivate = (tenant: Tenant) => handleSetTenantActive(tenant, true);
+  const handleDeactivate = (tenant: Tenant) => handleSetTenantActive(tenant, false);
 
   return (
     <>
       <NewTenant
         isOpen={addModalOpen}
-        onSuccess={handleRefresh}
         onClose={() => setAddModalOpen(false)}
+      />
+
+      <EditTenant
+        isOpen={editTenantId !== null}
+        tenantId={editTenantId}
+        onClose={() => setEditTenantId(null)}
+      />
+
+      <UpdateSubscription
+        isOpen={renewTenantId !== null}
+        tenantId={renewTenantId}
+        onClose={() => setRenewTenantId(null)}
       />
 
       <TenantDetailsDrawer
         isOpen={viewTenantId !== null}
         tenantId={viewTenantId}
         onClose={() => setViewTenantId(null)}
-        onEdit={() => setViewTenantId(null)}
+        onEdit={(id) => {
+          setViewTenantId(null);
+          setEditTenantId(id);
+        }}
+        onRenew={(id) => {
+          setViewTenantId(null);
+          setRenewTenantId(id);
+        }}
       />
 
       <DeleteAlertDialog
@@ -297,6 +379,12 @@ export default function TenantManagementPage() {
           </div>
         </div>
 
+      <ExpiringTenantsPanel
+        onView={handleView}
+        onEdit={handleEdit}
+        onRenew={handleRenew}
+      />
+
       <div className={listingToolbar}>
         <div className={listingToolbarInner}>
         <div className="relative flex-1 group w-full min-w-0">
@@ -309,7 +397,7 @@ export default function TenantManagementPage() {
             type="search"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search tenants by name, company, email, or phone…"
+            placeholder="Search tenants by name…"
             className={listingSearchInput}
             aria-label="Search tenants"
             autoComplete="off"
@@ -415,7 +503,9 @@ export default function TenantManagementPage() {
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">
-                      No matches on this page for your search or filter.
+                      {isSearching
+                        ? `No tenants found matching "${debouncedSearch}".`
+                        : 'No matches on this page for your filter.'}
                     </td>
                   </tr>
                 ) : (
@@ -435,9 +525,9 @@ export default function TenantManagementPage() {
                               <div className={listingRowTitle}>
                                 {getTenantName(row)}
                               </div>
-                              {row.domainName?.trim() ? (
+                              {getTenantDomain(row) ? (
                                 <div className="text-xs text-slate-500 truncate max-w-55 mt-0.5">
-                                  {row.domainName.trim()}
+                                  {getTenantDomain(row)}
                                 </div>
                               ) : null}
                             </div>
@@ -487,6 +577,8 @@ export default function TenantManagementPage() {
                             onView={handleView}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            onActivate={handleActivate}
+                            onDeactivate={handleDeactivate}
                             canDelete={canDelete}
                           />
                         </td>

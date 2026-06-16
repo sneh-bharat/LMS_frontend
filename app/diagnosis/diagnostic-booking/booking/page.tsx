@@ -51,7 +51,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Branch } from '@/app/Apis/branch/branchApi';
-import SelectBranch from '../select-branch';
+import SelectBranch, { BranchTypeBadge, getBranchDisplayName } from '../select-branch';
 import type { Patient } from '@/app/Apis/Patients/Patient_Service_API';
 import PatientSearchSelect from '../PatientSearchSelect';
 import CollectorSearchSelect from '../CollectorSearchSelect';
@@ -810,11 +810,11 @@ function DiagnosticBookingContent() {
             </div>
             {isEditMode ? 'Edit Diagnostic Order' : 'Diagnostic Booking'}
           </h1>
-          <p className="text-slate-500 text-sm font-semibold mt-1 flex items-center gap-2">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-500">
             {isEditMode ? (
               <>
                 Order <span className="font-mono text-emerald-700">{loadedOrder?.orderNumber}</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
                 <span className="flex items-center gap-1 text-slate-400">
                   <Lock size={10} /> Patient identity is view-only
                 </span>
@@ -823,15 +823,15 @@ function DiagnosticBookingContent() {
               'Patient Intake Workflow'
             )}
             {!isEditMode && selectedBranch ? (
-              <>
-                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                <span className="text-emerald-600 font-bold">{selectedBranch.branchName}</span>
+              <span className="hidden min-w-0 items-center gap-2 md:inline-flex">
+                <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" />
+                <span className="truncate font-bold text-emerald-600">
+                  {getBranchDisplayName(selectedBranch)}
+                </span>
                 {selectedBranch.branchType ? (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    {selectedBranch.branchType.replace(/_/g, ' ')}
-                  </span>
+                  <BranchTypeBadge branchType={selectedBranch.branchType} />
                 ) : null}
-              </>
+              </span>
             ) : null}
           </p>
         </div>

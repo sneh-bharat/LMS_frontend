@@ -22,13 +22,53 @@ function formatB2bType(branchType: string) {
   return branchType.replace(/_/g, ' ').toUpperCase();
 }
 
-export function BranchOptionLabel({ branch }: { branch: Pick<Branch, 'branchName' | 'branchType'> }) {
+export function getBranchDisplayName(
+  branch: Pick<Branch, 'branchName' | 'branchCode'> & { id?: number },
+) {
+  const name = branch.branchName?.trim();
+  if (name) return name;
+  const code = branch.branchCode?.trim();
+  if (code) return code;
+  if (branch.id != null && branch.id > 0) return `Branch #${branch.id}`;
+  return 'Unnamed branch';
+}
+
+export function BranchTypeBadge({ branchType, className }: { branchType: string; className?: string }) {
+  if (!branchType?.trim()) return null;
+
   return (
-    <span className="flex items-center justify-between w-full gap-4">
-      <span className="font-semibold text-slate-900 group-hover:text-white group-focus:text-white transition-colors truncate">{branch.branchName}</span>
-      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 group-hover:bg-emerald-600 group-hover:text-white group-focus:bg-emerald-600 group-focus:text-white px-2 py-0.5 rounded-md border border-emerald-200 transition-all shrink-0 whitespace-nowrap">
-        {formatB2bType(branch.branchType)}
+    <span
+      className={cn(
+        'inline-flex max-w-[9.5rem] shrink-0 items-center justify-center truncate rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700',
+        'group-data-highlighted:border-white/30 group-data-highlighted:bg-white/15 group-data-highlighted:text-white',
+        className,
+      )}
+    >
+      {formatB2bType(branchType)}
+    </span>
+  );
+}
+
+export function BranchOptionLabel({
+  branch,
+  reserveCheckSpace = false,
+}: {
+  branch: Pick<Branch, 'branchName' | 'branchType' | 'branchCode'> & { id?: number };
+  reserveCheckSpace?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        'grid w-full min-w-0 items-center gap-2',
+        reserveCheckSpace
+          ? 'grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)] pr-1'
+          : 'grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)]',
+      )}
+    >
+      <span className="truncate font-semibold text-slate-900 group-data-highlighted:text-accent-foreground">
+        {getBranchDisplayName(branch)}
       </span>
+      {branch.branchType ? <BranchTypeBadge branchType={branch.branchType} /> : null}
     </span>
   );
 }
@@ -112,19 +152,26 @@ export default function SelectBranch({
         </div>
       ) : (
         <Select value={selectedId} onValueChange={handleChange}>
-          <SelectTrigger className="border-gray-300 h-11">
-            <span className="flex flex-1 text-left min-w-0">
+          <SelectTrigger className="h-11 min-w-0 border-gray-300 whitespace-normal">
+            <span className="flex min-w-0 flex-1 text-left">
               {selectedBranch ? (
                 <BranchOptionLabel branch={selectedBranch} />
               ) : (
-                <span className="text-muted-foreground font-medium">Select branch</span>
+                <span className="font-medium text-muted-foreground">Select branch</span>
               )}
             </span>
           </SelectTrigger>
-          <SelectContent className="min-w-[320px]">
+          <SelectContent
+            align="start"
+            className="max-w-[min(var(--anchor-width),calc(100vw-1.5rem))]"
+          >
             {branches.map((b) => (
-              <SelectItem key={b.id} value={String(b.id)} className="group">
-                <BranchOptionLabel branch={b} />
+              <SelectItem
+                key={b.id}
+                value={String(b.id)}
+                className="group py-2.5 [&>span:first-child]:min-w-0 [&>span:first-child]:shrink [&>span:first-child]:whitespace-normal"
+              >
+                <BranchOptionLabel branch={b} reserveCheckSpace />
               </SelectItem>
             ))}
           </SelectContent>
@@ -133,4 +180,3 @@ export default function SelectBranch({
     </div>
   );
 }
-

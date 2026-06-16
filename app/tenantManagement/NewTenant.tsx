@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormSetError } from 'react-hook-form';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input, Label, Button } from '@/components/ui';
@@ -37,6 +37,7 @@ type NewTenantFormValues = {
   subscriptionPlan: string;
   maxBranches: string;
   maxUsersPerBranch: string;
+  isActive: boolean;
 };
 
 const defaultValues: NewTenantFormValues = {
@@ -54,6 +55,7 @@ const defaultValues: NewTenantFormValues = {
   subscriptionPlan: '',
   maxBranches: '',
   maxUsersPerBranch: '',
+  isActive: true,
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,7 +97,6 @@ function formatFieldErrors(fieldErrors: unknown): string | null {
 }
 
 function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
     const o = err as Record<string, unknown>;
 
@@ -110,16 +111,55 @@ function getErrorMessage(err: unknown): string {
     );
     if (fieldMessage) return fieldMessage;
 
+    if (responseData) {
+      if (typeof responseData.message === 'string' && responseData.message.trim()) {
+        return responseData.message;
+      }
+      if (typeof responseData.error === 'string' && responseData.error.trim()) {
+        return responseData.error;
+      }
+    }
+
     if (typeof o.message === 'string' && o.message !== 'Request failed with status code 400') {
       return o.message;
     }
-
-    if (responseData) {
-      if (typeof responseData.message === 'string') return responseData.message;
-      if (typeof responseData.error === 'string') return responseData.error;
-    }
   }
+
+  if (err instanceof Error) return err.message;
   return 'Failed to create tenant.';
+}
+
+/** Map API duplicate / validation messages to the matching form field. */
+function mapApiMessageToField(
+  message: string,
+  setError: UseFormSetError<NewTenantFormValues>
+): boolean {
+  const lower = message.toLowerCase();
+  const looksDuplicate =
+    lower.includes('duplicate') ||
+    lower.includes('already exist') ||
+    lower.includes('already exists') ||
+    lower.includes('already registered') ||
+    lower.includes('already in use') ||
+    lower.includes('unique') ||
+    lower.includes('constraint');
+
+  if (lower.includes('admin') && lower.includes('email')) {
+    setError('adminEmail', { type: 'server', message });
+    return true;
+  }
+
+  if (lower.includes('contact') && lower.includes('email')) {
+    setError('contactEmail', { type: 'server', message });
+    return true;
+  }
+
+  if (looksDuplicate && lower.includes('email')) {
+    setError('adminEmail', { type: 'server', message });
+    return true;
+  }
+
+  return false;
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -148,6 +188,8 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
     register,
     handleSubmit,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<NewTenantFormValues>({
     defaultValues,
@@ -187,7 +229,9 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
     createMutation.mutate(payload, {
       onSuccess: (res: TenantApiResponse) => {
         if (!isTenantMutationSuccess(res)) {
-          toast.error(res.message || 'Failed to create tenant.');
+          const message = res.message?.trim() || 'Failed to create tenant.';
+          if (mapApiMessageToField(message, setError)) return;
+          toast.error(message);
           return;
         }
 
@@ -197,7 +241,9 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
         router.push('/tenantManagement');
       },
       onError: (err: unknown) => {
-        toast.error(getErrorMessage(err));
+        const message = getErrorMessage(err);
+        if (mapApiMessageToField(message, setError)) return;
+        toast.error(message);
       },
     });
   };
@@ -339,6 +385,7 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
               {...register('contactEmail', {
                 required: 'Contact email is required.',
                 pattern: { value: EMAIL_PATTERN, message: 'Enter a valid email address.' },
+                onChange: () => clearErrors('contactEmail'),
               })}
             />
             <FieldError message={errors.contactEmail?.message} />
@@ -463,6 +510,7 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
             {...register('adminEmail', {
               required: 'Admin email is required.',
               pattern: { value: EMAIL_PATTERN, message: 'Enter a valid email address.' },
+              onChange: () => clearErrors('adminEmail'),
             })}
           />
           <FieldError message={errors.adminEmail?.message} />
@@ -547,6 +595,22 @@ export default function NewTenant({ isOpen, onSuccess, onClose }: NewTenantProps
             />
             <FieldError message={errors.maxUsersPerBranch?.message} />
           </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
+          <input
+            id="new-isActive"
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+            disabled={pending}
+            {...register('isActive')}
+          />
+          <Label
+            htmlFor="new-isActive"
+            className="text-sm font-semibold text-slate-800 cursor-pointer mb-0"
+          >
+            Active tenant
+          </Label>
         </div>
       </form>
     </RightDrawer>
