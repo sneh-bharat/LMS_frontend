@@ -1,5 +1,8 @@
 'use client';
 
+import { zodFieldErrors } from '@/lib/zod';
+import { mgmtDoctorSchema } from '../../schemas/management.schema';
+
 import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer'; 
@@ -93,17 +96,13 @@ export default function NewDoctorModal({
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) newErrors.name = 'Doctor name is required';
-    if (!formData.specialization.trim()) newErrors.specialization = 'Specialization is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (formData.consultationFee === '' || Number(formData.consultationFee) <= 0) 
-      newErrors.consultationFee = 'Valid consultation fee is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const parsed = mgmtDoctorSchema.safeParse(formData);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleSubmit = () => {

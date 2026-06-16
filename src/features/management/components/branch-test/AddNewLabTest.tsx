@@ -1,5 +1,8 @@
 'use client';
 
+import { zodFieldErrors } from '@/lib/zod';
+import { mgmtLabTestSchema } from '../../schemas/management.schema';
+
 import { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 
@@ -86,14 +89,13 @@ export default function AddLabTest({
   }, [editData, isOpen]);
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.branchId.trim()) newErrors.branchId = 'Branch ID is required';
-    if (!formData.testName.trim()) newErrors.testName = 'Test name is required';
-    if (!formData.doctor.trim()) newErrors.doctor = 'Doctor name is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const parsed = mgmtLabTestSchema.safeParse(formData);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

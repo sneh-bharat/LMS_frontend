@@ -1,5 +1,8 @@
 'use client';
 
+import { zodFieldErrors } from '@/lib/zod';
+import { mgmtBranchSchema } from '../../schemas/management.schema';
+
 import { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer'; 
@@ -125,21 +128,13 @@ export default function AddBranch({
   }, [editData, isOpen]);
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.branchId.trim()) newErrors.branchId = 'Branch ID is required';
-    if (!formData.branchName.trim()) newErrors.branchName = 'Branch name is required';
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
-    if (!formData.address.trim()) newErrors.address = 'Address is required';
-    if (!formData.city) newErrors.city = 'City is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (!formData.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Phone number is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (!formData.manager.trim()) newErrors.manager = 'Manager name is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const parsed = mgmtBranchSchema.safeParse(formData);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleChange = (
