@@ -17,7 +17,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import {fetchReferrerPaymentHistory  } from '@/app/Apis/Referrer/ReferrerCommission'
-import {useReferrerPaymentHistory  } from '@/app/Apis/Referrer/useReferrerCommission'
+import {useReferrerPaymentHistory  } from '../services/referrer.service'
 
 const PAGE_SIZE = 10;
 

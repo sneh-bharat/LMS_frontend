@@ -39,8 +39,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useReferringDoctorsList, useDeleteReferringDoctor } from '@/app/Apis/doctor/useReferringDoctors';
-import type { ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
+import { useReferringDoctorsList, useDeleteReferringDoctor } from '\.\.\/services\/doctor\.service';
+import type { ReferringDoctor } from '\.\.\/services\/doctor\.service';
 import AddDoctor from '../components/add_doctor';
 import { DoctorDetails } from '../components/doctot-details';
 import Commission from '../components/Commission';
@@ -48,8 +48,8 @@ import ActiveDepartment from '../components/ActiveDepartment';
 import GetTestCommission from '../components/GetTestCommission';
 import SpecificDateRange from '../components/SpecificDateRange';
 import GetPaymentHistory from '../components/GetPaymentHistory';
-import { fetchDoctorCommissions, type DoctorCommission } from '@/app/Apis/Commission/commissionPrice';
-import { doctorCommissionQueryKeys } from '@/app/Apis/Commission/useDoctorCommission';
+import { fetchDoctorCommissions, type DoctorCommission } from '\.\.\/services\/doctor\.service';
+import { doctorCommissionQueryKeys } from '\.\.\/services\/doctor\.service';
 import PayDoctorCommission from '../components/PayDoctorCommission';
 
 type CommissionDrawerState = {

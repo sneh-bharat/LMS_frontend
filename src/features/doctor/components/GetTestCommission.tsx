@@ -14,8 +14,8 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import { useDoctorTestCommissions } from '@/app/Apis/Commission/useDoctorCommission';
-import type { DoctorTestCommission } from '@/app/Apis/Commission/commissionPrice';
+import { useDoctorTestCommissions } from '\.\.\/services\/doctor\.service';
+import type { DoctorTestCommission } from '\.\.\/services\/doctor\.service';
 import EditTestPriceCommission from './EditTestPriceCommission';
 
 const EMPTY_TESTS: DoctorTestCommission[] = [];

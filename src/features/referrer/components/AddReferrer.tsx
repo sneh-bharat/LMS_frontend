@@ -10,12 +10,12 @@ import {
   getReferrerName,
   getReferrerPhone,
   showOnReportToFormValue,
-} from '@/app/Apis/Referrer/referrerApi';
+} from '../services/referrer.service';
 import {
   useCreateReferrer,
   useReferrerById,
   useUpdateReferrer,
-} from '@/app/Apis/Referrer/useReferrer';
+} from '../services/referrer.service';
 
 export interface AddReferrerProps {
   isOpen?: boolean;

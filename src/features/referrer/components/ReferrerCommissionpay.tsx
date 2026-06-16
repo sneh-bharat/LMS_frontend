@@ -14,7 +14,7 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import { useReferrerCommissionPay } from '@/app/Apis/Referrer/useReferrerCommission';
+import { useReferrerCommissionPay } from '../services/referrer.service';
 
 
 export interface ReferrerCommissionPayProps {

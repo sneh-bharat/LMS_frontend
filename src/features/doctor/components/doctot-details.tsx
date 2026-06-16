@@ -22,8 +22,8 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { branchApi } from '@/app/Apis/branch/branchApi';
-import { useReferringDoctor } from '@/app/Apis/doctor/useReferringDoctors';
-import type { ReferringDoctor } from '@/app/Apis/doctor/referringDoctorApi';
+import { useReferringDoctor } from '\.\.\/services\/doctor\.service';
+import type { ReferringDoctor } from '\.\.\/services\/doctor\.service';
 
 export interface DoctorDetailsProps {
   isOpen: boolean;

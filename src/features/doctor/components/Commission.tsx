@@ -7,15 +7,15 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
-import { fetchReferringDoctorById } from '@/app/Apis/doctor/referringDoctorApi';
+import { fetchReferringDoctorById } from '\.\.\/services\/doctor\.service';
 import type {
   CreateDoctorCommissionPayload,
   DoctorCommission,
-} from '@/app/Apis/Commission/commissionPrice';
+} from '\.\.\/services\/doctor\.service';
 import {
   useCreateDoctorCommission,
   useUpdateDoctorCommission,
-} from '@/app/Apis/Commission/useDoctorCommission';
+} from '\.\.\/services\/doctor\.service';
 
 export interface CommissionProps {
   isOpen: boolean;

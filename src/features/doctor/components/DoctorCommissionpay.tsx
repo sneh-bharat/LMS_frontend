@@ -14,7 +14,7 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
-import { useDoctorCommissionPay } from '@/app/Apis/Commission/useDoctorCommission';
+import { useDoctorCommissionPay } from '\.\.\/services\/doctor\.service';
 
 export interface DoctorCommissionPayProps {
   isOpen: boolean;

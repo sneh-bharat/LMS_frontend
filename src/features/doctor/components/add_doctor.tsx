@@ -8,9 +8,9 @@ import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import type {CreateReferringDoctorPayload, ReferringDoctor, UpdateReferringDoctorPayload,
-} from '@/app/Apis/doctor/referringDoctorApi';
+} from '\.\.\/services\/doctor\.service';
 import { useCreateReferringDoctor, useReferringDoctor, useUpdateReferringDoctor,
-} from '@/app/Apis/doctor/useReferringDoctors';
+} from '\.\.\/services\/doctor\.service';
 
 export interface AddDoctorProps {
   isOpen: boolean;

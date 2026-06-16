@@ -12,8 +12,8 @@ import {
   updateDoctorCommissionByTestId,
   type DoctorTestCommission,
   type UpdateDoctorTestCommissionOverridePayload,
-} from '@/app/Apis/Commission/commissionPrice';
-import { doctorCommissionQueryKeys } from '@/app/Apis/Commission/useDoctorCommission';
+} from '\.\.\/services\/doctor\.service';
+import { doctorCommissionQueryKeys } from '\.\.\/services\/doctor\.service';
 
 export interface EditTestPriceCommissionProps {
   isOpen: boolean;

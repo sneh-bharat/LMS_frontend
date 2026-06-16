@@ -21,8 +21,8 @@ import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import { departmentApi } from '@/app/Apis/lab/departmentApi';
-import { useDoctorCommissions, useDeleteDoctorCommission } from '@/app/Apis/Commission/useDoctorCommission';
-import type { DoctorCommission } from '@/app/Apis/Commission/commissionPrice';
+import { useDoctorCommissions, useDeleteDoctorCommission } from '\.\.\/services\/doctor\.service';
+import type { DoctorCommission } from '\.\.\/services\/doctor\.service';
 
 const EMPTY_COMMISSIONS: DoctorCommission[] = [];
 

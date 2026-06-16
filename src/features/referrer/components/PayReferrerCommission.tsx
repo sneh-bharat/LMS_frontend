@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
-import { useMarkReferrerCommissionPaid } from '@/app/Apis/Referrer/useReferrerCommission';
+import { useMarkReferrerCommissionPaid } from '../services/referrer.service';
 
 export interface PayReferrerCommissionProps {
   isOpen: boolean;

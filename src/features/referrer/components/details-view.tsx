@@ -28,8 +28,8 @@ import {
   getShowOnReportLabel,
   isReferrerActive,
   type Referrer,
-} from '@/app/Apis/Referrer/referrerApi';
-import { useReferrerById } from '@/app/Apis/Referrer/useReferrer';
+} from '../services/referrer.service';
+import { useReferrerById } from '../services/referrer.service';
 
 function DetailField({
   label,

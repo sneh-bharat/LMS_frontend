@@ -7,7 +7,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
 import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
-import { fetchReferrerById, getReferrerName } from '@/app/Apis/Referrer/referrerApi';
+import { fetchReferrerById, getReferrerName } from '../services/referrer.service';
 import type {
   CreateReferrerCommissionPayload,
   ReferrerCommission,
@@ -15,7 +15,7 @@ import type {
 import {
   useCreateReferrerCommission,
   useUpdateReferrerCommission,
-} from '@/app/Apis/Referrer/useReferrerCommission';
+} from '../services/referrer.service';
 
 export interface ReferrerCommissionProps {
   isOpen: boolean;

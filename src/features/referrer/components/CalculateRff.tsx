@@ -21,7 +21,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
-import { useCalculateReferrerCommissionByRange } from '@/app/Apis/Referrer/useReferrerCommission';
+import { useCalculateReferrerCommissionByRange } from '../services/referrer.service';
 import type {
   ReferrerCommissionPaySummary,
   ReferrerCommissionRangeTestItem,

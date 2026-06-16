@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
-import { usePayDoctorCommission } from '@/app/Apis/Commission/useDoctorCommission';
+import { usePayDoctorCommission } from '\.\.\/services\/doctor\.service';
 
 export interface PayDoctorCommissionProps {
   isOpen: boolean;

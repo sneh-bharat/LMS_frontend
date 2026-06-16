@@ -21,11 +21,11 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { Input, Label } from '@/components/ui';
-import { useCalculateDoctorCommissionByRange } from '@/app/Apis/Commission/useDoctorCommission';
+import { useCalculateDoctorCommissionByRange } from '\.\.\/services\/doctor\.service';
 import type {
   DoctorCommissionPaySummary,
   DoctorCommissionRangeTestItem,
-} from '@/app/Apis/Commission/commissionPrice';
+} from '\.\.\/services\/doctor\.service';
 
 function normalizeRangeTest(raw: unknown): DoctorCommissionRangeTestItem | null {
   if (!raw || typeof raw !== 'object') return null;

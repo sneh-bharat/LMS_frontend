@@ -27,7 +27,7 @@ import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import { fetchReferrerCommissions, type ReferrerCommission } from '@/app/Apis/Referrer/ReferrerCommission';
-import { referrerCommissionQueryKeys } from '@/app/Apis/Referrer/useReferrerCommission';
+import { referrerCommissionQueryKeys } from '../services/referrer.service';
 import Commission from '../components/commission';
 import {
   DropdownMenu,
@@ -43,8 +43,8 @@ import {
   getShowOnReportLabel,
   isReferrerActive,
   type Referrer,
-} from '@/app/Apis/Referrer/referrerApi';
-import { useDeleteReferrer, useReferrersList } from '@/app/Apis/Referrer/useReferrer';
+} from '../services/referrer.service';
+import { useDeleteReferrer, useReferrersList } from '../services/referrer.service';
 import AddReferrer from '../components/AddReferrer';
 import ReferrerDetailsView from '../components/details-view';
 import GetTestCommission from '../components/GetTestCommission';
