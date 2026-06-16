@@ -27,108 +27,17 @@ import {
   SelectItem
 } from '@/components/ui';
 import { RightDrawer } from '@/components/ui/right-drawer';
-
-// ─── Shared Types ────────────────────────────────────────────────────────────
-export interface Appointment {
-  id: number;
-  patientName: string;
-  age: number;
-  gender: string;
-  phone: string;
-  consultingType: string;
-  department: string;
-  selectedTest: string;
-  slot: string;
-  date: string;
-  email: string;
-  whatsapp: string;
-  permanentAddress: string;
-  localAddress: string;
-  pincode: string;
-  city: string;
-  country: string;
-  contactNumber: string;
-  doctor?: string;
-}
-
-export interface FormState {
-  consultingType: string;
-  department: string;
-  doctor: string;
-  slot: string;
-  date: string;
-  patientName: string;
-  age: string;
-  gender: string;
-  phone: string;
-  permanentAddress: string;
-  localAddress: string;
-  pincode: string;
-  city: string;
-  country: string;
-  email: string;
-  whatsapp: string;
-  contactNumber: string;
-  selectedTest: string;
-}
-
-// ─── Static Data ──────────────────────────────────────────────────────────────
-export interface TestInfo { name: string; fee: number; }
-
-export const TESTS: Record<string, TestInfo[]> = {
-  'Blood Test': [
-    { name: 'Complete Blood Count (CBC)', fee: 400 },
-    { name: 'Blood Sugar (Fasting)', fee: 200 },
-  ],
-  'Urine Test': [
-    { name: 'Routine Urine Test', fee: 150 },
-  ],
-  'Imaging': [
-    { name: 'X-Ray Chest', fee: 800 },
-    { name: 'Ultrasound Abdomen', fee: 1200 },
-  ],
-};
-
-export const DEPARTMENTS = [
-  'Blood Test',
-  'Urine Test',
-  'Imaging',
-];
-export const ALL_SLOTS = [
-  { time: '09:00 AM - 09:30 AM', booked: false },
-  { time: '10:00 AM - 10:30 AM', booked: false, next: true },
-  { time: '11:00 AM - 11:30 AM', booked: true },
-  { time: '12:00 PM - 12:30 PM', booked: true },
-  { time: '02:00 PM - 02:30 PM', booked: false },
-  { time: '03:00 PM - 03:30 PM', booked: true },
-  { time: '04:00 PM - 04:30 PM', booked: false },
-  { time: '05:00 PM - 05:30 PM', booked: false },
-];
+import { zodFieldErrors } from '@/lib/zod';
+import type { Appointment, FormState } from '../types/appointment.types';
+import { ALL_SLOTS, BLANK_FORM, DEPARTMENTS, TESTS } from '../constants/appointment';
+import { getTestFee, getTodayStr } from '../utils/appointment.utils';
+import { appointmentSchema } from '../schemas/appointment.schema';
 
 const CONSULTING_TYPES = [
-   { value: 'Clinic Collection', icon: <Building2 size={16} /> },
+  { value: 'Clinic Collection', icon: <Building2 size={16} /> },
   { value: 'Home Collection', icon: <Home size={16} /> },
   { value: 'Video Consultation', icon: <Video size={16} /> },
 ];
-
-export const getTodayStr = () => {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-export const getTestFee = (dept: string, testName: string): number | null => {
-  const found = (TESTS[dept] ?? []).find(d => d.name === testName);
-  return found ? found.fee : null;
-};
-
-export const BLANK_FORM: FormState = {
-  consultingType: 'Clinic Visit', department: '', doctor: '', slot: '',
-  date: '', patientName: '', age: '', gender: 'Male',
-  phone: '', permanentAddress: '', localAddress: '',
-  pincode: '', city: '', country: 'India',
-  email: '', whatsapp: '', contactNumber: '', selectedTest: '',
-};
 
 interface NewAppointmentProps {
   isOpen: boolean;
@@ -184,17 +93,13 @@ export default function NewAppointment({
   const selectedTestFee = form.selectedTest ? getTestFee(form.department, form.selectedTest) : null;
 
   const validate = (): boolean => {
-    const e: Partial<Record<keyof FormState, string>> = {};
-    if (!form.consultingType) e.consultingType = 'Required';
-    if (!form.department) e.department = 'Required';
-    if (!form.selectedTest) e.selectedTest = 'Required';
-    if (!form.slot) e.slot = 'Required';
-    if (!form.date) e.date = 'Required';
-    if (!form.patientName.trim()) e.patientName = 'Required';
-    if (!form.age || isNaN(Number(form.age))) e.age = 'Invalid';
-    if (!form.phone.trim() || form.phone.length < 10) e.phone = 'Invalid';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    const parsed = appointmentSchema.safeParse(form);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error) as Partial<Record<keyof FormState, string>>);
+    return false;
   };
 
   const handleSubmit = () => {
