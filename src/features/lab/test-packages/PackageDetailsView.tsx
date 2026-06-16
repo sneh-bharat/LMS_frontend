@@ -18,7 +18,7 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import type { TestPackageDetail } from '@/app/Apis/lab/TestPackage';
+import type { TestPackageDetail } from '@/features/lab/services/lab.service';
 
 interface PackageDetailsViewProps {
   isOpen: boolean;

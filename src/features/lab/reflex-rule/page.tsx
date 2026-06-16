@@ -24,7 +24,7 @@ import {
   toggleReflexRuleStatus,
   type ReflexRule,
   type CreateReflexRuleInput,
-} from '@/app/Apis/lab/ReflexRules';
+} from '@/features/lab/services/lab.service';
 import AddReflexRule from './add-reflex-rule';
 import EditReflexRule from './edit-reflex-rule';
 import ReflexRuleDetailsView from './view-details';

@@ -14,7 +14,7 @@ import { RightDrawer } from '@/components/ui/right-drawer';
 import Badge from '@/components/ui/badge';
 import Button from '@/components/ui/button';
 import { Edit } from 'lucide-react';
-import { Department } from '@/app/Apis/lab/departmentApi';
+import { Department } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 import { useState, useEffect } from 'react';
 

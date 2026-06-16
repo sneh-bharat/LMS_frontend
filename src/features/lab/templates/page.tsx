@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import { useReportTemplates } from '@/app/Apis/lab/TemplateMgmt/useReportTemplates';
-import type { ReportTemplate } from '@/app/Apis/lab/TemplateMgmt/TemplateMgmtApi';
+import { useReportTemplates } from '@/features/lab/services/lab.service';
+import type { ReportTemplate } from '@/features/lab/services/lab.service';
 
 const PAGE_SIZE = 10;
 

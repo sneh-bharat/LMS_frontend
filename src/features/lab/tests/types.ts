@@ -4,7 +4,7 @@
  * This file re-exports types from TestApis.ts for use in the tests module
  */
 
-import type { TestVersion, SampleRequirement, Parameter } from '@/app/Apis/lab/TestApis';
+import type { TestVersion, SampleRequirement, Parameter } from '@/features/lab/services/lab.service';
 
 export type {
   Test,
@@ -18,7 +18,7 @@ export type {
   UpdateTestInput,
   CreateSampleRequirementInput,
   UpdateSampleRequirementInput,
-} from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
 
 /**
  * Form data structure for NewTest component

@@ -21,8 +21,8 @@ const AdvancedTemplateEditor = dynamic(
     ),
   }
 );
-import { useCreateReportTemplate } from '@/app/Apis/lab/TemplateMgmt/useReportTemplates';
-import { mapApplicableForToApi } from '@/app/Apis/lab/reportTemplateApi';
+import { useCreateReportTemplate } from '@/features/lab/services/lab.service';
+import { mapApplicableForToApi } from '@/features/lab/services/lab.service';
 
 const APPLICABLE_OPTIONS = ['Male', 'Female', 'Both'];
 

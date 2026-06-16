@@ -40,7 +40,7 @@ import {
   TestPackageDetail,
   fetchTestPackageById,
  
-} from '@/app/Apis/lab/TestPackage';
+} from '@/features/lab/services/lab.service';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 

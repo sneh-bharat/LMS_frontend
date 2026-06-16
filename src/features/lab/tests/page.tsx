@@ -48,7 +48,7 @@ import {
   fetchSampleRequirements,
   type Test,
   type CreateTestInput,
-} from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
 import { TestVersion, TestParameter, SampleRequirement, ReferenceRange } from './types';

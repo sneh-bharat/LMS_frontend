@@ -10,8 +10,8 @@ import {
   departmentApi,
   type Department,
   type CreateDepartmentInput,
-} from '@/app/Apis/lab/departmentApi';
-import { departmentKeys } from '@/app/Apis/lab/departmentHooks';
+} from '@/features/lab/services/lab.service';
+import { departmentKeys } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 interface AddDepartmentProps {

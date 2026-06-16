@@ -23,13 +23,13 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import type { Test } from '@/app/Apis/lab/TestApis';
+import type { Test } from '@/features/lab/services/lab.service';
 import {
   fetchTestParameters,
   fetchSampleRequirements,
   normalizeParameterForForm,
   unwrapParametersList,
-} from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
 import { branchApi } from '@/app/Apis/branch/branchApi';
 
 interface TestDetailsViewProps {

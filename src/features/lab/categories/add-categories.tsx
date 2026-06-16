@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { Plus, AlertCircle } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
-import { createTestCategory, updateTestCategory, type TestCategory, type CreateCategoryInput } from '@/app/Apis/lab/TestCategories';
-import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import { createTestCategory, updateTestCategory, type TestCategory, type CreateCategoryInput } from '@/features/lab/services/lab.service';
+import { departmentApi, type Department } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 interface AddCategoryProps { 

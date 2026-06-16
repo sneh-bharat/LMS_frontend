@@ -17,7 +17,7 @@ import {
 import { RightDrawer } from '@/components/ui/right-drawer';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import type { ReflexRule } from '@/app/Apis/lab/ReflexRules';
+import type { ReflexRule } from '@/features/lab/services/lab.service';
 
 interface ReflexRuleDetailsViewProps {
   isOpen: boolean;

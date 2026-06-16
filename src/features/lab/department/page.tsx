@@ -19,15 +19,15 @@ import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
 import {
   type Department,
   type CreateDepartmentInput,
-} from '@/app/Apis/lab/departmentApi';
+} from '@/features/lab/services/lab.service';
 import {
   useDepartments,
   useDepartmentByCode,
   useDeleteDepartment,
-} from '@/app/Apis/lab/departmentHooks';
+} from '@/features/lab/services/lab.service';
 import AddDepartment from './new-department';
 import { DepartmentDetails } from '../department/details-view';
-import { departmentApi } from '@/app/Apis/lab/departmentApi';
+import { departmentApi } from '@/features/lab/services/lab.service';
 import { toast } from 'sonner';
 // ─── Components ───────────────────────────────────────────────────────────────
 function DepartmentActions({

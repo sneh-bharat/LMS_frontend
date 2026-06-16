@@ -17,7 +17,7 @@ import {
   fetchReportTemplateByTestId,
   mapApplicableForFromApi,
   type ReportTemplate,
-} from '@/app/Apis/lab/reportTemplateApi';
+} from '@/features/lab/services/lab.service';
 
 export interface ViewTestTemplateProps {
   isOpen: boolean;

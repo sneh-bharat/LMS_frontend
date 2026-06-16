@@ -7,9 +7,9 @@ import Button from '@/components/ui/button';
 import {
   type ReflexRule,
   type UpdateReflexRuleInput,
-} from '@/app/Apis/lab/ReflexRules';
-import { useUpdateReflexRule } from '@/app/Apis/lab/useReflexRules';
-import { fetchTests, fetchTestParameters, type Test, type ParameterResponse } from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
+import { useUpdateReflexRule } from '@/features/lab/services/lab.service';
+import { fetchTests, fetchTestParameters, type Test, type ParameterResponse } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 interface EditReflexRuleProps {

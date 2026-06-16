@@ -9,9 +9,9 @@ import {
   updateReflexRule,
   type ReflexRule,
   type CreateReflexRuleInput,
-} from '@/app/Apis/lab/ReflexRules';
-import { fetchTestCategories, type TestCategory } from '@/app/Apis/lab/TestCategories';
-import { fetchTests, fetchTestParameters, type Test, type ParameterResponse } from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
+import { fetchTestCategories, type TestCategory } from '@/features/lab/services/lab.service';
+import { fetchTests, fetchTestParameters, type Test, type ParameterResponse } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 interface AddReflexRuleProps {

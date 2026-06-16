@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Building2, ChevronDown, Loader2 } from 'lucide-react';
-import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
+import { departmentApi, type Department } from '@/features/lab/services/lab.service';
 
 export const ALL_DEPARTMENTS_VALUE = '';
 

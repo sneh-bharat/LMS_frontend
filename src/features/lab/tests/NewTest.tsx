@@ -24,10 +24,10 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui';
-import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/app/Apis/lab/TestApis';
-import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/app/Apis/lab/TestApis';
-import { departmentApi, type Department } from '@/app/Apis/lab/departmentApi';
-import { fetchTestCategories, type TestCategory } from '@/app/Apis/lab/TestCategories';
+import { createTest, updateTest, createSampleRequirement, updateSampleRequirement, createTestParameter, updateTestParameter, fetchTests, type CreateTestInput, type UpdateTestInput, type Test } from '@/features/lab/services/lab.service';
+import type { TestVersion, SampleRequirement, ReferenceRange, Parameter as TestParameter } from '@/features/lab/services/lab.service';
+import { departmentApi, type Department } from '@/features/lab/services/lab.service';
+import { fetchTestCategories, type TestCategory } from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 // Define TestItem locally as it's the form data structure

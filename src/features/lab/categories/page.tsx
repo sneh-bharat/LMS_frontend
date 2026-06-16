@@ -27,7 +27,7 @@ import {
   toggleCategoryStatus,
   type TestCategory,
   type CreateCategoryInput,
-} from '@/app/Apis/lab/TestCategories';
+} from '@/features/lab/services/lab.service';
 import AddCategory from './add-categories';
 
 // ─── Components ───────────────────────────────────────────────────────────────

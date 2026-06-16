@@ -32,11 +32,11 @@ import {
   CreateTestPackageInput,
   UpdateTestPackageInput,
   TestPackageDetail,
-} from '@/app/Apis/lab/TestPackage';
+} from '@/features/lab/services/lab.service';
 import {
   fetchTests,
   Test
-} from '@/app/Apis/lab/TestApis';
+} from '@/features/lab/services/lab.service';
 import { branchApi, type Branch } from '@/app/Apis/branch/branchApi';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
