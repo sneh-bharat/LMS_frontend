@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import RightDrawer from '@/components/ui/right-drawer';
 import { AlertCircle } from 'lucide-react';
-import { QueueFormData, VisitType, DoctorInfo } from './types';
+import { QueueFormData, DoctorInfo } from './types';
+import { zodFieldErrors } from '@/lib/zod';
+import { queueSchema } from '../schemas/queue.schema';
+import { DEPARTMENTS, VISIT_TYPES } from '../constants/polyclinic';
 
 interface AddQueueModalProps {
   isOpen: boolean;
@@ -44,16 +47,13 @@ export default function AddQueueModal({
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.patientName.trim()) newErrors.patientName = 'Patient name is required';
-    if (!formData.mobile.trim()) newErrors.mobile = 'Mobile number is required';
-    else if (!/^\d{10}$/.test(formData.mobile)) newErrors.mobile = 'Invalid mobile number (10 digits required)';
-    if (!formData.department) newErrors.department = 'Department is required';
-    if (!formData.doctorId) newErrors.doctorId = 'Please select a doctor';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const parsed = queueSchema.safeParse(formData);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleSubmit = () => {
@@ -76,9 +76,6 @@ export default function AddQueueModal({
   };
 
   if (!isOpen) return null;
-
-  const DEPARTMENTS = ['Cardiology', 'Orthopedics', 'Neurology', 'Pediatrics', 'General Medicine', 'Dermatology', 'ENT', 'Gynecology'];
-  const VISIT_TYPES: VisitType[] = ['OPD', 'Diagnostic', 'Follow-up', 'Emergency'];
 
   return (
     <RightDrawer

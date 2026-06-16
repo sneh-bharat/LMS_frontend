@@ -4,36 +4,9 @@ import { useState, useEffect } from 'react';
 import { AlertCircle, Clock, Eye } from 'lucide-react';
 import { RightDrawer } from '@/components/ui/right-drawer';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ScheduleStatus = 'Active' | 'Inactive';
-type Day = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-
-interface OpdSchedule {
-  id: number;
-  doctorName: string;
-  department: string;
-  center: string;
-  days: Day[];
-  startTime: string;
-  endTime: string;
-  slotDuration: number;
-  maxPatients: number;
-  status: ScheduleStatus;
-}
-
-interface OpdScheduleFormData {
-  doctorId: number;
-  doctorName: string;
-  department: string;
-  center: string;
-  days: Day[];
-  startTime: string;
-  endTime: string;
-  slotDuration: number;
-  maxPatients: number;
-  status: ScheduleStatus;
-}
+import { zodFieldErrors } from '@/lib/zod';
+import type { Day, OpdSchedule, OpdScheduleFormData, ScheduleStatus } from '../types/opd-schedule.types';
+import { opdScheduleSchema } from '../schemas/opdSchedule.schema';
 
 // ─── Local Data ───────────────────────────────────────────────────────────────
 
@@ -156,17 +129,13 @@ export default function AddOpdScheduleModal({
   };
 
   const validate = (): boolean => {
-    const e: Record<string, string> = {};
-    if (!formData.doctorId) e.doctorId = 'Please select a doctor';
-    if (!formData.center) e.center = 'Please select a center';
-    if (formData.days.length === 0) e.days = 'Select at least one day';
-    if (!formData.startTime) e.startTime = 'Start time is required';
-    if (!formData.endTime) e.endTime = 'End time is required';
-    if (formData.startTime && formData.endTime && formData.endTime <= formData.startTime)
-      e.endTime = 'End time must be after start time';
-    if (!formData.maxPatients || formData.maxPatients < 1) e.maxPatients = 'Must be at least 1';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    const parsed = opdScheduleSchema.safeParse(formData);
+    if (parsed.success) {
+      setErrors({});
+      return true;
+    }
+    setErrors(zodFieldErrors(parsed.error));
+    return false;
   };
 
   const handleSubmit = () => {
