@@ -17,6 +17,8 @@ export interface Pathologist {
   isActive?: boolean | null;
   createdAt?: string;
   requestId?: number | null;
+  content?: Pathologist[];
+  totalElements?: number;
 }
 
 export interface PathologistsPage {

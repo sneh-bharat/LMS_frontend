@@ -15,6 +15,8 @@ export interface BranchManager {
   isActive?: boolean | null;
   createdAt?: string;
   requestId?: number | null;
+  content?: BranchManager[];
+  totalElements?: number;
 }
 
 export interface BranchManagersPage {

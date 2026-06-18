@@ -12,6 +12,8 @@ export interface Receptionist {
   branchName?: string;
   isVerified?: boolean | null;
   isActive?: boolean | null;
+  content?: Receptionist[];
+  totalElements?: number;
 }
 
 export interface ReceptionistsPage {
