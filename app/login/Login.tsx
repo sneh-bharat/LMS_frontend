@@ -49,6 +49,10 @@ export default function LoginPage() {
                 localStorage.setItem('token', token);
                 localStorage.setItem('refreshToken', refreshToken);
                 localStorage.setItem('role', loginDetails.role);
+                localStorage.setItem('username', username.trim());
+                if (loginDetails.id != null) {
+                    localStorage.setItem('userId', String(loginDetails.id));
+                }
                 if (loginDetails.fullName) {
                     localStorage.setItem('fullName', loginDetails.fullName);
                 }

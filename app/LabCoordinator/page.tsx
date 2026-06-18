@@ -124,11 +124,10 @@ function LabCoordinatorActions({
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onToggleStatus(coordinator)}
-          className={`rounded-lg py-2.5 text-xs font-black uppercase ${
-            active
+          className={`rounded-lg py-2.5 text-xs font-black uppercase ${active
               ? 'text-rose-600 focus:bg-rose-50 focus:text-rose-700'
               : 'text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700'
-          }`}
+            }`}
         >
           <Plus size={14} className={active ? 'rotate-45' : 'rotate-0'} />
           {active ? 'Deactivate' : 'Activate'}
@@ -284,7 +283,7 @@ export default function LabCoordinatorListPage() {
           }
           toast.success(
             res.message?.trim() ||
-              `Lab coordinator ${nextIsActive ? 'activated' : 'deactivated'} successfully.`
+            `Lab coordinator ${nextIsActive ? 'activated' : 'deactivated'} successfully.`
           );
           setStatusCoordinator(null);
           handleFormSuccess();
@@ -304,345 +303,324 @@ export default function LabCoordinatorListPage() {
         onClose={() => setAddModalOpen(false)}
       />
 
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        <div>
-          <h1 className={listingTitle}>
-            Lab <span className="text-emerald-600">Coordinators</span>
-          </h1>
-          <p className={`${listingSubtitle} max-w-xl`}>
-            View and manage lab coordinator accounts and department assignments.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="gradient"
-            size="sm"
-            className="gap-2 shadow-sm px-8 font-bold"
-            onClick={() => setAddModalOpen(true)}
-          >
-            <UserPlus size={16} aria-hidden />
-            New coordinator
-          </Button>
-        </div>
-      </div>
-
-      <div className={listingToolbar}>
-        <div className={listingToolbarInner}>
-        <div className="relative flex-1 group w-full min-w-0">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
-            size={16}
-            aria-hidden
-          />
-          <input
-            type="search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search lab coordinator Username"
-            className={listingSearchInput}
-            aria-label="Search lab coordinators"
-            disabled={isLoading}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
-          <div className="relative flex-1 sm:min-w-35 group">
-            <Filter
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none"
-              size={14}
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as LabCoordinatorStatusFilter);
-                setPageNo(0);
-              }}
-              className={listingFilterSelect}
-              aria-label="Filter by status"
-              disabled={isLoading}
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="verified">Verified</option>
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-              size={14}
-            />
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div>
+            <h1 className={listingTitle}>
+              Lab <span className="text-emerald-600">Coordinators</span>
+            </h1>
+            <p className={`${listingSubtitle} max-w-xl`}>
+              View and manage lab coordinator accounts and department assignments.
+            </p>
           </div>
-          {/* <div className="relative flex-1 sm:min-w-35 group">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              size={14}
-            />
-            <select
-              value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value as SearchBy)}
-              className="input-refined w-full py-2.5 pl-10 pr-10 text-[10px] font-bold uppercase tracking-wider appearance-none"
-              aria-label="Search by"
-              disabled={isLoading}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="gradient"
+              size="sm"
+              className="gap-2 shadow-sm px-8 font-bold"
+              onClick={() => setAddModalOpen(true)}
             >
-              <option value="Name">Search by name</option>
-              <option value="Username">Search by username</option>
-              <option value="Department">Search by department</option>
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-              size={14}
-            />
-          </div> */}
-          <button
-            type="button"
-            className={listingRefreshBtn}
-            onClick={handleRefresh}
-            disabled={isLoading || isFetching}
-            title="Refresh list"
-          >
-            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} aria-hidden />
-          </button>
+              <UserPlus size={16} aria-hidden />
+              New coordinator
+            </Button>
+          </div>
         </div>
-        </div>
-      </div>
 
-      {isError ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
-          <AlertCircle size={18} className="shrink-0" aria-hidden />
-          <span className="font-medium">
-            {error instanceof Error ? error.message : 'Failed to load lab coordinators.'}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="ml-auto font-bold"
-            onClick={handleRefresh}
-          >
-            Retry
-          </Button>
-        </div>
-      ) : null}
+        <div className={listingToolbar}>
+          <div className={listingToolbarInner}>
+            <div className="relative flex-1 group w-full min-w-0">
+              <Search
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"
+                size={16}
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search lab coordinator Username"
+                className={listingSearchInput}
+                aria-label="Search lab coordinators"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+              <div className="relative flex-1 sm:min-w-35 group">
+                <Filter
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none"
+                  size={14}
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as LabCoordinatorStatusFilter);
+                    setPageNo(0);
+                  }}
+                  className={listingFilterSelect}
+                  aria-label="Filter by status"
+                  disabled={isLoading}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="verified">Verified</option>
+                </select>
+                <ChevronDown
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+                  size={14}
+                />
+              </div>
 
-      {isLoading ? (
-        <div className={listingLoadingBox}>
-          <Loader className="text-slate-400 animate-spin" size={32} aria-hidden />
-          <p className={listingLoadingText}>Loading lab coordinators…</p>
+              <button
+                type="button"
+                className={listingRefreshBtn}
+                onClick={handleRefresh}
+                disabled={isLoading || isFetching}
+                title="Refresh list"
+              >
+                <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} aria-hidden />
+              </button>
+            </div>
+          </div>
         </div>
-      ) : rows.length === 0 ? (
-        <div className={listingEmptyBox}>
-          <p className={listingEmptyTitle}>
-            {isUsernameApiSearch
-              ? `No lab coordinator found with username "${debouncedSearch}".`
-              : 'No lab coordinators found.'}
-          </p>
-        </div>
-      ) : (
-        <div className={listingTableCard}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className={listingTableTh}>
-                    Full Name
-                  </th>
-                  <th className={listingTableTh}>
-                    Username
-                  </th>
-                  <th className={listingTableTh}>
-                    Department
-                  </th>
-                 
-                  <th className={listingTableTh}>
-                    Branch
-                  </th>
-                  <th className={listingTableTh}>
-                    Role
-                  </th>
-                  <th className={`${listingTableTh} text-center`}>
-                    Status
-                  </th>
-                  <th className={`${listingTableTh} text-center`}>
-                    Verified
-                  </th>
-                  <th className={`${listingTableTh} text-center`}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
-                      {isUsernameApiSearch
-                        ? `No lab coordinator found with username "${debouncedSearch}".`
-                        : 'No lab coordinators match the current filters.'}
-                    </td>
+
+        {isError ? (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
+            <AlertCircle size={18} className="shrink-0" aria-hidden />
+            <span className="font-medium">
+              {error instanceof Error ? error.message : 'Failed to load lab coordinators.'}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto font-bold"
+              onClick={handleRefresh}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
+        {isLoading ? (
+          <div className={listingLoadingBox}>
+            <Loader className="text-slate-400 animate-spin" size={32} aria-hidden />
+            <p className={listingLoadingText}>Loading lab coordinators…</p>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className={listingEmptyBox}>
+            <p className={listingEmptyTitle}>
+              {isUsernameApiSearch
+                ? `No lab coordinator found with username "${debouncedSearch}".`
+                : 'No lab coordinators found.'}
+            </p>
+          </div>
+        ) : (
+          <div className={listingTableCard}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className={listingTableTh}>
+                      Full Name
+                    </th>
+                    <th className={listingTableTh}>
+                      Username
+                    </th>
+                    <th className={listingTableTh}>
+                      Department
+                    </th>
+
+                    <th className={listingTableTh}>
+                      Branch
+                    </th>
+                    <th className={listingTableTh}>
+                      Role
+                    </th>
+                    <th className={`${listingTableTh} text-center`}>
+                      Status
+                    </th>
+                    <th className={`${listingTableTh} text-center`}>
+                      Verified
+                    </th>
+                    <th className={`${listingTableTh} text-center`}>
+                      Actions
+                    </th>
                   </tr>
-                ) : (
-                  filteredRows.map((row) => {
-                    const active = isLabCoordinatorActive(row);
-                    const verified = row.isVerified === true;
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
+                        {isUsernameApiSearch
+                          ? `No lab coordinator found with username "${debouncedSearch}".`
+                          : 'No lab coordinators match the current filters.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((row) => {
+                      const active = isLabCoordinatorActive(row);
+                      const verified = row.isVerified === true;
 
-                    return (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors group"
-                      >
-                        <td className="px-6 py-5">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[#006D77] group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
-                              <FlaskConical size={18} aria-hidden />
-                            </div>
-                            <div className="min-w-0">
-                              <div className={listingRowTitle}>
-                                {getLabCoordinatorName(row)}
+                      return (
+                        <tr
+                          key={row.id}
+                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors group"
+                        >
+                          <td className="px-6 py-5">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[#006D77] group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
+                                <FlaskConical size={18} aria-hidden />
+                              </div>
+                              <div className="min-w-0">
+                                <div className={listingRowTitle}>
+                                  {getLabCoordinatorName(row)}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className={`px-6 py-5 ${listingRowMono}`}>
-                          {row.username?.trim() || '—'}
-                        </td>
-                        <td className="px-6 py-5 text-sm font-semibold text-slate-700">
-                          {getLabCoordinatorDepartment(row)}
-                        </td>
-                        <td className="px-6 py-5 text-sm font-semibold">
-                          {row.branchName?.trim() || '—'}
-                        </td>
-                        <td className="px-6 py-5">
-                          <Badge
-                            variant="secondary"
-                            className={`${listingBadge} uppercase tracking-wide`}
-                          >
-                            {row.role?.trim() || '—'}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <Badge
-                            variant={active ? 'default' : 'secondary'}
-                            className={
-                              active
-                                ? `bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge}`
-                                : listingBadge
-                            }
-                          >
-                            {getLabCoordinatorStatusLabel(row)}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <Badge
-                            variant={verified ? 'default' : 'secondary'}
-                            className={
-                              verified
-                                ? `bg-sky-600 hover:bg-sky-600 text-white ${listingBadge}`
-                                : listingBadge
-                            }
-                          >
-                            {getLabCoordinatorVerifiedLabel(row)}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                        <LabCoordinatorActions
-                            coordinator={row}
-                            onView={setViewCoordinatorId}
-                            onEdit={setEditCoordinatorId}
-                            onDelete={handleDelete}
-                            onToggleStatus={handleToggleStatus}
+                          </td>
+                          <td className={`px-6 py-5 ${listingRowMono}`}>
+                            {row.username?.trim() || '—'}
+                          </td>
+                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">
+                            {getLabCoordinatorDepartment(row)}
+                          </td>
+                          <td className="px-6 py-5 text-sm font-semibold">
+                            {row.branchName?.trim() || '—'}
+                          </td>
+                          <td className="px-6 py-5">
+                            <Badge
+                              variant="secondary"
+                              className={`${listingBadge} uppercase tracking-wide`}
+                            >
+                              {row.role?.trim() || '—'}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <Badge
+                              variant={active ? 'default' : 'secondary'}
+                              className={
+                                active
+                                  ? `bg-emerald-600 hover:bg-emerald-600 text-white ${listingBadge}`
+                                  : listingBadge
+                              }
+                            >
+                              {getLabCoordinatorStatusLabel(row)}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <Badge
+                              variant={verified ? 'default' : 'secondary'}
+                              className={
+                                verified
+                                  ? `bg-sky-600 hover:bg-sky-600 text-white ${listingBadge}`
+                                  : listingBadge
+                              }
+                            >
+                              {getLabCoordinatorVerifiedLabel(row)}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <LabCoordinatorActions
+                              coordinator={row}
+                              onView={setViewCoordinatorId}
+                              onEdit={setEditCoordinatorId}
+                              onDelete={handleDelete}
+                              onToggleStatus={handleToggleStatus}
                             />
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          <div className={listingTableFooter}>
-            <div className={`flex items-center gap-2 ${listingPaginationText}`}>
-              <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
-              <span>
-                Page {pageNo + 1} of {Math.max(totalPages, 1)}
-                <span className="text-slate-400 mx-2">·</span>
-                {totalElements} total
-              </span>
-            </div>
-            <div className="flex items-center gap-2 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={listingPaginationBtn}
-                disabled={!canPrev || isFetching}
-                onClick={() => setPageNo((p) => Math.max(0, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={listingPaginationBtn}
-                disabled={!canNext || isFetching}
-                onClick={() => setPageNo((p) => p + 1)}
-              >
-                Next
-              </Button>
+            <div className={listingTableFooter}>
+              <div className={`flex items-center gap-2 ${listingPaginationText}`}>
+                <Database size={14} className="text-emerald-600 shrink-0" aria-hidden />
+                <span>
+                  Page {pageNo + 1} of {Math.max(totalPages, 1)}
+                  <span className="text-slate-400 mx-2">·</span>
+                  {totalElements} total
+                </span>
+              </div>
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={listingPaginationBtn}
+                  disabled={!canPrev || isFetching}
+                  onClick={() => setPageNo((p) => Math.max(0, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={listingPaginationBtn}
+                  disabled={!canNext || isFetching}
+                  onClick={() => setPageNo((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         <EditCoordinator
-        isOpen={editCoordinatorId !== null}
-        coordinatorId={editCoordinatorId}
-        onSuccess={handleFormSuccess}
-        onClose={() => setEditCoordinatorId(null)}
-      />
+          isOpen={editCoordinatorId !== null}
+          coordinatorId={editCoordinatorId}
+          onSuccess={handleFormSuccess}
+          onClose={() => setEditCoordinatorId(null)}
+        />
 
 
-      <LabCoordinatorDetailsView
-        isOpen={viewCoordinatorId != null}
-        onClose={() => setViewCoordinatorId(null)}
-        coordinatorId={viewCoordinatorId}
-      />
-      <ConfirmAlertDialog
-        isOpen={Boolean(statusCoordinator)}
-        onClose={() => {
-          if (!activateMutation.isPending) setStatusCoordinator(null);
-        }}
-        onConfirm={handleConfirmToggleStatus}
-        title={
-          statusCoordinator && isLabCoordinatorActive(statusCoordinator)
-            ? 'Deactivate Lab Coordinator'
-            : 'Activate Lab Coordinator'
-        }
-        description={`Are you sure you want to ${
-          statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'deactivate' : 'activate'
-        } "${statusCoordinator ? getLabCoordinatorName(statusCoordinator) : 'this lab coordinator'}"?`}
-        confirmText={
-          statusCoordinator && isLabCoordinatorActive(statusCoordinator)
-            ? 'Deactivate Now'
-            : 'Activate Now'
-        }
-        isLoading={activateMutation.isPending}
-        variant={
-          statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'destructive' : 'success'
-        }
-      />
+        <LabCoordinatorDetailsView
+          isOpen={viewCoordinatorId != null}
+          onClose={() => setViewCoordinatorId(null)}
+          coordinatorId={viewCoordinatorId}
+        />
+        <ConfirmAlertDialog
+          isOpen={Boolean(statusCoordinator)}
+          onClose={() => {
+            if (!activateMutation.isPending) setStatusCoordinator(null);
+          }}
+          onConfirm={handleConfirmToggleStatus}
+          title={
+            statusCoordinator && isLabCoordinatorActive(statusCoordinator)
+              ? 'Deactivate Lab Coordinator'
+              : 'Activate Lab Coordinator'
+          }
+          description={`Are you sure you want to ${statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'deactivate' : 'activate'
+            } "${statusCoordinator ? getLabCoordinatorName(statusCoordinator) : 'this lab coordinator'}"?`}
+          confirmText={
+            statusCoordinator && isLabCoordinatorActive(statusCoordinator)
+              ? 'Deactivate Now'
+              : 'Activate Now'
+          }
+          isLoading={activateMutation.isPending}
+          variant={
+            statusCoordinator && isLabCoordinatorActive(statusCoordinator) ? 'destructive' : 'success'
+          }
+        />
 
-      <DeleteAlertDialog
-        isOpen={Boolean(deleteCoordinator)}
-        onClose={() => {
-          if (!deleteMutation.isPending) setDeleteCoordinator(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Delete Lab Coordinator"
-        description={`Are you sure you want to delete ${deleteCoordinator ? getLabCoordinatorName(deleteCoordinator) : 'this lab coordinator'}? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
-      />
-    </div>
+        <DeleteAlertDialog
+          isOpen={Boolean(deleteCoordinator)}
+          onClose={() => {
+            if (!deleteMutation.isPending) setDeleteCoordinator(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Delete Lab Coordinator"
+          description={`Are you sure you want to delete ${deleteCoordinator ? getLabCoordinatorName(deleteCoordinator) : 'this lab coordinator'}? This action cannot be undone.`}
+          isLoading={deleteMutation.isPending}
+        />
+      </div>
     </>
   );
 }

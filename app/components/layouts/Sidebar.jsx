@@ -93,14 +93,14 @@ const NAV = [
     icon: <Microscope size={20} />,
     children: [
       { label: "Test Packages", href: "/lab/test-packages" },
-      // { label: 'Units', href: '/lab/units' },
+     
       { label: "Tests", href: "/lab/tests" },
       { label: "Test Categories", href: "/lab/categories" },
       { label: "Test Department", href: "/lab/department" },
       { label: "Reflex Rule", href: "/lab/reflex-rule" },
       { label: "Sample Receipt", href: "/lab/sample-receipt" },
       { label: "Machine & Instrument", href: "/management/Machineinstrument" },
-      { label: "Test Result", href: "/lab/test-result" },
+      { label: "Test  Requisition", href: "/testrequisition" },
     ],
   },
   {
