@@ -4,11 +4,17 @@ import type { Test } from '@/app/Apis/lab/TestApis';
 export type { BookingInvestigation };
 
 export function testToInvestigation(test: Test): BookingInvestigation {
+  const sample = test.sampleRequirements?.[0];
   return {
     id: test.id,
     name: test.testName,
     mrp: test.price,
     category: test.categoryName || test.departmentName || 'General',
+    testCode: test.testCode,
+    categoryId: test.categoryId,
+    departmentId: test.departmentId,
+    sampleType: sample?.sampleType,
+    vialType: sample?.containerColor,
   };
 }
 

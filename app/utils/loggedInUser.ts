@@ -4,6 +4,17 @@ export function getLoggedInFullName(): string {
   return localStorage.getItem('fullName')?.trim() ?? '';
 }
 
+/** Login username (`localStorage.username`). */
+export function getLoggedInUsername(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('username')?.trim() ?? '';
+}
+
+/** Best value to send as created-by on create payloads. */
+export function getCreatedByName(): string {
+  return getLoggedInFullName() || getLoggedInUsername() || 'Staff';
+}
+
 /**
  * Prefer human-readable full name for "Processed by" display.
  * Falls back to stored API value when no full name is available.

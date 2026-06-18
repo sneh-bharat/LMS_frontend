@@ -13,6 +13,11 @@ export interface BookingInvestigation {
   name: string;
   mrp: number;
   category: string;
+  testCode?: string;
+  categoryId?: number;
+  departmentId?: number;
+  sampleType?: string;
+  vialType?: string;
 }
 
 export interface BookingFormSnapshot {

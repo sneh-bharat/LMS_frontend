@@ -19,10 +19,14 @@ export const branchKeys = {
 /**
  * Hook to fetch branches with pagination, search, and filtering
  */
-export function useBranches(params: BranchQueryParams = {}) {
+export function useBranches(
+  params: BranchQueryParams = {},
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: branchKeys.list(params),
     queryFn: () => branchApi.getAllBranches(params),
+    enabled: options?.enabled ?? true,
     staleTime: 5 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
