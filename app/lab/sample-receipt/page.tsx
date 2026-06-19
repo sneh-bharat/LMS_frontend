@@ -28,6 +28,7 @@ import {
   ArrowRightCircle,
   MoreVertical,
   Eye,
+  Edit2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,15 +41,19 @@ import SampleDetails from '@/app/lab/sample-receipt/Sample-details';
 import UpdateSampleStatus from '@/app/lab/sample-receipt/update-sample-status';
 import EditSample from '@/app/lab/sample-receipt/edit-sample';
 import SampleProcess from '@/app/lab/sample-receipt/sample-process';
+import UpdateSampleProcess from '@/app/lab/sample-receipt/update-process';
 import ProcessDetails from '@/app/lab/sample-receipt/process-details';
 import {
   useSamplesList,
   useSampleStatistics,
   useDeleteSample,
+  useDeleteSampleProcessing,
   useBulkDeleteSamples,
 } from '@/app/Apis/booking/useSamples';
 import type { SampleStatisticsData } from '@/app/Apis/booking/sample';
 import {
+  fetchSampleProcessingBySampleId,
+  resolveLatestProcessingIdForSample,
   mapSampleToReceipt,
   SAMPLE_API_STATUSES,
   formatSampleStatusLabel,
@@ -60,6 +65,7 @@ import { toast } from 'sonner';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
 import { DeleteAlertDialog } from '@/components/ui/delete-alert-dialog';
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 type Receipt = SampleReceiptRow;
@@ -149,8 +155,15 @@ type SampleActionsMenuProps = {
   onViewProcessingDetails: (receipt: Receipt) => void;
   onOpenStatusForm: (receipt: Receipt) => void;
   onEdit: (receipt: Receipt) => void;
+  onUpdateProcess: (receipt: Receipt) => void;
+  onDeleteProcess: (receipt: Receipt) => void;
   onDelete: (id: number) => void;
 };
+
+function hasProcessingId(receipt: Receipt): boolean {
+  const id = receipt.processingId;
+  return id != null && id > 0;
+}
 
 function SampleActionsMenu({
   receipt,
@@ -161,6 +174,8 @@ function SampleActionsMenu({
   onViewProcessingDetails,
   onOpenStatusForm,
   onEdit,
+  onUpdateProcess,
+  onDeleteProcess,
   onDelete,
 }: SampleActionsMenuProps) {
   return (
@@ -199,20 +214,8 @@ function SampleActionsMenu({
           <Eye size={16} className="mr-3 text-emerald-500" />
           <span>View Details</span>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onOpenProcessForm(receipt)}
-          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
-        >
-          <Activity size={16} className="mr-3 text-amber-500" />
-          <span>Record Processing</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onViewProcessingDetails(receipt)}
-          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
-        >
-          <ClipboardList size={16} className="mr-3 text-amber-600" />
-          <span>Processing Details</span>
-        </DropdownMenuItem>
+      
+      
         <DropdownMenuItem
           onClick={() => onOpenStatusForm(receipt)}
           className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-blue-700"
@@ -228,6 +231,7 @@ function SampleActionsMenu({
           <Edit3 size={16} className="mr-3 text-emerald-500" />
           <span>Edit Sample</span>
         </DropdownMenuItem>
+       
         <DropdownMenuItem
           onClick={() => onDelete(receipt.id)}
           className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
@@ -235,6 +239,39 @@ function SampleActionsMenu({
           <Trash2 size={16} className="mr-3" />
           <span>Delete Sample</span>
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onOpenProcessForm(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+        >
+          <Activity size={16} className="mr-3 text-amber-500" />
+          <span>Record Processing</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onViewProcessingDetails(receipt)}
+          className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-amber-700"
+        >
+          <ClipboardList size={16} className="mr-3 text-amber-600" />
+          <span>Processing Details</span>
+        </DropdownMenuItem>
+        {hasProcessingId(receipt) ? (
+          <DropdownMenuItem
+            onClick={() => onUpdateProcess(receipt)}
+            className="rounded-lg py-2.5 font-bold text-amber-600 hover:text-amber-700"
+          >
+            <Edit2 size={16} className="mr-3 text-amber-500" />
+            <span>Update Process</span>
+          </DropdownMenuItem>
+        ) : null}
+        {hasProcessingId(receipt) ? (
+          <DropdownMenuItem
+            onClick={() => onDeleteProcess(receipt)}
+            className="rounded-lg py-2.5 font-bold text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50"
+          >
+            <Trash2 size={16} className="mr-3" />
+            <span>Delete Processing</span>
+          </DropdownMenuItem>
+        ) : null}
+
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -262,17 +299,28 @@ export default function SampleReceiptPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const deleteSampleMutation = useDeleteSample();
+  const deleteProcessMutation = useDeleteSampleProcessing();
   const bulkDeleteSamplesMutation = useBulkDeleteSamples();
   const isDeletePending =
     deleteSampleMutation.isPending || bulkDeleteSamplesMutation.isPending;
+  const isDeleteProcessPending = deleteProcessMutation.isPending;
   const [editOpen, setEditOpen] = useState(false);
   const [editingSampleId, setEditingSampleId] = useState<number | null>(null);
   const [processFormOpen, setProcessFormOpen] = useState(false);
   const [processTarget, setProcessTarget] = useState<{
     id: number;
     label: string;
-    processId?: number;
+  } | null>(null);
+  const [updateProcessOpen, setUpdateProcessOpen] = useState(false);
+  const [updateProcessTarget, setUpdateProcessTarget] = useState<{
+    processId: number;
+    label: string;
     record?: SampleProcessingRecord;
+  } | null>(null);
+  const [deleteProcessTarget, setDeleteProcessTarget] = useState<{
+    sampleId: number;
+    processId: number;
+    label: string;
   } | null>(null);
   const [processDetailsOpen, setProcessDetailsOpen] = useState(false);
   const [processDetailsTarget, setProcessDetailsTarget] = useState<{
@@ -311,7 +359,60 @@ export default function SampleReceiptPage() {
   );
 
   useEffect(() => {
-    setReceipts(apiReceipts);
+    setReceipts((prev) =>
+      apiReceipts.map((row) => {
+        const existing = prev.find((r) => r.id === row.id);
+        const processingId = row.processingId ?? existing?.processingId ?? null;
+        return processingId != null && processingId > 0
+          ? { ...row, processingId }
+          : row;
+      }),
+    );
+  }, [apiReceipts]);
+
+  /** Samples list API often omits processingId — resolve from GET /sample-processing/sample/{id}. */
+  useEffect(() => {
+    const missing = apiReceipts.filter((r) => !hasProcessingId(r));
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const pairs = await Promise.all(
+        missing.map(async (row) => {
+          try {
+            const processId = await resolveLatestProcessingIdForSample(row.id);
+            return { sampleId: row.id, processId };
+          } catch {
+            return { sampleId: row.id, processId: null as number | null };
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      const idBySample = new Map<number, number>();
+      for (const { sampleId, processId } of pairs) {
+        if (processId != null && processId > 0) {
+          idBySample.set(sampleId, processId);
+        }
+      }
+
+      if (idBySample.size === 0) return;
+
+      setReceipts((prev) =>
+        prev.map((row) => {
+          const processId = row.processingId ?? idBySample.get(row.id);
+          return processId != null && processId > 0
+            ? { ...row, processingId: processId }
+            : row;
+        }),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [apiReceipts]);
 
   const totalElements = samplesPage?.totalElements ?? 0;
@@ -502,13 +603,121 @@ export default function SampleReceiptPage() {
 
   const handleEditProcessing = (record: SampleProcessingRecord) => {
     setProcessDetailsOpen(false);
-    setProcessTarget({
-      id: record.sampleId,
-      label: processDetailsTarget?.label ?? `Sample #${record.sampleId}`,
+    patchReceiptProcessingId(record.sampleId, record.id);
+    setUpdateProcessTarget({
       processId: record.id,
+      label: processDetailsTarget?.label ?? `Sample #${record.sampleId}`,
       record,
     });
-    setProcessFormOpen(true);
+    setUpdateProcessOpen(true);
+  };
+
+  const handleCloseUpdateProcess = () => {
+    setUpdateProcessOpen(false);
+    setUpdateProcessTarget(null);
+  };
+
+  const patchReceiptProcessingId = (sampleId: number, processId: number) => {
+    setReceipts((prev) =>
+      prev.map((r) => (r.id === sampleId ? { ...r, processingId: processId } : r)),
+    );
+  };
+
+  const clearReceiptProcessingId = (sampleId: number) => {
+    setReceipts((prev) =>
+      prev.map((r) => (r.id === sampleId ? { ...r, processingId: null } : r)),
+    );
+  };
+
+  const handleProcessingDeleted = (sampleId: number) => {
+    clearReceiptProcessingId(sampleId);
+    void refetch();
+  };
+
+  const handleUpdateProcess = async (receipt: Receipt) => {
+    let processId = receipt.processingId;
+    let record: SampleProcessingRecord | undefined;
+
+    if (processId == null || processId <= 0) {
+      try {
+        const res = await fetchSampleProcessingBySampleId(receipt.id);
+        const latest = res.data?.[0];
+        if (!latest?.id) {
+          toast.error('No processing record found. Record processing first.');
+          return;
+        }
+        processId = latest.id;
+        record = latest;
+        patchReceiptProcessingId(receipt.id, latest.id);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to load processing record.',
+        );
+        return;
+      }
+    }
+
+    setUpdateProcessTarget({
+      processId,
+      label: receipt.sampleId,
+      record,
+    });
+    setUpdateProcessOpen(true);
+  };
+
+  const handleDeleteProcess = async (receipt: Receipt) => {
+    let processId = receipt.processingId;
+
+    if (processId == null || processId <= 0) {
+      try {
+        const res = await fetchSampleProcessingBySampleId(receipt.id);
+        const latest = res.data?.[0];
+        if (!latest?.id) {
+          toast.error('No processing record found.');
+          return;
+        }
+        processId = latest.id;
+        patchReceiptProcessingId(receipt.id, latest.id);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to load processing record.',
+        );
+        return;
+      }
+    }
+
+    setDeleteProcessTarget({
+      sampleId: receipt.id,
+      processId,
+      label: receipt.sampleId,
+    });
+  };
+
+  const handleConfirmDeleteProcess = () => {
+    if (!deleteProcessTarget) return;
+
+    deleteProcessMutation.mutate(
+      {
+        processId: deleteProcessTarget.processId,
+        sampleId: deleteProcessTarget.sampleId,
+      },
+      {
+        onSuccess: (res) => {
+          if (res.response === false) {
+            toast.error(res.message || 'Failed to delete processing record.');
+            return;
+          }
+          toast.success(
+            res.message?.trim() || 'Processing deleted. You can record processing again.',
+          );
+          handleProcessingDeleted(deleteProcessTarget.sampleId);
+          setDeleteProcessTarget(null);
+        },
+        onError: (err) => {
+          toast.error(err.message || 'Failed to delete processing record.');
+        },
+      },
+    );
   };
 
   const handleOpenProcessDetails = (sampleId: number, label: string) => {
@@ -551,12 +760,31 @@ export default function SampleReceiptPage() {
         onClose={handleCloseProcessForm}
         sampleId={processTarget?.id ?? null}
         sampleLabel={processTarget?.label}
-        processId={processTarget?.processId ?? null}
-        initialRecord={processTarget?.record ?? null}
-        onSuccess={() => {
+        onSuccess={(record) => {
+          if (record?.id && record.sampleId) {
+            patchReceiptProcessingId(record.sampleId, record.id);
+          }
           void refetch();
           if (processTarget?.id) {
             handleOpenProcessDetails(processTarget.id, processTarget.label);
+          }
+        }}
+      />
+
+      <UpdateSampleProcess
+        isOpen={updateProcessOpen}
+        onClose={handleCloseUpdateProcess}
+        processId={updateProcessTarget?.processId ?? null}
+        sampleLabel={updateProcessTarget?.label}
+        initialRecord={updateProcessTarget?.record ?? null}
+        onSuccess={(record) => {
+          if (record?.id && record.sampleId) {
+            patchReceiptProcessingId(record.sampleId, record.id);
+          }
+          void refetch();
+          const sampleId = record?.sampleId ?? updateProcessTarget?.record?.sampleId;
+          if (sampleId) {
+            handleOpenProcessDetails(sampleId, updateProcessTarget?.label ?? `Sample #${sampleId}`);
           }
         }}
       />
@@ -566,6 +794,7 @@ export default function SampleReceiptPage() {
         sampleId={processDetailsTarget?.sampleId ?? null}
         sampleLabel={processDetailsTarget?.label}
         onEditRecord={handleEditProcessing}
+        onDeletedRecord={(sampleId) => handleProcessingDeleted(sampleId)}
       />
 
       {/* ── Header ── */}
@@ -847,6 +1076,8 @@ export default function SampleReceiptPage() {
                         onViewProcessingDetails={handleViewProcessingDetails}
                         onOpenStatusForm={handleOpenStatusForm}
                         onEdit={handleEdit}
+                        onUpdateProcess={handleUpdateProcess}
+                        onDeleteProcess={handleDeleteProcess}
                         onDelete={handleDelete}
                       />
                     </div>
@@ -955,6 +1186,8 @@ export default function SampleReceiptPage() {
                               onViewProcessingDetails={handleViewProcessingDetails}
                               onOpenStatusForm={handleOpenStatusForm}
                               onEdit={handleEdit}
+                              onUpdateProcess={handleUpdateProcess}
+                              onDeleteProcess={handleDeleteProcess}
                               onDelete={handleDelete}
                             />
                           </div>
@@ -1013,6 +1246,20 @@ export default function SampleReceiptPage() {
         title={deleteDialogTitle}
         description={deleteDialogDescription}
         isLoading={isDeletePending}
+      />
+
+      <ConfirmAlertDialog
+        isOpen={Boolean(deleteProcessTarget)}
+        onClose={() => {
+          if (!isDeleteProcessPending) setDeleteProcessTarget(null);
+        }}
+        onConfirm={handleConfirmDeleteProcess}
+        title="Delete processing record"
+        description={`Remove processing for "${deleteProcessTarget?.label ?? 'this sample'}"? You can record processing again afterward.`}
+        confirmText="Delete processing"
+        cancelText="Keep record"
+        variant="warning"
+        isLoading={isDeleteProcessPending}
       />
     </div>
   );

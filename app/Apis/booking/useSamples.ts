@@ -8,6 +8,7 @@ import {
   registerSample,
   createSampleProcessing,
   updateSampleProcessing,
+  deleteSampleProcessing,
   fetchSampleProcessingById,
   fetchSampleProcessingBySampleId,
   updateSampleStatus,
@@ -24,6 +25,7 @@ import {
   type CreateSampleProcessingApiResponse,
   type UpdateSampleProcessingPayload,
   type UpdateSampleProcessingApiResponse,
+  type DeleteSampleProcessingApiResponse,
   type SampleProcessingByIdApiResponse,
   type SampleProcessingBySampleApiResponse,
   type SampleByIdApiResponse,
@@ -203,6 +205,28 @@ export function useUpdateSampleProcessing() {
       queryClient.invalidateQueries({
         queryKey: sampleQueryKeys.processingBySample(payload.sampleId),
       });
+    },
+  });
+}
+
+/** DELETE `/api/v1/sample-processing/{processId}` */
+export function useDeleteSampleProcessing() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    DeleteSampleProcessingApiResponse,
+    Error,
+    { processId: number; sampleId: number }
+  >({
+    mutationFn: ({ processId }) => deleteSampleProcessing(processId),
+    onSuccess: (res, { processId, sampleId }) => {
+      if (res.response === false) return;
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.processing(processId) });
+      queryClient.invalidateQueries({
+        queryKey: sampleQueryKeys.processingBySample(sampleId),
+      });
+      queryClient.invalidateQueries({ queryKey: sampleQueryKeys.detail(sampleId) });
     },
   });
 }

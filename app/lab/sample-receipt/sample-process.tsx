@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, Edit2, FlaskConical, Loader2 } from 'lucide-react';
+import { Activity, FlaskConical, Loader2 } from 'lucide-react';
 import {
   Input,
   Button,
@@ -19,17 +19,12 @@ import {
   SAMPLE_PROCESSING_TYPES,
   SAMPLE_QUALITY_CHECK_TYPES,
   buildCreateSampleProcessingPayload,
-  buildUpdateSampleProcessingPayload,
-  sampleProcessingToFormFields,
   type SampleProcessingFormData,
   type SampleProcessingRecord,
   type SampleProcessingType,
   type SampleQualityCheckType,
 } from '@/app/Apis/booking/sample';
-import {
-  useCreateSampleProcessing,
-  useUpdateSampleProcessing,
-} from '@/app/Apis/booking/useSamples';
+import { useCreateSampleProcessing } from '@/app/Apis/booking/useSamples';
 import { getLoggedInFullName } from '@/app/utils/loggedInUser';
 
 const FORM_ID = 'sample-processing-form';
@@ -110,10 +105,6 @@ export interface SampleProcessProps {
   onClose: () => void;
   sampleId: number | null;
   sampleLabel?: string | null;
-  /** When set, form runs in edit mode (PUT `/sample-processing/{processId}`). */
-  processId?: number | null;
-  /** Pre-fill form when editing (from processing details). */
-  initialRecord?: SampleProcessingRecord | null;
   onSuccess?: (record?: SampleProcessingRecord) => void;
 }
 
@@ -122,8 +113,6 @@ export default function SampleProcess({
   onClose,
   sampleId,
   sampleLabel,
-  processId = null,
-  initialRecord = null,
   onSuccess,
 }: SampleProcessProps) {
   const [form, setForm] = useState<SampleProcessingFormData>({ ...BLANK_FORM });
@@ -132,27 +121,20 @@ export default function SampleProcess({
     Partial<Record<keyof SampleProcessingFormData, string>>
   >({});
 
-  const isEditMode = processId != null && processId > 0;
   const createMutation = useCreateSampleProcessing();
-  const updateMutation = useUpdateSampleProcessing();
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isSubmitting = createMutation.isPending;
 
   useEffect(() => {
     if (!isOpen) return;
 
-    if (isEditMode && initialRecord) {
-      setForm(sampleProcessingToFormFields(initialRecord));
-      setFormSampleId(String(initialRecord.sampleId));
-    } else {
-      setForm({
-        ...BLANK_FORM,
-        processingDateTime: defaultProcessingDateTime(),
-        processedBy: getLoggedInFullName(),
-      });
-      setFormSampleId(sampleId != null && sampleId > 0 ? String(sampleId) : '');
-    }
+    setForm({
+      ...BLANK_FORM,
+      processingDateTime: defaultProcessingDateTime(),
+      processedBy: getLoggedInFullName(),
+    });
+    setFormSampleId(sampleId != null && sampleId > 0 ? String(sampleId) : '');
     setFieldErrors({});
-  }, [isOpen, sampleId, isEditMode, initialRecord, processId]);
+  }, [isOpen, sampleId]);
 
   const setField =
     (key: keyof SampleProcessingFormData) =>
@@ -166,7 +148,7 @@ export default function SampleProcess({
 
     if (!form.processingDateTime) {
       e.processingDateTime = 'Processing date & time is required.';
-    } else if (!isEditMode && !isProcessingDateTimeAllowed(form.processingDateTime)) {
+    } else if (!isProcessingDateTimeAllowed(form.processingDateTime)) {
       e.processingDateTime = 'Processing date cannot be in the past.';
     }
     if (!form.processedBy.trim()) {
@@ -197,33 +179,18 @@ export default function SampleProcess({
     if (!validate()) return;
 
     try {
-      if (isEditMode && processId) {
-        const payload = buildUpdateSampleProcessingPayload(resolvedSampleId, form);
-        const res = await updateMutation.mutateAsync({ processId, payload });
-        if (res.response === false) {
-          toast.error(res.message || 'Failed to update sample processing.');
-          return;
-        }
-        toast.success(res.message || 'Sample processing updated successfully.');
-        onSuccess?.(res.data);
-      } else {
-        const payload = buildCreateSampleProcessingPayload(resolvedSampleId, form);
-        const res = await createMutation.mutateAsync(payload);
-        if (res.response === false) {
-          toast.error(res.message || 'Failed to record sample processing.');
-          return;
-        }
-        toast.success(res.message || 'Sample processing recorded successfully.');
-        onSuccess?.(res.data);
+      const payload = buildCreateSampleProcessingPayload(resolvedSampleId, form);
+      const res = await createMutation.mutateAsync(payload);
+      if (res.response === false) {
+        toast.error(res.message || 'Failed to record sample processing.');
+        return;
       }
+      toast.success(res.message || 'Sample processing recorded successfully.');
+      onSuccess?.(res.data);
       onClose();
     } catch (err) {
       toast.error(
-        err instanceof Error
-          ? err.message
-          : isEditMode
-            ? 'Failed to update sample processing.'
-            : 'Failed to record sample processing.'
+        err instanceof Error ? err.message : 'Failed to record sample processing.',
       );
     }
   };
@@ -236,26 +203,16 @@ export default function SampleProcess({
         <div className="flex items-center gap-3">
           <Activity className="text-white" size={22} />
           <span>
-            {isEditMode ? (
-              <>
-                Update <span className="text-emerald-200">Processing</span>
-              </>
-            ) : (
-              <>
-                Sample <span className="text-emerald-200">Processing</span>
-              </>
-            )}
+            Sample <span className="text-emerald-200">Processing</span>
           </span>
         </div>
       }
       description={
-        isEditMode && processId
-          ? `${sampleLabel || `Process #${processId}`} · Edit record`
-          : sampleLabel
-            ? `${sampleLabel}${sampleId != null ? ` · #${sampleId}` : ''}`
-            : sampleId != null
-              ? `Sample #${sampleId}`
-              : 'Record lab processing for this sample'
+        sampleLabel
+          ? `${sampleLabel}${sampleId != null ? ` · #${sampleId}` : ''}`
+          : sampleId != null
+            ? `Sample #${sampleId}`
+            : 'Record lab processing for this sample'
       }
       maxWidth="lg"
       footer={
@@ -278,12 +235,7 @@ export default function SampleProcess({
             {isSubmitting ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                {isEditMode ? 'Saving…' : 'Processing…'}
-              </>
-            ) : isEditMode ? (
-              <>
-                <Edit2 size={16} />
-                Save changes
+                Processing…
               </>
             ) : (
               'Record processing'
@@ -294,9 +246,6 @@ export default function SampleProcess({
     >
       <form id={FORM_ID} onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
         <input type="hidden" name="sampleId" value={formSampleId} readOnly />
-        {isEditMode && processId ? (
-          <input type="hidden" name="processId" value={processId} readOnly />
-        ) : null}
 
         <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 flex items-start gap-3">
           <div className="w-10 h-10 shrink-0 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
@@ -313,17 +262,8 @@ export default function SampleProcess({
         </div>
 
         <p className="text-sm text-slate-600 font-medium leading-relaxed">
-          {isEditMode ? (
-            <>
-              Update processing details. Submits to{' '}
-              <span className="font-mono text-xs">PUT /sample-processing/{processId}</span>.
-            </>
-          ) : (
-            <>
-              Record centrifugation, aliquoting, and other prep steps. Submits to{' '}
-              <span className="font-mono text-xs">POST /sample-processing</span>.
-            </>
-          )}
+          Record centrifugation, aliquoting, and other prep steps. Submits to{' '}
+          <span className="font-mono text-xs">POST /sample-processing</span>.
         </p>
 
         <div className="space-y-4">
@@ -369,7 +309,7 @@ export default function SampleProcess({
                 value={form.processingMethod}
                 onChange={setField('processingMethod')}
                 disabled={isSubmitting}
-                placeholder="e.g. Hard spin"
+                placeholder="Enter processing method"
                 className={INPUT_CLASS}
               />
             </div>
@@ -384,7 +324,7 @@ export default function SampleProcess({
                 id="proc-datetime"
                 type="datetime-local"
                 value={form.processingDateTime}
-                min={isEditMode ? undefined : minProcessingDateTime()}
+                min={minProcessingDateTime()}
                 onChange={setField('processingDateTime')}
                 disabled={isSubmitting}
                 className={INPUT_CLASS}
@@ -404,7 +344,7 @@ export default function SampleProcess({
                 value={form.processedBy}
                 onChange={setField('processedBy')}
                 disabled={isSubmitting}
-                placeholder={getLoggedInFullName() || 'Your full name'}
+                placeholder={getLoggedInFullName() || 'Enter processed by'}
                 className={INPUT_CLASS}
               />
               <FieldError message={fieldErrors.processedBy} />
@@ -427,7 +367,7 @@ export default function SampleProcess({
                 value={form.equipmentUsed}
                 onChange={setField('equipmentUsed')}
                 disabled={isSubmitting}
-                placeholder="e.g. Eppendorf 5810R"
+                placeholder="Enter equipment used"
                 className={INPUT_CLASS}
               />
             </div>
@@ -441,7 +381,7 @@ export default function SampleProcess({
                 value={form.reagentUsed}
                 onChange={setField('reagentUsed')}
                 disabled={isSubmitting}
-                placeholder="e.g. None"
+                placeholder="Enter reagent used"
                 className={INPUT_CLASS}
               />
             </div>
@@ -456,7 +396,7 @@ export default function SampleProcess({
               value={form.lotNumber}
               onChange={setField('lotNumber')}
               disabled={isSubmitting}
-              placeholder="e.g. LOT-2026-001"
+              placeholder="Enter lot number"
               className={INPUT_CLASS}
             />
           </div>
@@ -476,7 +416,7 @@ export default function SampleProcess({
               value={form.processingParameters}
               onChange={setField('processingParameters')}
               disabled={isSubmitting}
-              placeholder="e.g. 3000 RPM, 10 min, 4 C"
+              placeholder="Sample Processing Parameters"
               className={INPUT_CLASS}
             />
           </div>
@@ -493,7 +433,7 @@ export default function SampleProcess({
                 value={form.rpm}
                 onChange={setField('rpm')}
                 disabled={isSubmitting}
-                placeholder="3000"
+                placeholder="Enter Revolutions Per Minute"
                 className={INPUT_CLASS}
               />
             </div>
@@ -504,12 +444,12 @@ export default function SampleProcess({
               </Label>
               <Input
                 id="proc-duration"
-                type="number"
+                type="text"
                 min={0}
                 value={form.durationMinutes}
                 onChange={setField('durationMinutes')}
                 disabled={isSubmitting}
-                placeholder="10"
+                placeholder="Enter duration in minutes"
                 className={INPUT_CLASS}
               />
             </div>
@@ -520,12 +460,12 @@ export default function SampleProcess({
               </Label>
               <Input
                 id="proc-temp"
-                type="number"
+                type="text"
                 step="0.1"
                 value={form.temperatureCelsius}
                 onChange={setField('temperatureCelsius')}
                 disabled={isSubmitting}
-                placeholder="4"
+                placeholder="Enter temperature in Celsius"
                 className={INPUT_CLASS}
               />
             </div>
@@ -549,7 +489,7 @@ export default function SampleProcess({
                 value={form.aliquotCount}
                 onChange={setField('aliquotCount')}
                 disabled={isSubmitting}
-                placeholder="3"
+                placeholder="Enter aliquot count"
                 className={INPUT_CLASS}
               />
             </div>
@@ -563,7 +503,7 @@ export default function SampleProcess({
                 value={form.aliquotVolume}
                 onChange={setField('aliquotVolume')}
                 disabled={isSubmitting}
-                placeholder="e.g. 1 ml each"
+                placeholder="Enter aliquot volume"
                 className={INPUT_CLASS}
               />
             </div>
@@ -612,7 +552,7 @@ export default function SampleProcess({
               value={form.processingNotes}
               onChange={setField('processingNotes')}
               disabled={isSubmitting}
-              placeholder="e.g. Clear serum separation observed"
+              placeholder="Enter processing notes"
               className={TEXTAREA_CLASS}
             />
           </div>

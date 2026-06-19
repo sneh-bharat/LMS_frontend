@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -13,15 +13,21 @@ import {
   Hash,
   Loader2,
   Microscope,
+  Trash2,
   Thermometer,
   Timer,
   User,
   FileText,
 } from 'lucide-react';
-import { RightDrawer } from '@/components/ui/right-drawer';
-import Badge from '@/components/ui/badge';
+import { toast } from 'sonner';
 import Button from '@/components/ui/button';
-import { useSampleProcessingBySampleId } from '@/app/Apis/booking/useSamples';
+import Badge from '@/components/ui/badge';
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog';
+import { RightDrawer } from '@/components/ui/right-drawer';
+import {
+  useSampleProcessingBySampleId,
+  useDeleteSampleProcessing,
+} from '@/app/Apis/booking/useSamples';
 import {
   formatSampleDateTime,
   formatSampleProcessingLabel,
@@ -36,6 +42,8 @@ export interface ProcessDetailsProps {
   sampleId: number | null;
   sampleLabel?: string | null;
   onEditRecord?: (record: SampleProcessingRecord) => void;
+  /** Called after DELETE `/sample-processing/{processId}` succeeds. */
+  onDeletedRecord?: (sampleId: number, processId: number) => void;
 }
 
 function DetailField({
@@ -86,7 +94,11 @@ export default function ProcessDetails({
   sampleId,
   sampleLabel,
   onEditRecord,
+  onDeletedRecord,
 }: ProcessDetailsProps) {
+  const [deleteTarget, setDeleteTarget] = useState<SampleProcessingRecord | null>(null);
+  const deleteMutation = useDeleteSampleProcessing();
+
   const {
     data: processingRes,
     isLoading,
@@ -103,7 +115,46 @@ export default function ProcessDetails({
   const loading = isLoading || isFetching;
   const latest = records[0] ?? null;
 
+  const handleConfirmDelete = () => {
+    if (!deleteTarget?.id || !deleteTarget.sampleId) return;
+
+    deleteMutation.mutate(
+      { processId: deleteTarget.id, sampleId: deleteTarget.sampleId },
+      {
+        onSuccess: (res) => {
+          if (res.response === false) {
+            toast.error(res.message || 'Failed to delete processing record.');
+            return;
+          }
+          toast.success(res.message?.trim() || 'Processing record deleted. You can record again.');
+          onDeletedRecord?.(deleteTarget.sampleId, deleteTarget.id);
+          setDeleteTarget(null);
+          if (records.length <= 1) {
+            onClose();
+          }
+        },
+        onError: (err) => {
+          toast.error(err.message || 'Failed to delete processing record.');
+        },
+      },
+    );
+  };
+
   return (
+    <>
+      <ConfirmAlertDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deleteMutation.isPending) setDeleteTarget(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete processing record"
+        description={`Remove processing #${deleteTarget?.id ?? ''} (${formatSampleProcessingLabel(deleteTarget?.processingType)})? You can record processing again afterward.`}
+        confirmText="Delete record"
+        cancelText="Keep record"
+        variant="warning"
+        isLoading={deleteMutation.isPending}
+      />
     <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
@@ -174,12 +225,15 @@ export default function ProcessDetails({
                 sampleLabel={sampleLabel}
                 showEndpointHint={index === records.length - 1}
                 onEdit={onEditRecord}
+                onDelete={setDeleteTarget}
+                deleting={deleteMutation.isPending && deleteTarget?.id === record.id}
               />
             </div>
           ))}
         </div>
       )}
     </RightDrawer>
+    </>
   );
 }
 
@@ -188,11 +242,15 @@ function ProcessingDetailsBody({
   sampleLabel,
   showEndpointHint = true,
   onEdit,
+  onDelete,
+  deleting = false,
 }: {
   record: SampleProcessingRecord;
   sampleLabel?: string | null;
   showEndpointHint?: boolean;
   onEdit?: (record: SampleProcessingRecord) => void;
+  onDelete?: (record: SampleProcessingRecord) => void;
+  deleting?: boolean;
 }) {
   const displayBarcode =
     record.sampleBarcode?.trim() || sampleLabel?.trim() || `Sample #${record.sampleId}`;
@@ -239,17 +297,39 @@ function ProcessingDetailsBody({
               #{record.id}
             </div>
           </div>
-          {onEdit ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(record)}
-              className="font-bold gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
-            >
-              <Edit2 size={14} />
-              Edit
-            </Button>
+          {onEdit || onDelete ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              {onEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEdit(record)}
+                  disabled={deleting}
+                  className="font-bold gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                >
+                  <Edit2 size={14} />
+                  Edit
+                </Button>
+              ) : null}
+              {onDelete ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(record)}
+                  disabled={deleting}
+                  className="font-bold gap-2 border-rose-200 text-rose-600 hover:bg-rose-50"
+                >
+                  {deleting ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  Delete
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
