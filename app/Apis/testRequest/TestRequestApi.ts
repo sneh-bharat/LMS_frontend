@@ -36,7 +36,6 @@ export interface TestRequisition {
   clinicalDiagnosis?: string;
   drugAllergy?: string;
 }
-
 /** Raw paginated shape from GET /test-requisitions */
 export interface TestRequisitionsApiPage {
   requisitions?: TestRequisition[];
@@ -59,6 +58,16 @@ export interface TestRequisitionsPage {
   totalElements: number;
   first: boolean;
   last: boolean;
+}
+
+export enum RequisitionStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CONVERTED = 'CONVERTED',
+  CANCELLED = 'CANCELLED',
 }
 
 export interface FetchTestRequisitionsParams {
@@ -89,6 +98,7 @@ export interface TestRequisitionItem {
 export interface CreateTestRequisitionPayload {
   patientId: number;
   referringDoctor: number;
+  referringDoctorName?: string;
   referringHospital: number;
   referrerName: string;
   requisitionDate: string;
@@ -121,6 +131,25 @@ export interface CreateTestRequisitionPayload {
   emergencyCharge?: number;
   netAmount?: number;
   
+}
+
+/** PUT /api/v1/test-requisitions/{id} — partial update; allowed when DRAFT or SUBMITTED. */
+export interface UpdateTestRequisitionPayload {
+  priority?: string;
+  clinicalNotes?: string;
+  clinicalDiagnosis?: string;
+  drugAllergy?: string;
+  isEmergency?: boolean;
+  collectionDate?: string;
+  collectionTime?: string;
+  expectedReportDate?: string;
+  totalAmount?: number;
+  discountAmount?: number;
+  concessionAmount?: number;
+  emergencyCharge?: number;
+  netAmount?: number;
+  updatedByName?: string;
+  branchId?: number;
 }
 
 export interface TestRequisitionListResponse {
@@ -395,6 +424,7 @@ function roundMoney(value: number): number {
 export interface BuildRequisitionPayloadInput {
   patientId: number;
   referringDoctor: number;
+  referringDoctorName?: string;
   referringHospital: number;
   referrerName: string;
   requisitionDate: string;
@@ -449,16 +479,15 @@ export function buildCreateTestRequisitionPayload(
     ...diseaseFlagsFromSelection(input.diseases ?? []),
   };
 
-  const concessionBy = input.concessionBy?.trim();
-  if (concessionBy) {
-    payload.concessionBy = concessionBy;
-  }
-
-  if (input.branchId && input.branchId > 0) payload.branchId = input.branchId;
-
   const createdByName = input.createdByName?.trim() || input.createdBy?.trim() || '';
   payload.createdByName = createdByName;
   payload.createdBy = createdByName;
+
+  if (concessionAmount > 0) {
+    payload.concessionBy = createdByName;
+  }
+
+  if (input.branchId && input.branchId > 0) payload.branchId = input.branchId;
 
   payload.createdAt = input.createdAt?.trim() || new Date().toISOString();
 
@@ -469,6 +498,9 @@ export function buildCreateTestRequisitionPayload(
   if (input.lmpDate?.trim()) payload.lmpDate = input.lmpDate.trim();
   else payload.lmpDate = null;
   if (input.expectedReportDate?.trim()) payload.expectedReportDate = input.expectedReportDate.trim();
+
+  const referringDoctorName = input.referringDoctorName?.trim();
+  if (referringDoctorName) payload.referringDoctorName = referringDoctorName;
 
   return payload;
 }
@@ -576,9 +608,10 @@ export function formatRequisitionCurrency(value?: number | null): string {
   return `₹${Number(value).toLocaleString('en-IN')}`;
 }
 
-export function isTestRequisitionConverted(
-  row: Pick<TestRequisition, 'requisitionStatus'> & { convertedToOrderId?: number | null }
-): boolean {
+export function isTestRequisitionConverted(row: {
+  requisitionStatus?: string | null;
+  convertedToOrderId?: number | null;
+}): boolean {
   const status = row.requisitionStatus?.trim().toUpperCase() ?? '';
   if (status === 'CONVERTED') return true;
   return row.convertedToOrderId != null && row.convertedToOrderId > 0;
@@ -596,6 +629,30 @@ export function canApproveTestRequisition(row: TestRequisition): boolean {
   if (isTestRequisitionConverted(row)) return false;
   const status = row.requisitionStatus?.trim().toUpperCase() ?? '';
   return status !== 'APPROVED' && status !== 'REJECTED' && status !== 'CANCELLED';
+}
+
+/** Add/remove test allowed only when status is DRAFT or SUBMITTED. */
+export function canModifyRequisitionTests(row: {
+  requisitionStatus?: string | null;
+  convertedToOrderId?: number | null;
+}): boolean {
+  if (isTestRequisitionConverted(row)) return false;
+  const status = row.requisitionStatus?.trim().toUpperCase() ?? '';
+  return status === 'DRAFT' || status === 'SUBMITTED';
+}
+
+/** @deprecated Use `canModifyRequisitionTests` */
+export const canAddTestToRequisition = canModifyRequisitionTests;
+
+/** @deprecated Use `canModifyRequisitionTests` */
+export const canRemoveTestFromRequisition = canModifyRequisitionTests;
+
+/** Edit requisition allowed only when status is DRAFT or SUBMITTED. */
+export function canEditTestRequisition(row: {
+  requisitionStatus?: string | null;
+  convertedToOrderId?: number | null;
+}): boolean {
+  return canModifyRequisitionTests(row);
 }
 
 /** GET /api/v1/test-requisitions/{requisitionId} */
@@ -694,5 +751,255 @@ export async function approveTestRequisitionById(
   return res;
 }
 
+
 /** @deprecated Use `approveTestRequisitionById` */
 export const approveRequisitions = approveTestRequisitionById;
+
+
+/** POST body for `/test-requisitions/{id}/items` — single item object, not an array. */
+function addTestRequisitionItemBody(item: TestRequisitionItem) {
+  const body: Record<string, string | number> = {
+    testId: item.testId,
+    quantity: item.quantity ?? 1,
+    discountPercentage: item.discountPercentage ?? 0,
+  };
+
+  if (item.testName?.trim()) body.testName = item.testName.trim();
+  if (item.testCode?.trim()) body.testCode = item.testCode.trim();
+  if (item.categoryId != null && item.categoryId > 0) body.categoryId = item.categoryId;
+  if (item.departmentId != null && item.departmentId > 0) body.departmentId = item.departmentId;
+  if (item.testPrice != null) body.testPrice = item.testPrice;
+  if (item.netPrice != null) body.netPrice = item.netPrice;
+  if (item.vialType?.trim()) body.vialType = item.vialType.trim();
+  if (item.sampleType?.trim()) body.sampleType = item.sampleType.trim();
+  if (item.specialInstructions?.trim()) body.specialInstructions = item.specialInstructions.trim();
+  if (item.priorityOverride?.trim()) body.priorityOverride = item.priorityOverride.trim();
+
+  return body;
+}
+
+/** POST /api/v1/test-requisitions/{requisitionId}/items — one item per request. */
+export async function addTestRequisitionItem(
+  requisitionId: number,
+  item: TestRequisitionItem,
+) {
+  if (!Number.isFinite(requisitionId) || requisitionId <= 0) {
+    throw new Error('A valid requisition id is required.');
+  }
+
+  const res = (await testRequestClient.post(
+    `/test-requisitions/${requisitionId}/items`,
+    addTestRequisitionItemBody(item),
+  )) as RequisitionApiResponse;
+
+  if (res?.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to add test requisition item.');
+  }
+
+  return res;
+}
+
+/** POST multiple items — one API call per test. DRAFT or SUBMITTED only. */
+export async function addTestRequisitionItems(
+  requisitionId: number,
+  items: TestRequisitionItem[],
+) {
+  if (!items.length) {
+    throw new Error('At least one test item is required.');
+  }
+
+  let lastRes: RequisitionApiResponse | undefined;
+  for (const item of items) {
+    lastRes = await addTestRequisitionItem(requisitionId, item);
+  }
+
+  return lastRes!;
+}
+
+
+/** GET /api/v1/test-requisitions/status/{status}?pageNo=0&pageSize=10 */
+export async function getTestRequisitionsByStatus(
+  status: RequisitionStatus,
+  pageNo = 0,
+  pageSize = 10,
+) {
+  const params = { pageNo, pageSize };
+  const res = (await testRequestClient.get(`/test-requisitions/status/${status}`, {
+    params,
+  })) as TestRequisitionListResponse;
+
+  if (res?.response === false) {
+    throw new Error(res.message?.trim() || `Failed to load ${status} test requisitions.`);
+  }
+
+  return normalizeTestRequisitionListResponse(res, params);
+}
+
+/** GET /api/v1/test-requisitions/patient/{patientId}?pageNo=0&pageSize=10 */
+export async function getTestRequisitionsByPatientId(
+  patientId: number,
+  pageNo = 0,
+  pageSize = 10,
+) {
+  if (!Number.isFinite(patientId) || patientId <= 0) {
+    throw new Error('A valid patient id is required.');
+  }
+
+  const params = { pageNo, pageSize };
+  const res = (await testRequestClient.get(`/test-requisitions/patient/${patientId}`, {
+    params,
+  })) as TestRequisitionListResponse;
+
+  if (res?.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to load patient test requisitions.');
+  }
+
+  return normalizeTestRequisitionListResponse(res, params);
+}
+
+
+
+/** delete test requisition item /api/v1/test-requisitions/{requisitionId}/items/{itemId} */
+export async function deleteTestRequisitionItem(
+  requisitionId: number,
+  itemId: number,
+) {
+  if (!Number.isFinite(requisitionId) || requisitionId <= 0) {
+    throw new Error('A valid requisition id is required.');
+  }
+  if (!Number.isFinite(itemId) || itemId <= 0) {
+    throw new Error('A valid item id is required.');
+  }
+  const res = (await testRequestClient.delete(
+    `/test-requisitions/${requisitionId}/items/${itemId}`
+  )) as RequisitionApiResponse;
+  if (res?.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to delete test requisition item.');
+  }
+  return res;
+}
+
+
+export interface BuildUpdateRequisitionInput {
+  initial: TestRequisitionDetail;
+  priority: string;
+  clinicalNotes: string;
+  clinicalDiagnosis: string;
+  drugAllergy: string;
+  isEmergency: boolean;
+  collectionDate: string;
+  collectionTime: string;
+  expectedReportDate: string;
+  totalAmount: number;
+  discountAmount: number;
+  netAmount: number;
+  branchId: number;
+  updatedByName: string;
+}
+
+function normUpdateStr(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
+function normUpdateDate(value: string | null | undefined): string {
+  return normUpdateStr(value).slice(0, 10);
+}
+
+function normUpdateTime(value: string | null | undefined): string {
+  const time = normUpdateStr(value);
+  return time.length >= 5 ? time.slice(0, 5) : time;
+}
+
+function updateMoney(value: number | null | undefined): number {
+  return roundMoney(Number(value) || 0);
+}
+
+/** Build a partial PUT body containing only fields that changed. */
+export function buildUpdateTestRequisitionPayload(
+  input: BuildUpdateRequisitionInput,
+): UpdateTestRequisitionPayload {
+  const { initial } = input;
+  const payload: UpdateTestRequisitionPayload = {};
+
+  const priority = input.priority.trim();
+  if (priority && priority !== normUpdateStr(initial.priority)) {
+    payload.priority = priority;
+  }
+
+  const clinicalNotes = normUpdateStr(input.clinicalNotes);
+  if (clinicalNotes !== normUpdateStr(initial.clinicalNotes)) {
+    payload.clinicalNotes = clinicalNotes;
+  }
+
+  const clinicalDiagnosis = normUpdateStr(input.clinicalDiagnosis);
+  if (clinicalDiagnosis !== normUpdateStr(initial.clinicalDiagnosis)) {
+    payload.clinicalDiagnosis = clinicalDiagnosis;
+  }
+
+  const drugAllergy = normUpdateStr(input.drugAllergy);
+  if (drugAllergy !== normUpdateStr(initial.drugAllergy)) {
+    payload.drugAllergy = drugAllergy;
+  }
+
+  if (input.isEmergency !== Boolean(initial.isEmergency)) {
+    payload.isEmergency = input.isEmergency;
+  }
+
+  const collectionDate = normUpdateDate(input.collectionDate);
+  if (collectionDate !== normUpdateDate(initial.collectionDate)) {
+    payload.collectionDate = collectionDate;
+  }
+
+  const collectionTime = normUpdateTime(input.collectionTime);
+  if (collectionTime !== normUpdateTime(initial.collectionTime)) {
+    payload.collectionTime = collectionTime;
+  }
+
+  const expectedReportDate = normUpdateDate(input.expectedReportDate);
+  if (expectedReportDate !== normUpdateDate(initial.expectedReportDate)) {
+    payload.expectedReportDate = expectedReportDate;
+  }
+
+  const totalAmount = updateMoney(input.totalAmount);
+  if (totalAmount !== updateMoney(initial.totalAmount)) {
+    payload.totalAmount = totalAmount;
+  }
+
+  const discountAmount = updateMoney(input.discountAmount);
+  const initialDiscount = updateMoney(initial.concessionAmount);
+  if (discountAmount !== initialDiscount) {
+    payload.discountAmount = discountAmount;
+    payload.concessionAmount = discountAmount;
+  }
+
+  const netAmount = updateMoney(input.netAmount);
+  if (netAmount !== updateMoney(initial.netAmount)) {
+    payload.netAmount = netAmount;
+  }
+
+  if (input.branchId > 0 && input.branchId !== (initial.branchId ?? 0)) {
+    payload.branchId = input.branchId;
+  }
+
+  const updatedByName = input.updatedByName.trim();
+  if (updatedByName) {
+    payload.updatedByName = updatedByName;
+  }
+
+  return payload;
+}
+
+/** PUT /api/v1/test-requisitions/{requisitionId} */
+export async function updateTestRequisition(
+  requisitionId: number,
+  payload: UpdateTestRequisitionPayload,
+) {
+  if (!Number.isFinite(requisitionId) || requisitionId <= 0) {
+    throw new Error('A valid requisition id is required.');
+  }
+  const res = (await testRequestClient.put(`/test-requisitions/${requisitionId}`, payload)) as RequisitionApiResponse;
+  if (res?.response === false) {
+    throw new Error(res.message?.trim() || 'Failed to update test requisition.');
+  }
+  return res;
+}

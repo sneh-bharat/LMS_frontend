@@ -69,6 +69,11 @@ function getErrorMessage(err: unknown): string {
     return 'Failed to create test requisition.';
 }
 
+function nameForPayload(value?: string | null): string {
+    const trimmed = value?.trim() ?? '';
+    return trimmed && trimmed !== '—' ? trimmed : '';
+}
+
 function referringDoctorMeta(doctor: ReferringDoctor) {
     const parts: string[] = [];
     if (doctor.specialization?.trim()) parts.push(doctor.specialization.trim());
@@ -120,7 +125,7 @@ function SelectSkeleton({ label }: { label: string }) {
 export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequisitionProps) {
     const [patientId, setPatientId] = useState<number | null>(null);
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-    const [referringDoctors, setReferringDoctors] = useState<ReferringDoctor[]>([]);
+    const [selectedReferringDoctor, setSelectedReferringDoctor] = useState<ReferringDoctor | null>(null);
     const [referringHospital, setReferringHospital] = useState(0);
     const [selectedReferrer, setSelectedReferrer] = useState<Referrer | null>(null);
     const [requisitionDate, setRequisitionDate] = useState(todayIsoDate());
@@ -159,7 +164,7 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
         if (!isOpen) return;
         setPatientId(null);
         setSelectedPatient(null);
-        setReferringDoctors([]);
+        setSelectedReferringDoctor(null);
         setReferringHospital(0);
         setSelectedReferrer(null);
         setRequisitionDate(todayIsoDate());
@@ -253,15 +258,20 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
         e.preventDefault();
         if (!validate()) return;
 
-        const selectedDoctorId = referringDoctors.length > 0
-            ? referringDoctors[referringDoctors.length - 1].id
-            : 0;
+        // Referrer (centre/marketing contact) → referrerName
+        const referrerName = selectedReferrer
+            ? nameForPayload(getReferrerName(selectedReferrer))
+            : '';
+
+        // Referring doctor (physician) → referringDoctor + referringDoctorName
+        const referringDoctorName = nameForPayload(selectedReferringDoctor?.doctorName);
 
         const payload: CreateTestRequisitionPayload = buildCreateTestRequisitionPayload({
             patientId: patientId!,
-            referringDoctor: selectedDoctorId,
+            referringDoctor: selectedReferringDoctor?.id ?? 0,
+            referringDoctorName,
             referringHospital,
-            referrerName: selectedReferrer ? getReferrerName(selectedReferrer) : '',
+            referrerName,
             requisitionDate,
             priority,
             collectionDate,
@@ -313,8 +323,8 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
         clearError('tests');
     };
 
-    const removeReferringDoctor = (id: number) => {
-        setReferringDoctors((prev) => prev.filter((d) => d.id !== id));
+    const removeReferringDoctor = () => {
+        setSelectedReferringDoctor(null);
     };
 
     const pending = createMutation.isPending;
@@ -480,6 +490,19 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                             <FieldError message={errors.collectionTime} />
                         </div>
                     </div>
+                    <div className="space-y-2">
+                            <Label htmlFor="expectedReportDate" className={LABEL_CLS}>
+                                Expected report date
+                            </Label>
+                            <Input
+                                id="expectedReportDate"
+                                type="date"
+                                value={expectedReportDate}
+                                onChange={(e) => setExpectedReportDate(e.target.value)}
+                                className="border-slate-200"
+                                disabled={pending}
+                            />
+                        </div>
 
                     {/* ── Branch ── */}
                     <div className="space-y-2">
@@ -594,7 +617,7 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-black text-slate-800 tracking-tight">Doctor</span>
                                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] px-2">
-                                    {referringDoctors.length} ITEMS
+                                    {selectedReferringDoctor ? '1 SELECTED' : 'NONE'}
                                 </Badge>
                             </div>
                             <Button
@@ -610,7 +633,7 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                             </Button>
                         </div>
 
-                        {referringDoctors.length > 0 ? (
+                        {selectedReferringDoctor ? (
                             <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                                 <table className="w-full text-left">
                                     <thead className="bg-slate-50 border-b border-gray-200">
@@ -620,35 +643,35 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                                             <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {referringDoctors.map((doctor) => (
-                                            <tr key={doctor.id} className="hover:bg-slate-50/50 transition-colors group">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all border border-gray-200">
-                                                            <Stethoscope size={14} />
-                                                        </div>
-                                                        <div className="text-sm font-bold text-slate-900 truncate">{doctor.doctorName}</div>
+                                    <tbody>
+                                        <tr className="hover:bg-slate-50/50 transition-colors group">
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all border border-gray-200">
+                                                        <Stethoscope size={14} />
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 text-[9px] font-black border-gray-200 max-w-xs truncate">
-                                                        {referringDoctorMeta(doctor)}
-                                                    </Badge>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <button
-                                                        type="button"
-                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                                        onClick={() => removeReferringDoctor(doctor.id)}
-                                                        disabled={pending}
-                                                        aria-label={`Remove ${doctor.doctorName}`}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    <div className="text-sm font-bold text-slate-900 truncate">
+                                                        {selectedReferringDoctor.doctorName}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <Badge variant="secondary" className="bg-slate-100 text-slate-500 text-[9px] font-black border-gray-200 max-w-xs truncate">
+                                                    {referringDoctorMeta(selectedReferringDoctor)}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    type="button"
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                                    onClick={removeReferringDoctor}
+                                                    disabled={pending}
+                                                    aria-label={`Remove ${selectedReferringDoctor.doctorName}`}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -829,19 +852,7 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="expectedReportDate" className={LABEL_CLS}>
-                                Expected report date
-                            </Label>
-                            <Input
-                                id="expectedReportDate"
-                                type="date"
-                                value={expectedReportDate}
-                                onChange={(e) => setExpectedReportDate(e.target.value)}
-                                className="border-slate-200"
-                                disabled={pending}
-                            />
-                        </div>
+                       
                     </div>
 
                     <PreExistingDynamics
@@ -872,13 +883,13 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                                 Concession by
                             </Label>
                             <Input
-                                id="concessionBy"
-                                value={concessionBy}
-                                onChange={(e) => setConcessionBy(e.target.value)}
-                                placeholder="Optional"
-                                className="border-slate-200"
-                                disabled={pending}
-                            />
+                            id="concessionBy"
+                            name="concessionBy"
+                            value={getCreatedByName()}
+                            className="border-slate-200 bg-slate-50"
+                            disabled
+                            readOnly
+                        />
                         </div>
 
                         <div className="space-y-2">
@@ -931,11 +942,8 @@ export default function NewRequisition({ isOpen, onSuccess, onClose }: NewRequis
                 isOpen={addDoctorOpen}
                 onClose={() => setAddDoctorOpen(false)}
                 onAdd={(doctors) => {
-                    setReferringDoctors((prev) => {
-                        const byId = new Map(prev.map((d) => [d.id, d]));
-                        doctors.forEach((d) => byId.set(d.id, d));
-                        return Array.from(byId.values());
-                    });
+                    const doctor = doctors[doctors.length - 1];
+                    if (doctor) setSelectedReferringDoctor(doctor);
                     clearError('referringDoctor');
                 }}
                 branchId={branchId}

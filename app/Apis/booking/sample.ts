@@ -54,6 +54,10 @@ export interface Sample {
   chainOfCustodyNotes?: string | null;
   temperature?: string | null;
   updatedAt?: string | null;
+  /** Latest sample-processing record id when returned by list/detail APIs. */
+  processingId?: number | null;
+  latestProcessingId?: number | null;
+  sampleProcessingId?: number | null;
 }
 
 export interface SampleByIdApiResponse {
@@ -521,6 +525,27 @@ export interface SampleReceiptRow {
   aliquotingRequired?: boolean;
   numberOfAliquots?: number;
   remarks?: string;
+  /** Latest processing record id — used for PUT `/sample-processing/{id}`. */
+  processingId?: number | null;
+}
+
+export function resolveSampleProcessingId(sample: Sample): number | null {
+  const extended = sample as Sample & {
+    sampleProcessing?: { id?: number | null } | null;
+    latestProcessing?: { id?: number | null } | null;
+  };
+
+  for (const value of [
+    sample.processingId,
+    sample.latestProcessingId,
+    sample.sampleProcessingId,
+    extended.sampleProcessing?.id,
+    extended.latestProcessing?.id,
+  ]) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
 }
 
 /** POST `/api/v1/samples/register` request body. */
@@ -773,6 +798,14 @@ export interface UpdateSampleProcessingApiResponse {
   timestamp?: string;
 }
 
+export interface DeleteSampleProcessingApiResponse {
+  data?: { id?: number; sampleId?: number };
+  message: string;
+  response: boolean;
+  status: string;
+  timestamp?: string;
+}
+
 export interface SampleProcessingByIdApiResponse {
   data: SampleProcessingRecord;
   message: string;
@@ -1016,6 +1049,28 @@ export async function updateSampleProcessing(
 }
 
 /**
+ * DELETE `/api/v1/sample-processing/{processId}`
+ * Removes a processing record so the sample can be processed again.
+ */
+export async function deleteSampleProcessing(
+  processId: number,
+): Promise<DeleteSampleProcessingApiResponse> {
+  if (!Number.isFinite(processId) || processId <= 0) {
+    throw new Error('A valid processing id is required.');
+  }
+
+  const res = (await bookingAxios.delete(
+    `/sample-processing/${processId}`,
+  )) as DeleteSampleProcessingApiResponse;
+
+  if (res.response === false) {
+    throw new Error(res.message || 'Failed to delete sample processing.');
+  }
+
+  return res;
+}
+
+/**
  * GET `/api/v1/sample-processing/{processId}`
  * Auth: Bearer token from `localStorage.token` via `bookingAxios`.
  */
@@ -1060,6 +1115,15 @@ export async function fetchSampleProcessingBySampleId(
     ...res,
     data: sortSampleProcessingRecords(normalizeSampleProcessingList(res.data)),
   };
+}
+
+/** Latest processing record id for a sample, if any. */
+export async function resolveLatestProcessingIdForSample(
+  sampleId: number,
+): Promise<number | null> {
+  const res = await fetchSampleProcessingBySampleId(sampleId);
+  const latestId = res.data?.[0]?.id;
+  return latestId != null && latestId > 0 ? latestId : null;
 }
 
 export function buildUpdateSamplePayload(form: UpdateSampleFormData): UpdateSamplePayload {
@@ -1179,5 +1243,6 @@ export function mapSampleToReceipt(sample: Sample): SampleReceiptRow {
     aliquotingRequired: sample.aliquotingRequired ?? undefined,
     numberOfAliquots: sample.numberOfAliquots ?? undefined,
     remarks: sample.remarks ?? undefined,
+    processingId: resolveSampleProcessingId(sample),
   };
 }

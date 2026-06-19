@@ -297,7 +297,7 @@ export function AddNewReceipt({
           Register collection, storage, and chain-of-custody details for this diagnostic order.
           All fields are sent to the booking service.
         </p>
-
+{/* 
         {orderIdLocked ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -305,26 +305,19 @@ export function AddNewReceipt({
             </p>
             <p className="font-black text-slate-900 mt-1">Order #{initialOrderId}</p>
           </div>
-        ) : null}
+        ) : null
+        } */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="orderId" className={FIELD_LABEL}>
-              Order ID <span className="text-rose-500">*</span>
-            </Label>
-            <Input
-              id="orderId"
-              type="number"
-              min={1}
-              value={form.orderId}
-              onChange={setField('orderId')}
-              placeholder="1"
-              disabled={isSubmitting || orderIdLocked}
-              className={cn(INPUT_CLASS, orderIdLocked && 'bg-slate-50')}
-            />
-            <FieldError message={fieldErrors.orderId} />
-          </div>
+        <Input
+          type="hidden"
+          id="orderId"
+          value={form.orderId}
+          onChange={setField('orderId')}
+          disabled={isSubmitting || orderIdLocked}
+        />
+        <FieldError message={fieldErrors.orderId} />
 
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
             <Label htmlFor="sampleLabel" className={FIELD_LABEL}>
               Sample label <span className="text-rose-500">*</span>

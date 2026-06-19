@@ -1,6 +1,6 @@
 'use client';
 
-import type { ComponentType, ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -10,16 +10,24 @@ import {
   FlaskConical,
   Loader2,
   Stethoscope,
+  Trash2,
   User,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge, Button, RightDrawer } from '@/components/ui';
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog';
 import {
+  canModifyRequisitionTests,
   formatRequisitionCurrency,
   formatRequisitionDate,
   requisitionDetailToDiseases,
   type TestRequisitionDetail,
   type TestRequisitionDetailItem,
 } from '@/app/Apis/testRequest/TestRequestApi';
+import {
+  useDeleteTestRequisitionItem,
+  useTestRequisitionById,
+} from '@/app/Apis/testRequest/useTestRequisitions';
 
 function displayValue(value: string | number | null | undefined): string {
   if (value == null) return '—';
@@ -101,7 +109,17 @@ function getTestItemLabel(item: TestRequisitionDetailItem): string {
   return `Test #${item.testId}`;
 }
 
-function RequisitionDetailsBody({ detail }: { detail: TestRequisitionDetail }) {
+function RequisitionDetailsBody({
+  detail,
+  canRemoveTests,
+  onRemoveTest,
+  removingItemId,
+}: {
+  detail: TestRequisitionDetail;
+  canRemoveTests: boolean;
+  onRemoveTest: (item: TestRequisitionDetailItem) => void;
+  removingItemId: number | null;
+}) {
   const items = detail.requisitionItems ?? [];
   const diseases = requisitionDetailToDiseases(detail);
   const hasApproval =
@@ -239,11 +257,30 @@ function RequisitionDetailsBody({ detail }: { detail: TestRequisitionDetail }) {
             <div key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 sm:col-span-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-bold text-slate-900">{getTestItemLabel(item)}</p>
-                {item.isActive === false ? (
-                  <Badge variant="secondary" className="text-[10px] font-black uppercase">
-                    Inactive
-                  </Badge>
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {item.isActive === false ? (
+                    <Badge variant="secondary" className="text-[10px] font-black uppercase">
+                      Inactive
+                    </Badge>
+                  ) : null}
+                  {canRemoveTests && item.isActive !== false && item.id > 0 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 font-bold text-rose-600 border-rose-200 hover:bg-rose-50"
+                      disabled={removingItemId === item.id}
+                      onClick={() => onRemoveTest(item)}
+                    >
+                      {removingItemId === item.id ? (
+                        <Loader2 size={14} className="animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 size={14} aria-hidden />
+                      )}
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 Code: {displayValue(item.testCode)} · Qty: {displayValue(item.quantity)} · Price:{' '}
@@ -277,27 +314,64 @@ export interface DetailsRequisitionProps {
   isOpen: boolean;
   onClose: () => void;
   requisitionId: number | null;
-  detail?: TestRequisitionDetail | null;
-  isLoading?: boolean;
-  isError?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
 }
 
 export default function DetailsRequisition({
   isOpen,
   onClose,
   requisitionId,
-  detail = null,
-  isLoading = false,
-  isError = false,
-  error = null,
-  onRetry,
 }: DetailsRequisitionProps) {
+  const [removeTarget, setRemoveTarget] = useState<TestRequisitionDetailItem | null>(null);
+  const deleteItemMutation = useDeleteTestRequisitionItem();
+
+  const {
+    data: detailRes,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useTestRequisitionById(requisitionId, isOpen);
+
+  const detail = detailRes?.data ?? null;
+  const canRemoveTests = detail ? canModifyRequisitionTests(detail) : false;
+  const removingItemId = deleteItemMutation.isPending ? removeTarget?.id ?? null : null;
+
+  const handleConfirmRemove = () => {
+    if (!requisitionId || requisitionId <= 0 || !removeTarget?.id) return;
+
+    deleteItemMutation.mutate(
+      { requisitionId, itemId: removeTarget.id },
+      {
+        onSuccess: (res) => {
+          toast.success(res.message?.trim() || 'Test removed from requisition.');
+          setRemoveTarget(null);
+        },
+        onError: (err) => {
+          toast.error(err.message || 'Failed to remove test.');
+        },
+      },
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
-    <RightDrawer
+    <>
+      <ConfirmAlertDialog
+        isOpen={Boolean(removeTarget)}
+        onClose={() => {
+          if (!deleteItemMutation.isPending) setRemoveTarget(null);
+        }}
+        onConfirm={handleConfirmRemove}
+        title="Remove test"
+        description={`Remove "${removeTarget ? getTestItemLabel(removeTarget) : 'this test'}" from this requisition?`}
+        confirmText="Remove test"
+        cancelText="Keep test"
+        variant="warning"
+        isLoading={deleteItemMutation.isPending}
+      />
+
+      <RightDrawer
       isOpen={isOpen}
       onClose={onClose}
       title="Requisition details"
@@ -333,14 +407,23 @@ export default function DetailsRequisition({
           <p className="text-sm font-semibold text-rose-800">
             {error instanceof Error ? error.message : 'Failed to load requisition details.'}
           </p>
-          {onRetry ? (
-            <Button type="button" variant="outline" size="sm" className="font-bold bg-white" onClick={onRetry}>
-              Retry
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="font-bold bg-white"
+            onClick={() => void refetch()}
+          >
+            Retry
+          </Button>
         </div>
       ) : detail ? (
-        <RequisitionDetailsBody detail={detail} />
+        <RequisitionDetailsBody
+          detail={detail}
+          canRemoveTests={canRemoveTests}
+          onRemoveTest={setRemoveTarget}
+          removingItemId={removingItemId}
+        />
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-slate-500">
           <ClipboardList size={64} className="mb-4 text-slate-200" strokeWidth={1} aria-hidden />
@@ -348,5 +431,6 @@ export default function DetailsRequisition({
         </div>
       )}
     </RightDrawer>
+    </>
   );
 }

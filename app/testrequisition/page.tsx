@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   Ban,
@@ -9,6 +9,8 @@ import {
   ClipboardList,
   Database,
   Eye,
+  Pencil,
+  Plus,
   Filter,
   Loader,
   MoreVertical,
@@ -30,6 +32,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   canApproveTestRequisition,
+  canEditTestRequisition,
+  canModifyRequisitionTests,
   canSoftDeleteTestRequisition,
   formatAmountPaid,
   formatRequisitionDate,
@@ -39,12 +43,15 @@ import {
   getTestRequisitionStatus,
   isTestRequisitionConverted,
   type TestRequisition,
+  
 } from '@/app/Apis/testRequest/TestRequestApi';
-import { useDeleteTestRequisition, useTestRequisitionById, useTestRequisitionsList, useSearchTestRequisitions } from '@/app/Apis/testRequest/useTestRequisitions';
+import { useDeleteTestRequisition, RequisitionStatus, useTestRequisitions, useTestRequisitionsList, useSearchTestRequisitions } from '@/app/Apis/testRequest/useTestRequisitions';
 import NewRequisition from './newRequisition';
 import DetailsRequisition from './DetailsRequisition';
 import RejectRequisition from './RejectRequition';
 import ApproveRequisition from './AppoveRequisition';
+import AddTestRequisition from './AddTestRequisition';
+import EditRequisition from './editRequisition';
 import {
   listingBadge,
   listingEmptyBox,
@@ -71,7 +78,7 @@ const PAGE_SIZE = 10;
 
 const TABLE_CELL = 'px-3 py-4 sm:px-5 sm:py-5';
 
-type StatusFilter = 'all' | string;
+type StatusFilter = 'all' | RequisitionStatus;
 
 function statusBadgeClass(status?: string): string {
   const normalized = status?.trim().toUpperCase() ?? '';
@@ -104,6 +111,8 @@ function priorityBadgeClass(priority?: string): string {
 function TestRequisitionActions({
   requisition,
   onView,
+  onEdit,
+  onAddTest,
   onApprove,
   onReject,
   onDelete,
@@ -111,6 +120,8 @@ function TestRequisitionActions({
 }: {
   requisition: TestRequisition;
   onView: (requisitionId: number) => void;
+  onEdit: (requisition: TestRequisition) => void;
+  onAddTest: (requisition: TestRequisition) => void;
   onApprove: (requisition: TestRequisition) => void;
   onReject: (requisition: TestRequisition) => void;
   onDelete: (requisition: TestRequisition) => void;
@@ -118,6 +129,8 @@ function TestRequisitionActions({
 }) {
   const canDelete = canSoftDeleteTestRequisition(requisition);
   const canApprove = canApproveTestRequisition(requisition);
+  const canAddTest = canModifyRequisitionTests(requisition);
+  const canEdit = canEditTestRequisition(requisition);
   const status = requisition.requisitionStatus?.trim().toUpperCase() ?? '';
   const canReject =
     !isTestRequisitionConverted(requisition) &&
@@ -153,6 +166,24 @@ function TestRequisitionActions({
             <Eye size={16} className="mr-3 text-emerald-500" />
             <span>View details</span>
           </DropdownMenuItem>
+          {canEdit ? (
+            <DropdownMenuItem
+              onClick={() => onEdit(requisition)}
+              className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+            >
+              <Pencil size={16} className="mr-3 text-sky-500" />
+              <span>Edit requisition</span>
+            </DropdownMenuItem>
+          ) : null}
+          {canAddTest ? (
+            <DropdownMenuItem
+              onClick={() => onAddTest(requisition)}
+              className="rounded-lg py-2.5 font-bold text-slate-600 hover:text-emerald-700"
+            >
+              <Plus size={16} className="mr-3 text-[#FF6700]" />
+              <span>Add New Test</span>
+            </DropdownMenuItem>
+          ) : null}
 
           {canApprove ? (
             <DropdownMenuItem
@@ -215,12 +246,30 @@ export default function TestRequestListPage() {
     requisitionNumber?: string | null;
   } | null>(null);
   const [cancelTarget, setCancelTarget] = useState<TestRequisition | null>(null);
+  const [addTestOpen, setAddTestOpen] = useState(false);
+  const [addTestTarget, setAddTestTarget] = useState<{
+    requisitionId: number;
+    branchId: number;
+  } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    requisitionId: number;
+    requisitionNumber?: string | null;
+  } | null>(null);
 
   const isSearching = debouncedSearch.length > 0;
+  const isStatusFiltered = statusFilter !== 'all';
 
   const listQuery = useTestRequisitionsList(
     { pageNo, pageSize: PAGE_SIZE },
-    { enabled: !isSearching }
+    { enabled: !isSearching && !isStatusFiltered },
+  );
+
+  const statusQuery = useTestRequisitions(
+    statusFilter as RequisitionStatus,
+    pageNo,
+    PAGE_SIZE,
+    !isSearching && isStatusFiltered,
   );
 
   const searchQuery = useSearchTestRequisitions({
@@ -230,23 +279,16 @@ export default function TestRequestListPage() {
     enabled: isSearching,
   });
 
+  const activeQuery = isSearching ? searchQuery : isStatusFiltered ? statusQuery : listQuery;
+
   const {
     data,
     isLoading,
     isError,
     error,
     isFetching,
-  } = isSearching ? searchQuery : listQuery;
-
-  const refetch = isSearching ? searchQuery.refetch : listQuery.refetch;
-
-  const {
-    data: detailRes,
-    isLoading: isDetailLoading,
-    isError: isDetailError,
-    error: detailError,
-    refetch: refetchDetail,
-  } = useTestRequisitionById(viewRequisitionId, detailsOpen);
+    refetch,
+  } = activeQuery;
 
   const deleteMutation = useDeleteTestRequisition();
 
@@ -308,6 +350,57 @@ export default function TestRequestListPage() {
     setApproveTarget(null);
   };
 
+  const handleAddTest = (requisition: TestRequisition) => {
+    if (requisition.id == null || requisition.id <= 0) {
+      toast.error('Requisition id is missing.');
+      return;
+    }
+
+    if (!canModifyRequisitionTests(requisition)) {
+      toast.error('Tests can only be added when status is DRAFT or SUBMITTED.');
+      return;
+    }
+
+    if (requisition.branchId == null || requisition.branchId <= 0) {
+      toast.error('Branch id is missing for this requisition.');
+      return;
+    }
+
+    setAddTestTarget({
+      requisitionId: requisition.id,
+      branchId: requisition.branchId,
+    });
+    setAddTestOpen(true);
+  };
+
+  const handleCloseAddTest = () => {
+    setAddTestOpen(false);
+    setAddTestTarget(null);
+  };
+
+  const handleEditRequisition = (requisition: TestRequisition) => {
+    if (requisition.id == null || requisition.id <= 0) {
+      toast.error('Requisition id is missing.');
+      return;
+    }
+
+    if (!canEditTestRequisition(requisition)) {
+      toast.error('Only DRAFT or SUBMITTED requisitions can be edited.');
+      return;
+    }
+
+    setEditTarget({
+      requisitionId: requisition.id,
+      requisitionNumber: getTestRequisitionNumber(requisition),
+    });
+    setEditOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setEditOpen(false);
+    setEditTarget(null);
+  };
+
   const handleDeleteRequisition = (requisition: TestRequisition) => {
     if (requisition.id == null || requisition.id <= 0) {
       toast.error('Requisition id is missing.');
@@ -341,7 +434,6 @@ export default function TestRequestListPage() {
           handleCloseDetails();
         }
         setCancelTarget(null);
-        void refetch();
       },
       onError: (err) => {
         toast.error(err instanceof Error ? err.message : 'Failed to cancel requisition.');
@@ -361,21 +453,7 @@ export default function TestRequestListPage() {
   }, [debouncedSearch, statusFilter]);
 
   const page = data?.data;
-  const rows = page?.content ?? [];
-
-  const statusOptions = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((row) => {
-      const status = getTestRequisitionStatus(row);
-      if (status !== '—') set.add(status);
-    });
-    return Array.from(set).sort();
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    if (statusFilter === 'all') return rows;
-    return rows.filter((row) => getTestRequisitionStatus(row) === statusFilter);
-  }, [rows, statusFilter]);
+  const rows: TestRequisition[] = page?.content ?? [];
 
   const totalPages = page?.totalPages ?? 1;
   const totalElements = page?.totalElements ?? 0;
@@ -383,11 +461,7 @@ export default function TestRequestListPage() {
   const canNext = page ? !page.last && pageNo + 1 < totalPages : false;
 
   const handleRefresh = () => {
-    if (isSearching) {
-      void searchQuery.refetch();
-    } else {
-      void listQuery.refetch();
-    }
+    void refetch();
   };
 
   const showInitialLoader = isLoading && rows.length === 0;
@@ -402,11 +476,6 @@ export default function TestRequestListPage() {
       <DetailsRequisition
         isOpen={detailsOpen}
         requisitionId={viewRequisitionId}
-        detail={detailRes?.data ?? null}
-        isLoading={isDetailLoading}
-        isError={isDetailError}
-        error={detailError instanceof Error ? detailError : null}
-        onRetry={() => void refetchDetail()}
         onClose={handleCloseDetails}
       />
 
@@ -420,7 +489,6 @@ export default function TestRequestListPage() {
           if (viewRequisitionId === rejectTarget?.requisitionId) {
             handleCloseDetails();
           }
-          void refetch();
         }}
       />
 
@@ -432,10 +500,23 @@ export default function TestRequestListPage() {
         onClose={handleCloseApprove}
         onSuccess={() => {
           if (viewRequisitionId === approveTarget?.requisitionId) {
-            void refetchDetail();
+            handleCloseDetails();
           }
-          void refetch();
         }}
+      />
+
+      <AddTestRequisition
+        isOpen={addTestOpen}
+        requisitionId={addTestTarget?.requisitionId ?? null}
+        branchId={addTestTarget?.branchId ?? null}
+        onClose={handleCloseAddTest}
+      />
+
+      <EditRequisition
+        isOpen={editOpen}
+        requisitionId={editTarget?.requisitionId ?? null}
+        requisitionNumber={editTarget?.requisitionNumber}
+        onClose={handleCloseEdit}
       />
 
       <ConfirmAlertDialog
@@ -502,15 +583,15 @@ export default function TestRequestListPage() {
                 />
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                   className={listingFilterSelect}
                   aria-label="Filter by status"
-                  disabled={isLoading}
+                  disabled={isLoading || isSearching}
                 >
                   <option value="all">All statuses</option>
-                  {statusOptions.map((status) => (
+                  {Object.values(RequisitionStatus).map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {status.replace(/_/g, ' ')}
                     </option>
                   ))}
                 </select>
@@ -568,7 +649,6 @@ export default function TestRequestListPage() {
                     <th className={listingTableTh}>Requisition</th>
                     <th className={listingTableTh}>Patient</th>
                     <th className={`${listingTableTh} hidden sm:table-cell`}>Priority</th>
-                    <th className={`${listingTableTh} hidden lg:table-cell`}>Doctor</th>
                     <th className={`${listingTableTh} hidden md:table-cell`}>Date</th>
                     <th className={`${listingTableTh} text-center`}>Status</th>
                     <th className={`${listingTableTh} text-center hidden xl:table-cell`}>Amount</th>
@@ -576,7 +656,7 @@ export default function TestRequestListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRows.length === 0 ? (
+                  {rows.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
                         {isSearching
@@ -585,7 +665,7 @@ export default function TestRequestListPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row, index) => {
+                    rows.map((row, index) => {
                       const status = getTestRequisitionStatus(row);
 
                       return (
@@ -621,11 +701,11 @@ export default function TestRequestListPage() {
                               {row.priority?.trim() || '—'}
                             </Badge>
                           </td>
-                          <td className={`${TABLE_CELL} text-sm font-semibold text-slate-700 hidden lg:table-cell max-w-[160px]`}>
+                          {/* <td className={`${TABLE_CELL} text-sm font-semibold text-slate-700 hidden lg:table-cell max-w-[160px]`}>
                             <span className="truncate block">
                               {getTestRequisitionDoctorName(row)}
                             </span>
-                          </td>
+                          </td> */}
                           <td className={`${TABLE_CELL} ${listingRowMono} hidden md:table-cell whitespace-nowrap`}>
                             {formatRequisitionDate(row.requisitionDate ?? row.createdAt)}
                           </td>
@@ -641,6 +721,8 @@ export default function TestRequestListPage() {
                             <TestRequisitionActions
                               requisition={row}
                               onView={handleViewRequisition}
+                              onEdit={handleEditRequisition}
+                              onAddTest={handleAddTest}
                               onApprove={handleApproveRequisition}
                               onReject={handleRejectRequisition}
                               onDelete={handleDeleteRequisition}
