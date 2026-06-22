@@ -100,7 +100,9 @@ const NAV = [
       { label: "Reflex Rule", href: "/lab/reflex-rule" },
       { label: "Sample Receipt", href: "/lab/sample-receipt" },
       { label: "Machine & Instrument", href: "/management/Machineinstrument" },
-      { label: "Test  Requisition", href: "/testrequisition" },
+      { label: "Test  Requisition", href: "/testrequisition" }, 
+      { label: "SLA Management", href: "/lab/sla-management" },//SLA Rules Setup
+      { label: "SLA Monitoring", href: "/lab/sla-monitoring" },//Live Tracking
     ],
   },
   {
