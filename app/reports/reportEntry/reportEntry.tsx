@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   FlaskConical,
@@ -17,13 +16,17 @@ import { RightDrawer } from "@/components/ui/right-drawer";
 import Button from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  enterBulkResults,
-  fetchParametersWithReference,
-  type ParameterResultEntry,
-  type EnterBulkResultsPayload,
-  type EnterBulkResultsData,
-  type ParameterWithReference,
+  useEnterSingleResultsBatch,
+  useReportParameters,
+  reportQueryKeys,
+} from "@/app/Apis/Report/useReportEntry";
+import type {
+  ParameterResultEntry,
+  EnterSingleResultsBatchOptions,
+  EnterSingleResultsBatchResult,
+  ParameterWithReference,
 } from "@/app/Apis/Report/reportApi";
+import { getCreatedByName } from "@/app/utils/loggedInUser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,13 +94,6 @@ export default function EnterResultDrawer({
 }: EnterResultDrawerProps) {
   const queryClient = useQueryClient();
 
-  // ── Form state ────────────────────────────────────────────────────────────
-  const [autoVerification, setAutoVerification] = useState(false);
-  const [submitForVerification, setSubmitForVerification] = useState(false);
-  const [params, setParams] = useState<
-    (ParameterResultEntry & { _uid: string })[]
-  >([emptyParam()]);
-
   // ── Derive test context from selectedTest or row ─────────────────────────
   const effectiveTestId = selectedTest?.testId ?? row?.testId ?? 0;
   const effectiveOrderItemId =
@@ -107,13 +103,18 @@ export default function EnterResultDrawer({
   const gender = (row?.gender ?? "").toUpperCase();
   const age = row?.age ?? 0;
 
-  // ── Fetch parameters with reference when drawer opens ─────────────────────
-  const { data: paramsQueryData, isLoading: isLoadingParams } = useQuery({
-    queryKey: ["report-parameters", effectiveTestId, gender, age],
-    queryFn: () => fetchParametersWithReference(effectiveTestId, gender, age),
-    enabled: isOpen && effectiveTestId > 0 && !!gender && age > 0,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: paramsQueryData, isLoading: isLoadingParams } = useReportParameters(
+    effectiveTestId,
+    gender,
+    age,
+    { enabled: isOpen },
+  );
+
+  const [autoVerification, setAutoVerification] = useState(false);
+  const [submitForVerification, setSubmitForVerification] = useState(false);
+  const [params, setParams] = useState<
+    (ParameterResultEntry & { _uid: string })[]
+  >([emptyParam()]);
 
   useEffect(() => {
     const items = paramsQueryData?.data ?? [];
@@ -182,43 +183,26 @@ export default function EnterResultDrawer({
     );
   };
 
-  // ── Mutation ──────────────────────────────────────────────────────────────
-  const mutation = useMutation({
-    mutationFn: (payload: EnterBulkResultsPayload) => enterBulkResults(payload),
-    onSuccess: (res) => {
-      if (res.response === false) {
-        toast.error(res.message || "Failed to submit results.");
-        return;
-      }
+  // ── Mutation (one POST /results/enter per parameter) ─────────────────────
+  const mutation = useEnterSingleResultsBatch();
 
-      const d: EnterBulkResultsData | undefined = res.data;
-      const summary = res.message || "Results submitted successfully.";
+  const handleMutationSuccess = (batch: EnterSingleResultsBatchResult) => {
+    const summary = batch.lastMessage || "Results submitted successfully.";
 
-      if (d && d.criticalCount > 0) {
-        toast.warning(summary, {
-          description: `${d.criticalCount} critical value(s) detected — ${d.flaggedCount} flagged out of ${d.totalParameters} parameters.`,
-          duration: 8000,
-        });
-      } else {
-        toast.success(summary, {
-          description: d
-            ? `${d.flaggedCount} flagged out of ${d.totalParameters} parameters.`
-            : undefined,
-        });
-      }
+    if (batch.criticalCount > 0) {
+      toast.warning(summary, {
+        description: `${batch.criticalCount} critical value(s) detected — ${batch.flaggedCount} flagged out of ${batch.totalParameters} parameters.`,
+        duration: 8000,
+      });
+    } else {
+      toast.success(summary, {
+        description: `${batch.flaggedCount} flagged out of ${batch.totalParameters} parameters.`,
+      });
+    }
 
-      if (d && d.skippedParameters.length > 0) {
-        toast.info(`${d.skippedParameters.length} parameter(s) were skipped.`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["report-result-list"] });
-      onClose();
-      resetForm();
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to submit results.");
-    },
-  });
+    onClose();
+    resetForm();
+  };
 
   // ── Submit handler ────────────────────────────────────────────────────────
   const handleSubmit = () => {
@@ -240,16 +224,51 @@ export default function EnterResultDrawer({
       return;
     }
 
-    const payload: EnterBulkResultsPayload = {
-      orderId,
-      orderItemId,
-      testId: submitTestId,
-      requestAutoVerification: autoVerification,
-      submitForVerification,
-      parameterResults: params.map(({ _uid, ...rest }) => rest),
-    };
+    mutation.mutate(
+      {
+        options: {
+          orderId,
+          orderItemId,
+          testId: submitTestId,
+          requestAutoVerification: autoVerification,
+          submitForVerification,
+          enteredBy: getCreatedByName(),
+          comments: selectedTest?.remarks ?? undefined,
+        },
+        parameters: params.map(({ _uid, ...rest }) => rest),
+        getClinicalInterpretation: (param) => {
+          const flag = getAbnormalFlag(param);
+          if (flag === "CRITICAL") return "Critical value — requires attention";
+          if (flag === "LOW") return "Below reference range";
+          if (flag === "HIGH") return "Above reference range";
+          if (flag === "NORMAL") return "Within normal range";
+          return undefined;
+        },
+      },
+      {
+        onSuccess: handleMutationSuccess,
+        onError: (err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === "object" && err && "message" in err
+                ? String((err as { message: string }).message)
+                : "Failed to submit results.";
 
-    mutation.mutate(payload);
+          if (/already exists|use correction/i.test(msg)) {
+            toast.error(msg, {
+              description:
+                "This parameter already has a result. Refresh the list, then use View or Edit/Correction.",
+              duration: 8000,
+            });
+            void queryClient.invalidateQueries({ queryKey: reportQueryKeys.all });
+            return;
+          }
+
+          toast.error(msg);
+        },
+      },
+    );
   };
 
   // ── Abnormal flag helper ──────────────────────────────────────────────────
