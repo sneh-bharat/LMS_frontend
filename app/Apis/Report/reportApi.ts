@@ -207,6 +207,7 @@ export interface OrderResultTestGroup {
   testCode: string;
   resultStatus: string;
   parameters: ResultParameterRecord[];
+  resultId: number;
 }
 
 export interface OrderResultData {
@@ -271,6 +272,48 @@ function asResultParameterRecord(value: unknown): ResultParameterRecord | null {
   };
 }
 
+function normalizeResultDetailData(raw: unknown): ResultDetailData {
+  const root = asRecord(raw) ?? {};
+  const payload = asRecord(root.data) ?? root;
+  const result = asResultParameterRecord(payload.result);
+
+  return {
+    result: result ?? {
+      resultId: 0,
+      orderItemId: 0,
+      parameterId: 0,
+      parameterName: '',
+      resultValue: '',
+      numericValue: null,
+      resultType: '',
+      unit: '',
+      referenceLow: null,
+      referenceHigh: null,
+      criticalLow: null,
+      criticalHigh: null,
+      abnormalFlag: null,
+      isCritical: false,
+      isVerified: false,
+      isCorrected: false,
+      autoVerified: false,
+      resultStatus: 'PENDING',
+      clinicalInterpretation: null,
+      comments: null,
+      correctedValue: null,
+      correctionReason: null,
+      instrumentName: null,
+      enteredAt: null,
+      verifiedAt: null,
+    },
+    amendmentHistory: Array.isArray(payload.amendmentHistory)
+      ? (payload.amendmentHistory as ResultAmendmentRecord[])
+      : [],
+    approvalHistory: Array.isArray(payload.approvalHistory)
+      ? (payload.approvalHistory as ResultApprovalRecord[])
+      : [],
+  };
+}
+
 function collectParameterRecords(value: unknown): ResultParameterRecord[] {
   if (!Array.isArray(value)) return [];
 
@@ -297,6 +340,7 @@ function groupResultsByOrderItem(
     testName: `Order Item #${orderItemId}`,
     testCode: '',
     resultStatus: items[0]?.resultStatus ?? 'PENDING',
+    resultId: items[0]?.resultId ?? 0,
     parameters: items,
   }));
 }
@@ -340,6 +384,10 @@ function normalizeOrderResultData(
       if (orderItemId <= 0 && parameters.length === 0) continue;
 
       tests.push({
+        resultId:
+          Number(row.resultId ?? row.resultHeaderId ?? row.headerResultId) ||
+          parameters[0]?.resultId ||
+          0,
         orderItemId: orderItemId || parameters[0]?.orderItemId || 0,
         testId: Number(row.testId) || 0,
         testName: String(row.testName ?? row.name ?? `Order Item #${orderItemId}`),
@@ -499,9 +547,14 @@ export async function enterSingleResultsBatch(
 export async function getResultById(
   resultId: number,
 ): Promise<GetResultByIdApiResponse> {
-  return reportBookingAxios.get(
+  const response = (await reportBookingAxios.get(
     `/results/${resultId}`,
-  ) as Promise<GetResultByIdApiResponse>;
+  )) as GetResultByIdApiResponse;
+
+  return {
+    ...response,
+    data: normalizeResultDetailData(response?.data ?? response),
+  };
 }
 
 /**
@@ -509,9 +562,16 @@ export async function getResultById(
  */
 export async function fetchOrderResult(
   orderId: number,
+  params: { page?: number; size?: number } = {},
 ): Promise<OrderResultApiResponse> {
   const response = (await reportBookingAxios.get(
     `/results/order/${orderId}`,
+    {
+      params: {
+        page: params.page ?? 0,
+        size: params.size ?? 20,
+      },
+    },
   )) as OrderResultApiResponse;
 
   return {
