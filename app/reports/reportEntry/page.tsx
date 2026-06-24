@@ -5,7 +5,6 @@
  * Card-based layout: each order is a card with a compact test pill row.
  */
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   FlaskConical,
   Search,
@@ -34,11 +33,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  fetchReportList,
-  type ResultListApiResponse,
-} from "@/app/Apis/Report/reportApi";
+import { useReportResultList } from "@/app/Apis/Report/useReportEntry";
 import EnterResultDrawer from "./reportEntry";
+import ReportDetails, { type ReportDetailsContext } from "./reportDetails";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +55,7 @@ export interface ResultEntry {
   tests: {
     orderItemId: number;
     testId: number;
+    resultId?: number | null;
     testName: string;
     testCode: string;
     testNameShort: string;
@@ -113,6 +111,33 @@ function normalizeStatus(raw: string): ResultStatus {
   return "PENDING";
 }
 
+/** Only use explicit result IDs from the list API — never fall back to `t.id` (often orderItemId). */
+function pickResultIdFromListTest(t: Record<string, unknown>): number | null {
+  for (const key of ["resultId", "resultHeaderId", "headerResultId"] as const) {
+    const n = Number(t[key]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
+  const nested = t.parameters ?? t.parameterResults ?? t.results;
+  if (Array.isArray(nested)) {
+    for (const row of nested) {
+      if (!row || typeof row !== "object") continue;
+      const n = Number((row as Record<string, unknown>).resultId);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+
+  return null;
+}
+
+function canEnterTest(test: ResultEntry["tests"][number]): boolean {
+  if (test.resultId != null && test.resultId > 0) return false;
+  if (test.resultStatus === "COMPLETED" || test.resultStatus === "VERIFIED") {
+    return false;
+  }
+  return test.resultStatus === "PENDING" || test.resultStatus === "DRAFT";
+}
+
 // ─── Test pill ────────────────────────────────────────────────────────────────
 
 function TestPill({ test }: { test: ResultEntry["tests"][number] }) {
@@ -135,6 +160,7 @@ function TestPill({ test }: { test: ResultEntry["tests"][number] }) {
 
 function ResultActions({
   row,
+  onViewOrder,
   onView,
   onEnter,
   onEdit,
@@ -142,15 +168,15 @@ function ResultActions({
   onPrint,
 }: {
   row: ResultEntry;
-  onView: (row: ResultEntry) => void;
+  onViewOrder: (row: ResultEntry) => void;
+  onView: (row: ResultEntry, test: ResultEntry["tests"][number]) => void;
   onEnter: (row: ResultEntry, test: ResultEntry["tests"][number]) => void;
   onEdit: (row: ResultEntry) => void;
   onVerify: (row: ResultEntry) => void;
   onPrint: (row: ResultEntry) => void;
 }) {
-  const pendingTests = row.tests.filter(
-    (t) => t.resultStatus === "PENDING" || t.resultStatus === "DRAFT",
-  );
+  const viewableTests = row.tests.filter((t) => t.orderItemId > 0);
+  const pendingTests = row.tests.filter(canEnterTest);
   const hasCompleted = row.tests.some((t) => t.resultStatus === "COMPLETED");
   const allVerified = row.tests.every((t) => t.resultStatus === "VERIFIED");
   const canPrint = row.tests.some(
@@ -184,23 +210,68 @@ function ResultActions({
           </p>
         </div>
 
-        {/* ── View ── */}
-        <DropdownMenuItem
-          onClick={() => onView(row)}
-          className="rounded-xl px-3 py-2.5 gap-3 cursor-pointer focus:bg-emerald-50 group"
-        >
-          <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
-            <Eye size={13} className="text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-xs font-black text-slate-800 group-hover:text-emerald-700">
-              View Result
-            </p>
-            <p className="text-[10px] text-slate-400 font-medium">
-              See all entered results
-            </p>
-          </div>
-        </DropdownMenuItem>
+        {/* ── View Results ── */}
+        {row.orderId > 0 && (
+          <>
+            <DropdownMenuItem
+              onClick={() => onViewOrder(row)}
+              className="rounded-xl px-3 py-2.5 gap-3 cursor-pointer focus:bg-emerald-50 group"
+            >
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
+                <Eye size={13} className="text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600">
+                  View Results
+                </p>
+                <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight mt-0.5">
+                  All results for this order
+                </p>
+                <p className="font-mono text-[9px] text-slate-400 mt-0.5">
+                  Order #{row.orderId}
+                </p>
+              </div>
+            </DropdownMenuItem>
+
+            {viewableTests.length > 0 && (
+              <div className="px-3 pt-2 pb-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  By test
+                </p>
+              </div>
+            )}
+            {viewableTests.map((t) => {
+              const cfg = STATUS_CONFIG[t.resultStatus];
+              return (
+                <DropdownMenuItem
+                  key={`view-${t.orderItemId}`}
+                  onClick={() => onView(row, t)}
+                  className="rounded-xl px-3 py-2 gap-3 cursor-pointer focus:bg-emerald-50 group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
+                    <Eye size={13} className="text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight">
+                      {t.testName}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono text-[9px] text-slate-400">
+                        {t.testCode}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full border ${cfg.pill}`}
+                      >
+                        <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
+                        {cfg.label}
+                      </span>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              );
+            })}
+          </>
+        )}
 
         {/* ── Enter Results section ── */}
         {pendingTests.length > 0 && (
@@ -324,6 +395,7 @@ function OrderCard({
   index,
   pageNo,
   pageSize,
+  onViewOrder,
   onView,
   onEnter,
   onEdit,
@@ -334,7 +406,8 @@ function OrderCard({
   index: number;
   pageNo: number;
   pageSize: number;
-  onView: (r: ResultEntry) => void;
+  onViewOrder: (r: ResultEntry) => void;
+  onView: (r: ResultEntry, t: ResultEntry["tests"][number]) => void;
   onEnter: (r: ResultEntry, t: ResultEntry["tests"][number]) => void;
   onEdit: (r: ResultEntry) => void;
   onVerify: (r: ResultEntry) => void;
@@ -400,6 +473,7 @@ function OrderCard({
           {/* Actions */}
           <ResultActions
             row={row}
+            onViewOrder={onViewOrder}
             onView={onView}
             onEnter={onEnter}
             onEdit={onEdit}
@@ -481,6 +555,10 @@ export default function ResultEntryPage() {
     ResultEntry["tests"][number] | null
   >(null);
   const [editRow, setEditRow] = useState<ResultEntry | null>(null);
+  const [viewOrderId, setViewOrderId] = useState<number | null>(null);
+  const [viewContext, setViewContext] = useState<ReportDetailsContext | null>(
+    null,
+  );
 
   const {
     data: apiResponse,
@@ -489,13 +567,7 @@ export default function ResultEntryPage() {
     isError,
     error,
     refetch,
-  } = useQuery<ResultListApiResponse>({
-    queryKey: ["report-result-list", pageNo, PAGE_SIZE],
-    queryFn: () => fetchReportList({ pageNo, pageSize: PAGE_SIZE }),
-    staleTime: 60 * 1000,
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
+  } = useReportResultList({ pageNo, pageSize: PAGE_SIZE });
 
   const rows: ResultEntry[] = useMemo(() => {
     const content = apiResponse?.data?.content ?? [];
@@ -515,6 +587,7 @@ export default function ResultEntryPage() {
       tests: (Array.isArray(item.tests) ? item.tests : []).map((t: any) => ({
         orderItemId: t.orderItemId ?? 0,
         testId: t.testId ?? 0,
+        resultId: pickResultIdFromListTest(t as Record<string, unknown>),
         testName: t.testName ?? "",
         testCode: t.testCode ?? "",
         testNameShort: t.testNameShort ?? "",
@@ -569,8 +642,30 @@ export default function ResultEntryPage() {
     });
   }, [rows, searchText, searchBy, statusFilter]);
 
-  const handleView = (row: ResultEntry) =>
-    toast.info(`Viewing: ${row.patientName}`);
+  const handleViewOrder = (row: ResultEntry) => {
+    if (!row.orderId || row.orderId <= 0) return;
+
+    setViewOrderId(row.orderId);
+    setViewContext({
+      patientName: row.patientName,
+      orderNumber: row.orderNumber,
+    });
+  };
+
+  const handleView = (
+    row: ResultEntry,
+    test: ResultEntry["tests"][number],
+  ) => {
+    if (!row.orderId || row.orderId <= 0) return;
+
+    setViewOrderId(row.orderId);
+    setViewContext({
+      patientName: row.patientName,
+      testName: test.testName,
+      orderNumber: row.orderNumber,
+      orderItemId: test.orderItemId > 0 ? test.orderItemId : undefined,
+    });
+  };
   const handleEnter = (
     row: ResultEntry,
     test: ResultEntry["tests"][number],
@@ -790,6 +885,7 @@ export default function ResultEntryPage() {
                 index={index}
                 pageNo={pageNo}
                 pageSize={PAGE_SIZE}
+                onViewOrder={handleViewOrder}
                 onView={handleView}
                 onEnter={handleEnter}
                 onEdit={handleEdit}
@@ -844,6 +940,16 @@ export default function ResultEntryPage() {
         }}
         row={enterRow}
         selectedTest={enterTest}
+      />
+
+      <ReportDetails
+        isOpen={viewOrderId != null}
+        onClose={() => {
+          setViewOrderId(null);
+          setViewContext(null);
+        }}
+        orderId={viewOrderId}
+        context={viewContext}
       />
     </div>
   );
