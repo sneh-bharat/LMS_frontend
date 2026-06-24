@@ -138,11 +138,6 @@ function canEnterTest(test: ResultEntry["tests"][number]): boolean {
   return test.resultStatus === "PENDING" || test.resultStatus === "DRAFT";
 }
 
-function resolveResultLookupId(test: ResultEntry["tests"][number]): number {
-  if (test.resultId != null && test.resultId > 0) return test.resultId;
-  return test.orderItemId;
-}
-
 // ─── Test pill ────────────────────────────────────────────────────────────────
 
 function TestPill({ test }: { test: ResultEntry["tests"][number] }) {
@@ -165,6 +160,7 @@ function TestPill({ test }: { test: ResultEntry["tests"][number] }) {
 
 function ResultActions({
   row,
+  onViewOrder,
   onView,
   onEnter,
   onEdit,
@@ -172,6 +168,7 @@ function ResultActions({
   onPrint,
 }: {
   row: ResultEntry;
+  onViewOrder: (row: ResultEntry) => void;
   onView: (row: ResultEntry, test: ResultEntry["tests"][number]) => void;
   onEnter: (row: ResultEntry, test: ResultEntry["tests"][number]) => void;
   onEdit: (row: ResultEntry) => void;
@@ -214,13 +211,35 @@ function ResultActions({
         </div>
 
         {/* ── View Results ── */}
-        {viewableTests.length > 0 && (
+        {row.orderId > 0 && (
           <>
-            <div className="px-3 pt-2 pb-1">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                View Results
-              </p>
-            </div>
+            <DropdownMenuItem
+              onClick={() => onViewOrder(row)}
+              className="rounded-xl px-3 py-2.5 gap-3 cursor-pointer focus:bg-emerald-50 group"
+            >
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
+                <Eye size={13} className="text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600">
+                  View Results
+                </p>
+                <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight mt-0.5">
+                  All results for this order
+                </p>
+                <p className="font-mono text-[9px] text-slate-400 mt-0.5">
+                  Order #{row.orderId}
+                </p>
+              </div>
+            </DropdownMenuItem>
+
+            {viewableTests.length > 0 && (
+              <div className="px-3 pt-2 pb-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  By test
+                </p>
+              </div>
+            )}
             {viewableTests.map((t) => {
               const cfg = STATUS_CONFIG[t.resultStatus];
               return (
@@ -376,6 +395,7 @@ function OrderCard({
   index,
   pageNo,
   pageSize,
+  onViewOrder,
   onView,
   onEnter,
   onEdit,
@@ -386,6 +406,7 @@ function OrderCard({
   index: number;
   pageNo: number;
   pageSize: number;
+  onViewOrder: (r: ResultEntry) => void;
   onView: (r: ResultEntry, t: ResultEntry["tests"][number]) => void;
   onEnter: (r: ResultEntry, t: ResultEntry["tests"][number]) => void;
   onEdit: (r: ResultEntry) => void;
@@ -452,6 +473,7 @@ function OrderCard({
           {/* Actions */}
           <ResultActions
             row={row}
+            onViewOrder={onViewOrder}
             onView={onView}
             onEnter={onEnter}
             onEdit={onEdit}
@@ -533,7 +555,7 @@ export default function ResultEntryPage() {
     ResultEntry["tests"][number] | null
   >(null);
   const [editRow, setEditRow] = useState<ResultEntry | null>(null);
-  const [viewResultId, setViewResultId] = useState<number | null>(null);
+  const [viewOrderId, setViewOrderId] = useState<number | null>(null);
   const [viewContext, setViewContext] = useState<ReportDetailsContext | null>(
     null,
   );
@@ -620,18 +642,28 @@ export default function ResultEntryPage() {
     });
   }, [rows, searchText, searchBy, statusFilter]);
 
+  const handleViewOrder = (row: ResultEntry) => {
+    if (!row.orderId || row.orderId <= 0) return;
+
+    setViewOrderId(row.orderId);
+    setViewContext({
+      patientName: row.patientName,
+      orderNumber: row.orderNumber,
+    });
+  };
+
   const handleView = (
     row: ResultEntry,
     test: ResultEntry["tests"][number],
   ) => {
-    const lookupId = resolveResultLookupId(test);
-    if (!lookupId || lookupId <= 0) return;
+    if (!row.orderId || row.orderId <= 0) return;
 
-    setViewResultId(lookupId);
+    setViewOrderId(row.orderId);
     setViewContext({
       patientName: row.patientName,
       testName: test.testName,
       orderNumber: row.orderNumber,
+      orderItemId: test.orderItemId > 0 ? test.orderItemId : undefined,
     });
   };
   const handleEnter = (
@@ -853,6 +885,7 @@ export default function ResultEntryPage() {
                 index={index}
                 pageNo={pageNo}
                 pageSize={PAGE_SIZE}
+                onViewOrder={handleViewOrder}
                 onView={handleView}
                 onEnter={handleEnter}
                 onEdit={handleEdit}
@@ -910,12 +943,12 @@ export default function ResultEntryPage() {
       />
 
       <ReportDetails
-        isOpen={viewResultId != null}
+        isOpen={viewOrderId != null}
         onClose={() => {
-          setViewResultId(null);
+          setViewOrderId(null);
           setViewContext(null);
         }}
-        resultId={viewResultId}
+        orderId={viewOrderId}
         context={viewContext}
       />
     </div>

@@ -198,6 +198,178 @@ export type GetResultByIdApiResponse = ReportApiResponse<ResultDetailData>;
 export type ReportDetailsApiResponse = GetResultByIdApiResponse;
 export type ReportStatusFilterChangeApiResponse = GetResultByIdApiResponse;
 
+// ─── Order results ────────────────────────────────────────────────────────────
+
+export interface OrderResultTestGroup {
+  orderItemId: number;
+  testId: number;
+  testName: string;
+  testCode: string;
+  resultStatus: string;
+  parameters: ResultParameterRecord[];
+}
+
+export interface OrderResultData {
+  orderId: number;
+  orderNumber: string;
+  patientName: string;
+  content: ResultParameterRecord[];
+  tests: OrderResultTestGroup[];
+  flaggedCount: number;
+  criticalCount: number;
+  totalElements: number;
+  pageNo: number;
+  pageSize: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export type OrderResultApiResponse = ReportApiResponse<OrderResultData>;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function asResultParameterRecord(value: unknown): ResultParameterRecord | null {
+  const row = asRecord(value);
+  if (!row || row.resultId == null) return null;
+
+  return {
+    resultId: Number(row.resultId) || 0,
+    orderItemId: Number(row.orderItemId) || 0,
+    parameterId: Number(row.parameterId) || 0,
+    parameterName: String(row.parameterName ?? ''),
+    resultValue: String(row.resultValue ?? ''),
+    numericValue:
+      row.numericValue == null ? null : Number(row.numericValue),
+    resultType: String(row.resultType ?? ''),
+    unit: String(row.unit ?? ''),
+    referenceLow: row.referenceLow == null ? null : Number(row.referenceLow),
+    referenceHigh: row.referenceHigh == null ? null : Number(row.referenceHigh),
+    criticalLow: row.criticalLow == null ? null : Number(row.criticalLow),
+    criticalHigh: row.criticalHigh == null ? null : Number(row.criticalHigh),
+    abnormalFlag: row.abnormalFlag == null ? null : String(row.abnormalFlag),
+    isCritical: Boolean(row.isCritical),
+    isVerified: Boolean(row.isVerified),
+    isCorrected: Boolean(row.isCorrected),
+    autoVerified: Boolean(row.autoVerified),
+    resultStatus: String(row.resultStatus ?? 'PENDING'),
+    clinicalInterpretation:
+      row.clinicalInterpretation == null
+        ? null
+        : String(row.clinicalInterpretation),
+    comments: row.comments == null ? null : String(row.comments),
+    correctedValue:
+      row.correctedValue == null ? null : String(row.correctedValue),
+    correctionReason:
+      row.correctionReason == null ? null : String(row.correctionReason),
+    instrumentName:
+      row.instrumentName == null ? null : String(row.instrumentName),
+    enteredAt: row.enteredAt == null ? null : String(row.enteredAt),
+    verifiedAt: row.verifiedAt == null ? null : String(row.verifiedAt),
+  };
+}
+
+function collectParameterRecords(value: unknown): ResultParameterRecord[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((row) => asResultParameterRecord(row))
+    .filter((row): row is ResultParameterRecord => row != null);
+}
+
+function groupResultsByOrderItem(
+  parameters: ResultParameterRecord[],
+): OrderResultTestGroup[] {
+  const byOrderItem = new Map<number, ResultParameterRecord[]>();
+
+  for (const param of parameters) {
+    const key = param.orderItemId || 0;
+    const list = byOrderItem.get(key) ?? [];
+    list.push(param);
+    byOrderItem.set(key, list);
+  }
+
+  return Array.from(byOrderItem.entries()).map(([orderItemId, items]) => ({
+    orderItemId,
+    testId: 0,
+    testName: `Order Item #${orderItemId}`,
+    testCode: '',
+    resultStatus: items[0]?.resultStatus ?? 'PENDING',
+    parameters: items,
+  }));
+}
+
+function normalizeOrderResultData(
+  orderId: number,
+  raw: unknown,
+): OrderResultData {
+  const root = asRecord(raw) ?? {};
+
+  const content = collectParameterRecords(
+    root.content ??
+      root.results ??
+      root.parameters ??
+      root.parameterResults,
+  );
+
+  const tests: OrderResultTestGroup[] = [];
+  const groupedSources = [
+    root.tests,
+    root.orderItems,
+    root.items,
+    root.testResults,
+  ];
+
+  for (const source of groupedSources) {
+    if (!Array.isArray(source)) continue;
+
+    for (const item of source) {
+      const row = asRecord(item);
+      if (!row) continue;
+
+      const orderItemId = Number(row.orderItemId ?? row.id) || 0;
+      const parameters = collectParameterRecords(
+        row.parameters ??
+          row.parameterResults ??
+          row.results ??
+          row.resultParameters,
+      );
+
+      if (orderItemId <= 0 && parameters.length === 0) continue;
+
+      tests.push({
+        orderItemId: orderItemId || parameters[0]?.orderItemId || 0,
+        testId: Number(row.testId) || 0,
+        testName: String(row.testName ?? row.name ?? `Order Item #${orderItemId}`),
+        testCode: String(row.testCode ?? row.code ?? ''),
+        resultStatus: String(row.resultStatus ?? parameters[0]?.resultStatus ?? 'PENDING'),
+        parameters,
+      });
+    }
+  }
+
+  const resolvedTests =
+    tests.length > 0 ? tests : groupResultsByOrderItem(content);
+
+  return {
+    orderId: Number(root.orderId) || orderId,
+    orderNumber: String(root.orderNumber ?? ''),
+    patientName: String(root.patientName ?? ''),
+    content,
+    tests: resolvedTests,
+    flaggedCount: Number(root.flaggedCount) || 0,
+    criticalCount: Number(root.criticalCount) || 0,
+    totalElements: Number(root.totalElements) || content.length,
+    pageNo: Number(root.pageNo) || 0,
+    pageSize: Number(root.pageSize) || content.length,
+    totalPages: Number(root.totalPages) || 1,
+    first: Boolean(root.first ?? true),
+    last: Boolean(root.last ?? true),
+  };
+}
+
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 /**
@@ -330,6 +502,22 @@ export async function getResultById(
   return reportBookingAxios.get(
     `/results/${resultId}`,
   ) as Promise<GetResultByIdApiResponse>;
+}
+
+/**
+ * GET `/api/v1/results/order/{orderId}` — all results for an order.
+ */
+export async function fetchOrderResult(
+  orderId: number,
+): Promise<OrderResultApiResponse> {
+  const response = (await reportBookingAxios.get(
+    `/results/order/${orderId}`,
+  )) as OrderResultApiResponse;
+
+  return {
+    ...response,
+    data: normalizeOrderResultData(orderId, response?.data),
+  };
 }
 
 /** @deprecated Use getResultById */

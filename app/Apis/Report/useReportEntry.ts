@@ -5,12 +5,15 @@ import {
   enterBulkResults,
   enterSingleResult,
   enterSingleResultsBatch,
+  fetchOrderResult,
   fetchParametersWithReference,
   fetchReportList,
   getResultById,
   type EnterBulkResultsPayload,
   type EnterSingleResultPayload,
   type EnterSingleResultsBatchOptions,
+  type GetResultByIdApiResponse,
+  type OrderResultApiResponse,
   type ParameterResultEntry,
   type ResultListApiResponse,
   type ResultListParams,
@@ -24,6 +27,8 @@ export const reportQueryKeys = {
     [...reportQueryKeys.all, 'parameters', testId, gender, age] as const,
   resultDetail: (resultId: number) =>
     [...reportQueryKeys.all, 'result-detail', resultId] as const,
+  orderResult: (orderId: number) =>
+    [...reportQueryKeys.all, 'order-result', orderId] as const,
 };
 
 /** GET `/api/v1/test-orders/result-list` */
@@ -68,15 +73,32 @@ export function useReportParameters(
   });
 }
 
-/** GET `/api/v1/results/{resultId}` */
-export function useReportResultDetail(
-  resultId: number | null | undefined,
+/** GET `/api/v1/results/order/{orderId}` */
+export function useReportOrderResult(
+  orderId: number,
   options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: reportQueryKeys.resultDetail(resultId ?? 0),
-    queryFn: () => getResultById(resultId!),
-    enabled: !!resultId && resultId > 0 && (options?.enabled ?? true),
+  return useQuery<OrderResultApiResponse, Error>({
+    queryKey: reportQueryKeys.orderResult(orderId),
+    queryFn: () => fetchOrderResult(orderId),
+    enabled: !!orderId && orderId > 0 && (options?.enabled ?? true),
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GET `/api/v1/results/{resultId}` */
+export function useReportResultDetail(
+  resultId: number | null,
+  options?: { enabled?: boolean },
+) {
+  const id = resultId ?? 0;
+
+  return useQuery<GetResultByIdApiResponse, Error>({
+    queryKey: reportQueryKeys.resultDetail(id),
+    queryFn: () => getResultById(id),
+    enabled: !!id && id > 0 && (options?.enabled ?? true),
     staleTime: 30_000,
     retry: 1,
     refetchOnWindowFocus: false,
