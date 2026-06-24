@@ -59,6 +59,8 @@ export interface ResultEntry {
     testName: string;
     testCode: string;
     testNameShort: string;
+    departmentName?: string;
+    categoryName?: string;
     sampleType: string;
     isCritical: boolean;
     remarks: string | null;
@@ -117,6 +119,7 @@ function pickResultIdFromListTest(t: Record<string, unknown>): number | null {
     const n = Number(t[key]);
     if (Number.isFinite(n) && n > 0) return n;
   }
+
 
   const nested = t.parameters ?? t.parameterResults ?? t.results;
   if (Array.isArray(nested)) {
@@ -240,36 +243,6 @@ function ResultActions({
                 </p>
               </div>
             )}
-            {viewableTests.map((t) => {
-              const cfg = STATUS_CONFIG[t.resultStatus];
-              return (
-                <DropdownMenuItem
-                  key={`view-${t.orderItemId}`}
-                  onClick={() => onView(row, t)}
-                  className="rounded-xl px-3 py-2 gap-3 cursor-pointer focus:bg-emerald-50 group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
-                    <Eye size={13} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight">
-                      {t.testName}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono text-[9px] text-slate-400">
-                        {t.testCode}
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full border ${cfg.pill}`}
-                      >
-                        <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                      </span>
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
           </>
         )}
 
@@ -591,6 +564,8 @@ export default function ResultEntryPage() {
         testName: t.testName ?? "",
         testCode: t.testCode ?? "",
         testNameShort: t.testNameShort ?? "",
+        departmentName: t.departmentName ?? t.department ?? "",
+        categoryName: t.categoryName ?? t.category ?? "",
         sampleType: t.vialType ?? "",
         isCritical: t.isCritical ?? false,
         remarks: t.remarks ?? null,
@@ -648,7 +623,25 @@ export default function ResultEntryPage() {
     setViewOrderId(row.orderId);
     setViewContext({
       patientName: row.patientName,
+      patientId: row.patientId,
+      gender: row.gender,
+      age: row.age,
       orderNumber: row.orderNumber,
+      collectionDate: row.collectionDate,
+      collectionTime: row.collectionTime,
+      priority: row.priority,
+      testMetaByOrderItem: Object.fromEntries(
+        row.tests.map((t) => [
+          t.orderItemId,
+          {
+            testName: t.testName,
+            departmentName: t.departmentName,
+            categoryName: t.categoryName,
+            isCritical: t.isCritical,
+            resultId: t.resultId,
+          },
+        ]),
+      ),
     });
   };
 
@@ -661,9 +654,31 @@ export default function ResultEntryPage() {
     setViewOrderId(row.orderId);
     setViewContext({
       patientName: row.patientName,
+      patientId: row.patientId,
+      gender: row.gender,
+      age: row.age,
       testName: test.testName,
       orderNumber: row.orderNumber,
       orderItemId: test.orderItemId > 0 ? test.orderItemId : undefined,
+      departmentName: test.departmentName,
+      categoryName: test.categoryName,
+      sampleType: test.sampleType,
+      collectionDate: row.collectionDate,
+      collectionTime: row.collectionTime,
+      priority: row.priority,
+      isCritical: test.isCritical,
+      testMetaByOrderItem: Object.fromEntries(
+        row.tests.map((t) => [
+          t.orderItemId,
+          {
+            testName: t.testName,
+            departmentName: t.departmentName,
+            categoryName: t.categoryName,
+            isCritical: t.isCritical,
+            resultId: t.resultId,
+          },
+        ]),
+      ),
     });
   };
   const handleEnter = (
