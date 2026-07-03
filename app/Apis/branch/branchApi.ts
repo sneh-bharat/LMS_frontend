@@ -34,6 +34,7 @@ export interface Branch {
   /** API status e.g. `ACTIVE`, `INACTIVE` */
   status?: string;
   tenantId: number;
+  activeUsers: number;
 }
 
 export interface BranchDetails {
@@ -183,6 +184,19 @@ export interface UpdateTestPriceInput {
  * GET ALL BRANCHES (listing) — single call for Branches & B2B page.
  * Endpoint: GET /api/v1/tenants/{tenantId}/branches/all?page=0&size=10
  */
+function normalizeBranch(branch: Branch): Branch {
+  const isActive =
+    typeof branch.isActive === 'boolean'
+      ? branch.isActive
+      : branch.status?.trim().toUpperCase() === 'ACTIVE';
+
+  return {
+    ...branch,
+    isActive,
+    status: isActive ? 'ACTIVE' : 'INACTIVE',
+  };
+}
+
 function normalizeBranchListPage(
   raw: PaginatedResponse<Branch> & { page?: number; size?: number }
 ): PaginatedResponse<Branch> {
@@ -214,6 +228,7 @@ export const branchApi = {
 
     if (response.data) {
       response.data = normalizeBranchListPage(response.data);
+      response.data.content = (response.data.content ?? []).map(normalizeBranch);
     }
     return response;
   },

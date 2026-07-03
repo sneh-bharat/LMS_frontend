@@ -205,11 +205,42 @@ export interface UpdatePatientInput extends CreatePatientInput {
 // ─── Axios patient microservice (same base URL + Bearer as other patient routes) ─
 
 class AxiosPatientErrorHandler {
-  static handle(status: number, responseText: string): { message: string } {
+  static handle(
+    status: number,
+    responseText: string,
+  ): { message: string; fieldErrors?: Record<string, string> } {
     try {
-      const data = JSON.parse(responseText) as { message?: string; error?: string };
+      const data = JSON.parse(responseText) as {
+        message?: string;
+        error?: string;
+        fieldErrors?: Record<string, string>;
+        data?: {
+          message?: string;
+          fieldErrors?: Record<string, string>;
+          errorCode?: string;
+        };
+      };
       if (data && typeof data === 'object') {
-        return { message: data.message || data.error || `HTTP ${status}` };
+        const nested = data.data;
+        const fieldErrors =
+          nested?.fieldErrors && typeof nested.fieldErrors === 'object'
+            ? nested.fieldErrors
+            : data.fieldErrors;
+        const fieldErrorMessage = fieldErrors
+          ? Object.entries(fieldErrors)
+              .map(([field, detail]) => `${field}: ${detail}`)
+              .join('; ')
+          : '';
+        const message =
+          data.message ||
+          nested?.message ||
+          data.error ||
+          fieldErrorMessage ||
+          `HTTP ${status}`;
+        return {
+          message,
+          fieldErrors,
+        };
       }
     } catch {
       /* ignore */
@@ -341,8 +372,10 @@ async function postPatientCreateClient(
     if (axios.isAxiosError(e) && e.response) {
       const body =
         typeof e.response.data === 'string' ? e.response.data : JSON.stringify(e.response.data ?? {});
-      const { message } = AxiosPatientErrorHandler.handle(e.response.status, body);
-      throw new Error(message);
+      const { message, fieldErrors } = AxiosPatientErrorHandler.handle(e.response.status, body);
+      const error = new Error(message) as Error & { fieldErrors?: Record<string, string> };
+      if (fieldErrors) error.fieldErrors = fieldErrors;
+      throw error;
     }
     throw e instanceof Error ? e : new Error('Failed to create patient');
   }

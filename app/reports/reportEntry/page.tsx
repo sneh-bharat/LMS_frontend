@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useReportResultList } from "@/app/Apis/Report/useReportEntry";
+import type { ApiResultStatus } from "@/app/Apis/Report/reportApi";
 import EnterResultDrawer from "./reportEntry";
 import ReportDetails, { type ReportDetailsContext } from "./reportDetails";
 
@@ -112,6 +113,44 @@ function normalizeStatus(raw: string): ResultStatus {
     return u as ResultStatus;
   return "PENDING";
 }
+
+const STATUS_STAT_PILLS: {
+  key: ApiResultStatus;
+  label: string;
+  pill: string;
+  dot: string;
+}[] = [
+  {
+    key: "DRAFT",
+    label: "Draft",
+    pill: "bg-orange-50 border border-orange-200",
+    dot: "bg-orange-400",
+  },
+  {
+    key: "ENTERED",
+    label: "Entered",
+    pill: "bg-amber-50 border border-amber-200",
+    dot: "bg-amber-400",
+  },
+  {
+    key: "REVIEWED",
+    label: "Reviewed",
+    pill: "bg-violet-50 border border-violet-200",
+    dot: "bg-violet-500",
+  },
+  {
+    key: "APPROVED",
+    label: "Approved",
+    pill: "bg-emerald-50 border border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  {
+    key: "REPORTED",
+    label: "Reported",
+    pill: "bg-sky-50 border border-sky-200",
+    dot: "bg-sky-500",
+  },
+];
 
 /** Only use explicit result IDs from the list API — never fall back to `t.id` (often orderItemId). */
 function pickResultIdFromListTest(t: Record<string, unknown>): number | null {
@@ -227,22 +266,8 @@ function ResultActions({
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600">
                   View Results
                 </p>
-                <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate leading-tight mt-0.5">
-                  All results for this order
-                </p>
-                <p className="font-mono text-[9px] text-slate-400 mt-0.5">
-                  Order #{row.orderId}
-                </p>
               </div>
             </DropdownMenuItem>
-
-            {viewableTests.length > 0 && (
-              <div className="px-3 pt-2 pb-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  By test
-                </p>
-              </div>
-            )}
           </>
         )}
 
@@ -254,41 +279,20 @@ function ResultActions({
                 Enter Results — {pendingTests.length} pending
               </p>
             </div>
-            {pendingTests.map((t) => {
-              const cfg = STATUS_CONFIG[t.resultStatus];
-              return (
-                <DropdownMenuItem
-                  key={t.orderItemId}
-                  onClick={() => onEnter(row, t)}
-                  className="rounded-xl px-3 py-2 gap-3 cursor-pointer focus:bg-amber-50 group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
-                    <ClipboardEdit size={13} className="text-amber-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 group-hover:text-amber-700 truncate leading-tight">
-                      {t.testName}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono text-[9px] text-slate-400">
-                        {t.testCode}
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full border ${cfg.pill}`}
-                      >
-                        <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                      </span>
-                      {t.isCritical && (
-                        <span className="text-[9px] font-black text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">
-                          CRITICAL
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
+            {pendingTests.map((t) => (
+              <DropdownMenuItem
+                key={t.orderItemId}
+                onClick={() => onEnter(row, t)}
+                className="rounded-xl px-3 py-2 gap-3 cursor-pointer focus:bg-amber-50 group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
+                  <ClipboardEdit size={13} className="text-amber-600" />
+                </div>
+                <span className="text-xs font-bold text-slate-800 group-hover:text-amber-700">
+                  Enter Result
+                </span>
+              </DropdownMenuItem>
+            ))}
           </>
         )}
 
@@ -542,6 +546,27 @@ export default function ResultEntryPage() {
     refetch,
   } = useReportResultList({ pageNo, pageSize: PAGE_SIZE });
 
+  const statusStats = useMemo(() => {
+    const counts: Record<ApiResultStatus, number> = {
+      DRAFT: 0,
+      ENTERED: 0,
+      REVIEWED: 0,
+      APPROVED: 0,
+      REPORTED: 0,
+    };
+    const content = apiResponse?.data?.content ?? [];
+    for (const item of content) {
+      const tests = Array.isArray(item.tests) ? item.tests : [];
+      for (const t of tests) {
+        const s = String(
+          (t as Record<string, unknown>).resultStatus ?? "",
+        ).toUpperCase();
+        if (s in counts) counts[s as ApiResultStatus]++;
+      }
+    }
+    return counts;
+  }, [apiResponse]);
+
   const rows: ResultEntry[] = useMemo(() => {
     const content = apiResponse?.data?.content ?? [];
     return content.map((item: any) => ({
@@ -694,14 +719,9 @@ export default function ResultEntryPage() {
   const handlePrint = (row: ResultEntry) =>
     toast.info(`Printing: ${row.patientName}`);
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const pending = rows.filter((r) => r.status === "PENDING").length;
-    const draft = rows.filter((r) => r.status === "DRAFT").length;
-    const completed = rows.filter((r) => r.status === "COMPLETED").length;
-    const verified = rows.filter((r) => r.status === "VERIFIED").length;
-    return { pending, draft, completed, verified };
-  }, [rows]);
+  const hasStatusStats = STATUS_STAT_PILLS.some(
+    ({ key }) => (statusStats[key] ?? 0) > 0,
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -717,41 +737,24 @@ export default function ResultEntryPage() {
           </p>
         </div>
 
-        {/* Quick stats */}
-        {!isLoading && rows.length > 0 && (
+        {/* Quick stats — from current result-list page */}
+        {!isLoading && hasStatusStats && (
           <div className="flex items-center gap-2 flex-wrap">
-            {stats.pending > 0 && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-xs font-black text-amber-700">
-                  {stats.pending} Pending
-                </span>
-              </div>
-            )}
-            {stats.draft > 0 && (
-              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 px-3 py-2 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-orange-400" />
-                <span className="text-xs font-black text-orange-700">
-                  {stats.draft} Draft
-                </span>
-              </div>
-            )}
-            {stats.completed > 0 && (
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs font-black text-emerald-700">
-                  {stats.completed} Completed
-                </span>
-              </div>
-            )}
-            {stats.verified > 0 && (
-              <div className="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3 py-2 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-sky-500" />
-                <span className="text-xs font-black text-sky-700">
-                  {stats.verified} Verified
-                </span>
-              </div>
-            )}
+            {STATUS_STAT_PILLS.map(({ key, label, pill, dot }) => {
+              const count = statusStats[key] ?? 0;
+              if (count <= 0) return null;
+              return (
+                <div
+                  key={key}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl ${pill}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${dot}`} />
+                  <span className="text-xs font-black text-slate-700">
+                    {count} {label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -791,12 +794,17 @@ export default function ResultEntryPage() {
 
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={() => {
+              void refetch();
+            }}
             disabled={isLoading || isFetching}
             title="Refresh"
             className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all disabled:opacity-40 shrink-0"
           >
-            <RefreshCw size={15} className={isFetching ? "animate-spin" : ""} />
+            <RefreshCw
+              size={15}
+              className={isFetching ? "animate-spin" : ""}
+            />
           </button>
         </div>
 
@@ -811,7 +819,7 @@ export default function ResultEntryPage() {
               { value: "PENDING", label: "Pending" },
               { value: "DRAFT", label: "Draft" },
               { value: "COMPLETED", label: "Completed" },
-              { value: "VERIFIED", label: "Verified" },
+              { value: "APPROVED", label: "Verified" },
             ] as { value: ResultStatus | "ALL"; label: string }[]
           ).map(({ value, label }) => {
             const isActive = statusFilter === value;

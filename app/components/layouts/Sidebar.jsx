@@ -74,6 +74,8 @@ const NAV = [
       { label: "Invoices", href: "/diagnosis/invoice-list" },
       { label: "Sample Tracking", href: "/SampleTracking" },
       { label: "Report Entry", href: "/reports/reportEntry" },
+      { label: "Result Verification", href: "/reports/result-verification" },
+      { label: "Critical Results", href: "/reports/critical-results" },
     ],
   },
   {
@@ -150,7 +152,7 @@ const NAV = [
     children: [
       { label: "Pathology Parameter", href: "/reports/pathology-parameter" },
       { label: "Signature", href: "/reports/Signature" },
-      { label: "Result Verification", href: "/reports/result-verification" },
+    
       { label: "Urine Sensitivity", href: "/reports/urineSensitivity" },
       { label: "Report Unlock", href: "/report-unlock" },
       { label: "MIS Reports", href: "/reports/MisReports" },

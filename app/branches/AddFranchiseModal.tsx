@@ -26,6 +26,23 @@ import { branchApi, CreateBranchInput, UpdateBranchInput } from '@/app/Apis/bran
 const BRANCH_TYPES = ['REGIONAL', 'COLLECTION_CENTER', 'FRANCHISE'];
 const COUNTRIES = ['India', 'USA', 'UK', 'Canada', 'Australia'];
 
+const NAME_ONLY_PATTERN = /^[A-Za-z]*$/;
+const ALPHA_SPACE_PATTERN = /^[A-Za-z ]*$/;
+const PIN_CODE_PATTERN = /^\d{6}$/;
+
+function sanitizeNameInput(value: string): string {
+  return value.replace(/[^A-Za-z]/g, '');
+}
+
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '').replace(/\s+/g, ' ').replace(/^\s+/, '');
+}
+
+function sanitizeNumericInput(value: string, maxLength?: number): string {
+  const digits = value.replace(/\D/g, '');
+  return typeof maxLength === 'number' ? digits.slice(0, maxLength) : digits;
+}
+
 // ─── Add Franchise Modal ────────────────────────────────────────────────────
 
 interface AddFranchiseModalProps {
@@ -104,14 +121,32 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
 
     if (!formData.branchName.trim()) {
       newErrors.branchName = 'Branch name is required';
+    } else if (!NAME_ONLY_PATTERN.test(formData.branchName.trim())) {
+      newErrors.branchName = 'Branch name must contain only letters';
+    }
+
+    if (formData.city.trim() && !ALPHA_SPACE_PATTERN.test(formData.city.trim())) {
+      newErrors.city = 'City must contain only letters';
+    }
+
+    if (formData.state.trim() && !ALPHA_SPACE_PATTERN.test(formData.state.trim())) {
+      newErrors.state = 'State must contain only letters';
+    }
+
+    if (formData.postalCode.trim() && !PIN_CODE_PATTERN.test(formData.postalCode.trim())) {
+      newErrors.postalCode = 'Postal code must be exactly 6 digits';
     }
 
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'Invalid email format';
     }
 
-    if (formData.contactPhone && !/^[\d\s\-\+\(\)]+$/.test(formData.contactPhone)) {
-      newErrors.contactPhone = 'Invalid phone number format';
+    if (formData.contactPhone.trim()) {
+      if (!/^\d+$/.test(formData.contactPhone.trim())) {
+        newErrors.contactPhone = 'Contact phone must contain only numbers';
+      } else if (!/^[6-9]\d{9}$/.test(formData.contactPhone.trim())) {
+        newErrors.contactPhone = 'Contact phone must be a valid 10-digit Indian number';
+      }
     }
 
     setErrors(newErrors);
@@ -144,6 +179,10 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
         };
 
         await branchApi.updateBranch(Number(initialData.id), updateData);
+        await branchApi.toggleBranchStatus(
+          Number(initialData.id),
+          formData.isActive === true,
+        );
         toast.success('Branch updated successfully!');
       } else {
         // Create new branch
@@ -218,7 +257,11 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Branch Name *</Label>
             <Input
               value={formData.branchName}
-              onChange={e => setFormData(p => ({ ...p, branchName: e.target.value }))}
+              onChange={e => {
+                const branchName = sanitizeNameInput(e.target.value);
+                setFormData(p => ({ ...p, branchName }));
+                if (errors.branchName) setErrors(p => ({ ...p, branchName: '' }));
+              }}
               placeholder="Enter Branch Name"
               className={errors.branchName ? 'border-rose-300' : 'border-slate-200'}
             />
@@ -267,25 +310,51 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">City</Label>
               <Input
                 value={formData.city}
-                onChange={e => setFormData(p => ({ ...p, city: e.target.value }))}
+                onChange={e => {
+                  const city = sanitizeAlphabeticInput(e.target.value);
+                  setFormData(p => ({ ...p, city }));
+                  if (errors.city) setErrors(p => ({ ...p, city: '' }));
+                }}
                 placeholder="Enter City"
+                className={errors.city ? 'border-rose-300' : 'border-slate-200'}
               />
+              {errors.city && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.city}</p>
+              )}
             </div>
             <div>
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">State *</Label>
               <Input
                 value={formData.state}
-                onChange={e => setFormData(p => ({ ...p, state: e.target.value }))}
+                onChange={e => {
+                  const state = sanitizeAlphabeticInput(e.target.value);
+                  setFormData(p => ({ ...p, state }));
+                  if (errors.state) setErrors(p => ({ ...p, state: '' }));
+                }}
                 placeholder="Enter State"
+                className={errors.state ? 'border-rose-300' : 'border-slate-200'}
               />
+              {errors.state && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.state}</p>
+              )}
             </div>
             <div>
               <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Postal Code</Label>
               <Input
                 value={formData.postalCode}
-                onChange={e => setFormData(p => ({ ...p, postalCode: e.target.value }))}
-                placeholder="Enter Postal Code"
+                onChange={e => {
+                  const postalCode = sanitizeNumericInput(e.target.value, 6);
+                  setFormData(p => ({ ...p, postalCode }));
+                  if (errors.postalCode) setErrors(p => ({ ...p, postalCode: '' }));
+                }}
+                placeholder="6 digit pin code"
+                maxLength={6}
+                inputMode="numeric"
+                className={errors.postalCode ? 'border-rose-300' : 'border-slate-200'}
               />
+              {errors.postalCode && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.postalCode}</p>
+              )}
             </div>
           </div>
 
@@ -334,8 +403,14 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               <Input
                 type="tel"
                 value={formData.contactPhone}
-                onChange={e => setFormData(p => ({ ...p, contactPhone: e.target.value }))}
-                placeholder="+91-XX-XXXX-XXXX"
+                onChange={e => {
+                  const contactPhone = sanitizeNumericInput(e.target.value, 10);
+                  setFormData(p => ({ ...p, contactPhone }));
+                  if (errors.contactPhone) setErrors(p => ({ ...p, contactPhone: '' }));
+                }}
+                placeholder="9876543210"
+                maxLength={10}
+                inputMode="numeric"
                 className={errors.contactPhone ? 'border-rose-300' : 'border-slate-200'}
               />
               {errors.contactPhone && (
@@ -346,7 +421,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
         </section>
 
         {/* Section 4: Status */}
-        <section className="space-y-6">
+        {/* <section className="space-y-6">
           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
             <span className="w-4 h-[1px] bg-slate-200"></span>
             04. Branch Status
@@ -369,7 +444,7 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
               </Label>
             </div>
           </div>
-        </section>
+        </section> */}
       </form>
     </RightDrawer>
   );

@@ -585,3 +585,474 @@ export const getReportDetails = getResultById;
 
 /** @deprecated Use getResultById */
 export const getReportStatusFilterChange = getResultById;
+
+
+
+/** GET `/api/v1/results/critical` - Get Critical Results */
+
+/** One lab parameter result that crossed a critical threshold. */
+export interface CriticalResultItem {
+  resultId: number;
+  orderItemId: number;
+  parameterId: number;
+  parameterName: string;
+  resultType: string;
+  resultValue: string;
+  numericValue: number;
+  unit: string;
+  referenceLow: number;
+  referenceHigh: number;
+  criticalLow: number;
+  criticalHigh: number;
+  abnormalFlag: 'LOW' | 'HIGH' | 'NORMAL' | string;
+  resultStatus: 'DRAFT' | 'VERIFIED' | 'FINAL' | string;
+  isCritical: boolean;
+  isVerified: boolean;
+  autoVerified: boolean;
+  isCorrected: boolean;
+  clinicalInterpretation: string | null;
+  comments: string | null;
+  correctedValue: string | null;
+  correctionReason: string | null;
+  instrumentName: string | null;
+  enteredAt: string;
+  verifiedAt: string | null;
+}
+
+/** Payload inside `response.data` from GET `/results/critical`. */
+export interface CriticalResultsData {
+  criticalResults: CriticalResultItem[];
+}
+
+export type CriticalResultsApiResponse = ReportApiResponse<CriticalResultsData>;
+
+function normalizeCriticalResultItem(
+  row: Record<string, unknown>,
+): CriticalResultItem {
+  return {
+    resultId: Number(row.resultId) || 0,
+    orderItemId: Number(row.orderItemId) || 0,
+    parameterId: Number(row.parameterId) || 0,
+    parameterName: String(row.parameterName ?? ''),
+    resultType: String(row.resultType ?? ''),
+    resultValue: String(row.resultValue ?? ''),
+    numericValue: Number(row.numericValue) || 0,
+    unit: String(row.unit ?? ''),
+    referenceLow: Number(row.referenceLow) || 0,
+    referenceHigh: Number(row.referenceHigh) || 0,
+    criticalLow: Number(row.criticalLow) || 0,
+    criticalHigh: Number(row.criticalHigh) || 0,
+    abnormalFlag: String(row.abnormalFlag ?? ''),
+    resultStatus: String(row.resultStatus ?? ''),
+    isCritical: Boolean(row.isCritical),
+    isVerified: Boolean(row.isVerified),
+    autoVerified: Boolean(row.autoVerified),
+    isCorrected: Boolean(row.isCorrected),
+    clinicalInterpretation:
+      row.clinicalInterpretation == null
+        ? null
+        : String(row.clinicalInterpretation),
+    comments: row.comments == null ? null : String(row.comments),
+    correctedValue:
+      row.correctedValue == null ? null : String(row.correctedValue),
+    correctionReason:
+      row.correctionReason == null ? null : String(row.correctionReason),
+    instrumentName:
+      row.instrumentName == null ? null : String(row.instrumentName),
+    enteredAt: String(row.enteredAt ?? ''),
+    verifiedAt: row.verifiedAt == null ? null : String(row.verifiedAt),
+  };
+}
+
+export async function fetchCriticalResults(): Promise<CriticalResultsApiResponse> {
+  const response = (await reportBookingAxios.get(
+    '/results/critical',
+  )) as CriticalResultsApiResponse;
+
+  const rawList = response?.data?.criticalResults;
+  const criticalResults = Array.isArray(rawList)
+    ? rawList.map((item) =>
+        normalizeCriticalResultItem(item as unknown as Record<string, unknown>),
+      )
+    : [];
+
+  return {
+    ...response,
+    data: { criticalResults },
+  };
+}
+
+
+/** GET `/api/v1/results/status/:status` — results filtered by workflow status. */
+export type ApiResultStatus =
+  | 'DRAFT'
+  | 'ENTERED'
+  | 'REVIEWED'
+  | 'APPROVED'
+  | 'REPORTED';
+
+export interface ResultStatusParams {
+  page?: number;
+  size?: number;
+}
+
+export interface ResultStatusItem {
+  resultId: number;
+  orderId: number;
+  orderItemId: number;
+  testId: number;
+  parameterId: number;
+  parameterName: string;
+  resultValue: string;
+  numericValue: number;
+  unit: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  criticalLow: number | null;
+  criticalHigh: number | null;
+  abnormalFlag: string;
+  resultStatus: string;
+  resultType: string;
+  isCritical: boolean;
+  isVerified: boolean;
+  autoVerified: boolean;
+  isCorrected: boolean;
+  enteredAt: string;
+  verifiedAt: string | null;
+  instrumentName: string | null;
+  clinicalInterpretation: string | null;
+  comments: string | null;
+}
+
+export interface ResultStatusPage {
+  content: ResultStatusItem[];
+  pageNo: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export type ResultStatusApiResponse = ReportApiResponse<ResultStatusPage>;
+
+export const API_RESULT_STATUSES: ApiResultStatus[] = [
+  'DRAFT',
+  'ENTERED',
+  'REVIEWED',
+  'APPROVED',
+  'REPORTED',
+];
+
+function normalizeResultStatusItem(
+  row: Record<string, unknown>,
+): ResultStatusItem {
+  const num = (v: unknown) => {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  return {
+    resultId: Number(row.resultId ?? row.id) || 0,
+    orderId: Number(row.orderId) || 0,
+    orderItemId: Number(row.orderItemId) || 0,
+    testId: Number(row.testId) || 0,
+    parameterId: Number(row.parameterId) || 0,
+    parameterName: String(row.parameterName ?? ''),
+    resultValue: String(row.resultValue ?? ''),
+    numericValue: Number(row.numericValue) || 0,
+    unit: String(row.unit ?? ''),
+    referenceLow: num(row.referenceLow),
+    referenceHigh: num(row.referenceHigh),
+    criticalLow: num(row.criticalLow),
+    criticalHigh: num(row.criticalHigh),
+    abnormalFlag: String(row.abnormalFlag ?? ''),
+    resultStatus: String(row.resultStatus ?? ''),
+    resultType: String(row.resultType ?? ''),
+    isCritical: Boolean(row.isCritical),
+    isVerified: Boolean(row.isVerified),
+    autoVerified: Boolean(row.autoVerified),
+    isCorrected: Boolean(row.isCorrected),
+    enteredAt: String(row.enteredAt ?? ''),
+    verifiedAt: row.verifiedAt == null ? null : String(row.verifiedAt),
+    instrumentName:
+      row.instrumentName == null ? null : String(row.instrumentName),
+    clinicalInterpretation:
+      row.clinicalInterpretation == null
+        ? null
+        : String(row.clinicalInterpretation),
+    comments: row.comments == null ? null : String(row.comments),
+  };
+}
+
+export async function getResultStatus(
+  status: ApiResultStatus,
+  params: ResultStatusParams = {},
+): Promise<ResultStatusApiResponse> {
+  const response = (await reportBookingAxios.get(
+    `/results/status/${status}`,
+    {
+      params: {
+        page: params.page ?? 0,
+        size: params.size ?? 20,
+      },
+    },
+  )) as ResultStatusApiResponse;
+
+  const rawContent = response?.data?.content;
+  const content = Array.isArray(rawContent)
+    ? rawContent.map((item) =>
+        normalizeResultStatusItem(item as unknown as Record<string, unknown>),
+      )
+    : [];
+
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      content,
+      pageNo: response?.data?.pageNo ?? params.page ?? 0,
+      pageSize: response?.data?.pageSize ?? params.size ?? 20,
+      totalElements: response?.data?.totalElements ?? content.length,
+      totalPages: response?.data?.totalPages ?? 1,
+      first: response?.data?.first ?? true,
+      last: response?.data?.last ?? true,
+    },
+  };
+}
+
+
+/** GET `/api/v1/results/pending-verification` — results awaiting verification. */
+export interface PendingVerificationItem {
+  resultId: number;
+  orderItemId: number;
+  parameterId: number;
+  parameterName: string;
+  resultValue: string;
+  numericValue: number;
+  unit: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  criticalLow: number | null;
+  criticalHigh: number | null;
+  abnormalFlag: string;
+  resultStatus: string;
+  resultType: string;
+  isCritical: boolean;
+  isVerified: boolean;
+  autoVerified: boolean;
+  isCorrected: boolean;
+  enteredAt: string;
+  verifiedAt: string | null;
+  instrumentName: string | null;
+  clinicalInterpretation: string | null;
+  comments: string | null;
+  correctedValue: string | null;
+  correctionReason: string | null;
+}
+
+/** Maps status-list row → verification panel row shape. */
+export function toPendingVerificationRow(
+  item: ResultStatusItem,
+): PendingVerificationItem {
+  return {
+    resultId: item.resultId,
+    orderItemId: item.orderItemId,
+    parameterId: item.parameterId,
+    parameterName: item.parameterName,
+    resultValue: item.resultValue,
+    numericValue: item.numericValue,
+    unit: item.unit,
+    referenceLow: item.referenceLow,
+    referenceHigh: item.referenceHigh,
+    criticalLow: item.criticalLow,
+    criticalHigh: item.criticalHigh,
+    abnormalFlag: item.abnormalFlag,
+    resultStatus: item.resultStatus,
+    resultType: item.resultType,
+    isCritical: item.isCritical,
+    isVerified: item.isVerified,
+    autoVerified: item.autoVerified,
+    isCorrected: item.isCorrected,
+    enteredAt: item.enteredAt,
+    verifiedAt: item.verifiedAt,
+    instrumentName: item.instrumentName,
+    clinicalInterpretation: item.clinicalInterpretation,
+    comments: item.comments,
+    correctedValue: null,
+    correctionReason: null,
+  };
+}
+
+export interface PendingVerificationPage {
+  content: PendingVerificationItem[];
+  pageNo: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export type PendingVerificationApiResponse =
+  ReportApiResponse<PendingVerificationPage>;
+
+function normalizePendingVerificationItem(
+  row: Record<string, unknown>,
+): PendingVerificationItem {
+  const num = (v: unknown) => {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  return {
+    resultId: Number(row.resultId ?? row.id) || 0,
+    orderItemId: Number(row.orderItemId) || 0,
+    parameterId: Number(row.parameterId) || 0,
+    parameterName: String(row.parameterName ?? ''),
+    resultValue: String(row.resultValue ?? ''),
+    numericValue: Number(row.numericValue) || 0,
+    unit: String(row.unit ?? ''),
+    referenceLow: num(row.referenceLow),
+    referenceHigh: num(row.referenceHigh),
+    criticalLow: num(row.criticalLow),
+    criticalHigh: num(row.criticalHigh),
+    abnormalFlag: String(row.abnormalFlag ?? ''),
+    resultStatus: String(row.resultStatus ?? ''),
+    resultType: String(row.resultType ?? ''),
+    isCritical: Boolean(row.isCritical),
+    isVerified: Boolean(row.isVerified),
+    autoVerified: Boolean(row.autoVerified),
+    isCorrected: Boolean(row.isCorrected),
+    enteredAt: String(row.enteredAt ?? ''),
+    verifiedAt: row.verifiedAt == null ? null : String(row.verifiedAt),
+    instrumentName:
+      row.instrumentName == null ? null : String(row.instrumentName),
+    clinicalInterpretation:
+      row.clinicalInterpretation == null
+        ? null
+        : String(row.clinicalInterpretation),
+    comments: row.comments == null ? null : String(row.comments),
+    correctedValue:
+      row.correctedValue == null ? null : String(row.correctedValue),
+    correctionReason:
+      row.correctionReason == null ? null : String(row.correctionReason),
+  };
+}
+
+export async function fetchPendingVerificationResults(
+  params: ResultStatusParams = {},
+): Promise<PendingVerificationApiResponse> {
+  const response = (await reportBookingAxios.get(
+    '/results/pending-verification',
+    {
+      params: {
+        page: params.page ?? 0,
+        size: params.size ?? 20,
+      },
+    },
+  )) as PendingVerificationApiResponse;
+
+  const rawContent = response?.data?.content;
+  const content = Array.isArray(rawContent)
+    ? rawContent.map((item) =>
+        normalizePendingVerificationItem(item as unknown as Record<string, unknown>),
+      )
+    : [];
+
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      content,
+      pageNo: response?.data?.pageNo ?? params.page ?? 0,
+      pageSize: response?.data?.pageSize ?? params.size ?? 20,
+      totalElements: response?.data?.totalElements ?? content.length,
+      totalPages: response?.data?.totalPages ?? 1,
+      first: response?.data?.first ?? true,
+      last: response?.data?.last ?? true,
+    },
+  };
+}
+
+// ─── Approve / reject (unified) ─────────────────────────────────────────────
+
+export type ResultApprovalStatus = 'APPROVED' | 'REJECTED';
+
+/** PUT `/api/v1/results/approve` — approve or reject a result. */
+export interface ResultApprovalPayload {
+  resultId: number;
+  approverName: string;
+  approverRole: string;
+  approvalStatus: ResultApprovalStatus;
+  comments?: string | null;
+  rejectionReason?: string | null;
+  actionTaken?: string | null;
+}
+
+export interface ResultApprovalData {
+  resultId: number;
+  approvalStatus?: string;
+  resultStatus?: string;
+  approverName?: string;
+  approverRole?: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  comments?: string | null;
+  rejectionReason?: string | null;
+  actionTaken?: string | null;
+}
+
+export type ResultApprovalApiResponse = ReportApiResponse<ResultApprovalData>;
+
+export async function submitResultApproval(
+  payload: ResultApprovalPayload,
+): Promise<ResultApprovalApiResponse> {
+  return reportBookingAxios.put('/results/approve', {
+    resultId: payload.resultId,
+    approverName: payload.approverName,
+    approverRole: payload.approverRole,
+    approvalStatus: payload.approvalStatus,
+    comments: payload.comments?.trim() || null,
+    rejectionReason: payload.rejectionReason?.trim() || null,
+    actionTaken: payload.actionTaken?.trim() || null,
+  }) as Promise<ResultApprovalApiResponse>;
+}
+
+/** @deprecated Use submitResultApproval with approvalStatus APPROVED */
+export async function verifyResult(
+  resultId: number,
+  payload: { verifiedBy?: string; comments?: string } = {},
+): Promise<ResultApprovalApiResponse> {
+  return submitResultApproval({
+    resultId,
+    approverName: payload.verifiedBy || 'Staff',
+    approverRole: 'PATHOLOGIST',
+    approvalStatus: 'APPROVED',
+    comments: payload.comments,
+    actionTaken: 'Approved for release',
+  });
+}
+
+/** @deprecated Use submitResultApproval with approvalStatus REJECTED */
+export async function rejectResult(
+  resultId: number,
+  payload: {
+    rejectedBy?: string;
+    rejectionReason?: string;
+    comments?: string;
+    actionTaken?: string;
+  } = {},
+): Promise<ResultApprovalApiResponse> {
+  return submitResultApproval({
+    resultId,
+    approverName: payload.rejectedBy || 'Staff',
+    approverRole: 'PATHOLOGIST',
+    approvalStatus: 'REJECTED',
+    comments: payload.comments,
+    rejectionReason: payload.rejectionReason,
+    actionTaken: payload.actionTaken || 'Returned for correction',
+  });
+}

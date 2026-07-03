@@ -15,6 +15,13 @@ export function getCreatedByName(): string {
   return getLoggedInFullName() || getLoggedInUsername() || 'Staff';
 }
 
+/** Login role (`localStorage.role`), uppercased for API payloads. */
+export function getLoggedInRole(): string {
+  if (typeof window === 'undefined') return 'PATHOLOGIST';
+  const role = localStorage.getItem('role')?.trim();
+  return role ? role.toUpperCase().replace(/\s+/g, '_') : 'PATHOLOGIST';
+}
+
 /**
  * Prefer human-readable full name for "Processed by" display.
  * Falls back to stored API value when no full name is available.

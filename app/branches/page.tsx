@@ -33,14 +33,14 @@ import { branchApi, type Branch, type CreateBranchInput } from '@/app/Apis/branc
 // Removed static BRANCHES array - now using real API data
 
 function isBranchActive(branch: Branch): boolean {
-  const status = branch.status?.trim().toUpperCase();
-  if (status) return status === 'ACTIVE';
-  return Boolean(branch.isActive);
+  if (typeof branch.isActive === 'boolean') {
+    return branch.isActive;
+  }
+  return branch.status?.trim().toUpperCase() === 'ACTIVE';
 }
 
 function branchStatusLabel(branch: Branch): string {
-  if (branch.status?.trim()) return branch.status.trim().toUpperCase();
-  return branch.isActive ? 'ACTIVE' : 'INACTIVE';
+  return isBranchActive(branch) ? 'ACTIVE' : 'INACTIVE';
 }
 
 type BranchPriceActionsProps = {
@@ -148,6 +148,7 @@ export default function BranchesPage() {
         branch.contactPhone,
         branch.address,
         branch.status,
+        branch.activeUsers,
       ]
         .filter(Boolean)
         .join(' ')

@@ -139,14 +139,25 @@ export default function ReportDetails({
   const resolvedPatient =
     context?.patientName || orderResult?.data?.patientName || "Unknown Patient";
 
+  const testStatuses = useMemo(
+    () => tests.map((t) => (t.resultStatus || "PENDING").toUpperCase()),
+    [tests],
+  );
+
   const overallStatus = useMemo(() => {
-    if (tests.length === 0) return "PENDING";
-    const statuses = tests.map((t) => (t.resultStatus || "PENDING").toUpperCase());
-    if (statuses.every((s) => s === "VERIFIED")) return "VERIFIED";
-    if (statuses.every((s) => s === "COMPLETED" || s === "VERIFIED")) return "COMPLETED";
-    if (statuses.some((s) => s === "DRAFT")) return "DRAFT";
+    if (testStatuses.length === 0) return "PENDING";
+    if (testStatuses.every((s) => s === "VERIFIED")) return "VERIFIED";
+    if (testStatuses.every((s) => s === "COMPLETED" || s === "VERIFIED"))
+      return "COMPLETED";
+    if (testStatuses.some((s) => s === "DRAFT")) return "DRAFT";
     return "PENDING";
-  }, [tests]);
+  }, [testStatuses]);
+
+  useEffect(() => {
+    if (isOpen && testStatuses.length > 0) {
+      console.log("statuses", testStatuses);
+    }
+  }, [isOpen, testStatuses]);
 
   const initialTest = useMemo(() => {
     if (!tests.length) return null;
@@ -385,7 +396,7 @@ export default function ReportDetails({
                   </thead>
                   <tbody>
                     {tests.map((test) => {
-                      const cfg = getStatusConfig(test.resultStatus);
+                      const statusCfg = getStatusConfig(test.resultStatus);
                     const contextMeta = getContextMeta(test.orderItemId);
                     const displayTestName = contextMeta?.testName || test.testName;
                       const departmentName = contextMeta?.departmentName || context?.departmentName;
@@ -414,11 +425,14 @@ export default function ReportDetails({
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black ${cfg.className}`}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black ${statusCfg.className}`}
                             >
-                              <span className={`h-1.5 w-1.5 rounded-full ${cfg.dotClass}`} />
-                              {cfg.label}
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${statusCfg.dotClass}`}
+                              />
+                              {test.resultStatus}
                             </span>
+                            
                           </td>
                           <td className="px-4 py-3 text-sm">
                             {isCritical ? (
