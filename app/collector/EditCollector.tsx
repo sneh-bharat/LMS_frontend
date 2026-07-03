@@ -130,6 +130,7 @@ export default function EditCollector({
         contactPhone: null,
         isActive: true,
         tenantId: collector?.tenantId ?? 1,
+        activeUsers: 0,
       });
     }
 

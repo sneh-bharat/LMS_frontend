@@ -34,7 +34,7 @@ export interface Branch {
   /** API status e.g. `ACTIVE`, `INACTIVE` */
   status?: string;
   tenantId: number;
-  activeUsers: number;
+  activeUsers?: number;
 }
 
 export interface BranchDetails {
