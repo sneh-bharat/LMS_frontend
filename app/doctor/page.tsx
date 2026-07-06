@@ -480,9 +480,7 @@ export default function DoctorsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className={`${listingTableTh} text-center w-14`}>
-                    #
-                  </th>
+                 
                   <th className={listingTableTh}>
                     Name, specialization & hospital
                   </th>
@@ -509,11 +507,7 @@ export default function DoctorsPage() {
                 ) : (
                   filteredRows.map((doc) => (
                     <tr key={doc.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="px-6 py-5 text-center">
-                        <Badge variant="secondary" className={`px-2 py-0.5 border-slate-200 font-mono ${listingBadge}`}>
-                          {doc.id}
-                        </Badge>
-                      </td>
+                     
                       <td className="px-6 py-5">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-[#006D77] group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">

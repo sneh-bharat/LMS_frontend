@@ -58,6 +58,10 @@ function normalizeMobileDigits(mobile: string): string {
   return mobile.replace(/\D/g, '');
 }
 
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '');
+}
+
 const DUPLICATE_EMAIL_MSG = 'This email is already used by another referring doctor.';
 const DUPLICATE_MOBILE_MSG = 'This phone number is already used by another referring doctor.';
 
@@ -171,6 +175,11 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
 
     if (el instanceof HTMLInputElement && el.type === 'checkbox') {
       setFormData((prev) => ({ ...prev, [name]: el.checked }));
+    } else if (name === 'doctorPhone' && el instanceof HTMLInputElement) {
+      const doctorPhone = normalizeMobileDigits(el.value).slice(0, 11);
+      setFormData((prev) => ({ ...prev, doctorPhone }));
+    } else if ((name === 'doctorName' || name === 'specialization') && el instanceof HTMLInputElement) {
+      setFormData((prev) => ({ ...prev, [name]: sanitizeAlphabeticInput(el.value) }));
     } else {
       const value = el instanceof HTMLSelectElement && name === 'branchId' ? Number(el.value) || 0 : el.value;
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -184,10 +193,16 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!formData.doctorName.trim()) next.doctorName = 'Doctor name is required';
+    else if (!/^[A-Za-z ]+$/.test(formData.doctorName.trim())) {
+      next.doctorName = 'Doctor name must contain only letters';
+    }
 
     if (!isEdit) {
       if (!formData.branchId || formData.branchId < 1) next.branchId = 'Branch is required';
       if (!formData.specialization.trim()) next.specialization = 'Specialization is required';
+      else if (!/^[A-Za-z ]+$/.test(formData.specialization.trim())) {
+        next.specialization = 'Specialization must contain only letters';
+      }
       if (!formData.hospitalName.trim()) next.hospitalName = 'Hospital name is required';
       if (!formData.username.trim()) next.username = 'Username is required';
       if (!formData.password) next.password = 'Password is required';
@@ -199,6 +214,9 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
     } else {
       const email = formData.doctorEmail.trim();
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.doctorEmail = 'Enter a valid email';
+      if (formData.specialization.trim() && !/^[A-Za-z ]+$/.test(formData.specialization.trim())) {
+        next.specialization = 'Specialization must contain only letters';
+      }
     }
 
     const others = doctorsForDuplicateCheck?.filter((d) => !isEdit || d.id !== doctorId) ?? [];
@@ -365,7 +383,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
               name="doctorName"
               value={formData.doctorName}
               onChange={handleChange}
-              placeholder="e.g. Dr. Doctor Name"
+              placeholder="e.g. Doctor Name"
               className={`border-slate-200 ${errors.doctorName ? 'border-rose-300' : ''}`}
               disabled={pending}
             />
@@ -422,7 +440,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
             <div className="space-y-2">
               <Label htmlFor="specialization" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
                 {specializationLabel}
@@ -432,7 +450,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 name="specialization"
                 value={formData.specialization}
                 onChange={handleChange}
-                placeholder="e.g. Specialization Name"
+                placeholder="Enter Specialization"
                 className={`border-slate-200 ${errors.specialization ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />
@@ -442,7 +460,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                 </p>
               ) : null}
             </div>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="hospitalName" className="text-xs font-bold text-slate-700 uppercase tracking-widest">
                 {hospitalLabel}
               </Label>
@@ -460,7 +478,7 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
                   <AlertCircle size={12} aria-hidden /> {errors.hospitalName}
                 </p>
               ) : null}
-            </div>
+            </div> */}
           </div>
 
           {!isEdit ? (
@@ -517,9 +535,12 @@ export default function AddDoctor({ isOpen, onClose, doctorId, doctorsForDuplica
               <Input
                 id="doctorPhone"
                 name="doctorPhone"
+                type="tel"
+                inputMode="numeric"
+                maxLength={11}
                 value={formData.doctorPhone}
                 onChange={handleChange}
-                placeholder="+91-XX-XXXX-XXXX"
+                placeholder="9876543210"
                 className={`border-slate-200 ${errors.doctorPhone ? 'border-rose-300' : ''}`}
                 disabled={pending}
               />

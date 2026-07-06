@@ -26,6 +26,17 @@ const initialForm = {
   isActive: true,
 };
 
+const PHONE_MAX_DIGITS = 11;
+const PHONE_MIN_DIGITS = 10;
+
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '');
+}
+
+function sanitizePhoneInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, PHONE_MAX_DIGITS);
+}
+
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null) {
@@ -93,6 +104,10 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
       setForm((prev) => ({ ...prev, [checkboxField]: el.checked }));
     } else if (name === 'branchId') {
       setForm((prev) => ({ ...prev, branchId: Number(el.value) || 0 }));
+    } else if (name === 'fullName') {
+      setForm((prev) => ({ ...prev, fullName: sanitizeAlphabeticInput(el.value) }));
+    } else if (name === 'phone') {
+      setForm((prev) => ({ ...prev, phone: sanitizePhoneInput(el.value) }));
     } else {
       setForm((prev) => ({ ...prev, [name]: el.value }));
     }
@@ -106,10 +121,18 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
     const next: Record<string, string> = {};
     if (!form.branchId || form.branchId < 1) next.branchId = 'Branch is required.';
     if (!form.fullName.trim()) next.fullName = 'Full name is required.';
+    else if (!/^[A-Za-z ]+$/.test(form.fullName.trim())) {
+      next.fullName = 'Full name must contain only letters.';
+    }
     if (!form.username.trim()) next.username = 'Username is required.';
     if (!form.password.trim()) next.password = 'Password is required.';
     else if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
     if (!form.phone.trim()) next.phone = 'Phone is required.';
+    else if (!/^\d+$/.test(form.phone)) {
+      next.phone = 'Phone must contain digits only.';
+    } else if (form.phone.length < PHONE_MIN_DIGITS || form.phone.length > PHONE_MAX_DIGITS) {
+      next.phone = `Phone must be between ${PHONE_MIN_DIGITS} and ${PHONE_MAX_DIGITS} digits.`;
+    }
     const email = form.email.trim();
     if (!email) next.email = 'Email is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'Enter a valid email.';
@@ -300,9 +323,12 @@ export default function AddCollectorModal({ isOpen, onSuccess, onClose }: AddCol
             <Input
               id="phone"
               name="phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={PHONE_MAX_DIGITS}
               value={form.phone}
               onChange={handleChange}
-              placeholder="+91-XX-XXXX-XXXX"
+              placeholder="9876543210"
               className={`border-slate-200 ${errors.phone ? 'border-rose-300' : ''}`}
               disabled={pending}
             />

@@ -53,6 +53,18 @@ function formatRupee(value: number | null | undefined): string {
   })}`;
 }
 
+function sanitizeAmountInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 4);
+}
+
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '');
+}
+
+function toSanitizedAmount(value: number): string {
+  return sanitizeAmountInput(String(Math.round(value)));
+}
+
 export default function PayReferrerCommission({
   isOpen,
   onClose,
@@ -83,7 +95,7 @@ export default function PayReferrerCommission({
       return;
     }
     if (suggestedAmount != null && suggestedAmount > 0) {
-      setAmount(String(suggestedAmount));
+      setAmount(toSanitizedAmount(suggestedAmount));
     }
   }, [isOpen, suggestedAmount]);
 
@@ -91,7 +103,7 @@ export default function PayReferrerCommission({
 
   const validate = (): boolean => {
     const next: Record<string, string> = {};
-    const parsedAmount = parseFloat(amount);
+    const parsedAmount = Number(amount);
 
     if (!startDate.trim()) next.startDate = 'Start date is required.';
     if (!endDate.trim()) next.endDate = 'End date is required.';
@@ -99,8 +111,8 @@ export default function PayReferrerCommission({
       next.endDate = 'End date must be on or after start date.';
     }
     if (!amount.trim()) next.amount = 'Amount is required.';
-    else if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      next.amount = 'Enter a valid amount greater than 0.';
+    else if (!Number.isInteger(parsedAmount) || parsedAmount < 0 || parsedAmount > 1000) {
+      next.amount = 'Enter a value between 0 and 1000.';
     }
     if (!paymentMethod.trim()) next.paymentMethod = 'Payment method is required.';
 
@@ -118,7 +130,7 @@ export default function PayReferrerCommission({
         referrerId,
         startDate,
         endDate,
-        amount: parseFloat(amount),
+        amount: Number(amount),
         remarks: remarks.trim() || undefined,
         paymentMethod,
         transactionReference: transactionReference.trim() || undefined,
@@ -274,15 +286,15 @@ export default function PayReferrerCommission({
           </Label>
           <Input
             id="referrerAmount"
-            type="number"
-            min={0.01}
-            step={0.01}
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
             value={amount}
             onChange={(e) => {
-              setAmount(e.target.value);
+              setAmount(sanitizeAmountInput(e.target.value));
               if (errors.amount) setErrors((prev) => ({ ...prev, amount: '' }));
             }}
-            placeholder="700.00"
+            placeholder="700"
             className={`border-slate-200 ${errors.amount ? 'border-rose-300' : ''}`}
             disabled={pending}
           />
@@ -337,8 +349,8 @@ export default function PayReferrerCommission({
           <Input
             id="referrerTransactionReference"
             value={transactionReference}
-            onChange={(e) => setTransactionReference(e.target.value)}
-            placeholder="Optional reference number"
+            onChange={(e) => setTransactionReference(sanitizeAlphabeticInput(e.target.value))}
+            placeholder="Optional reference"
             className="border-slate-200"
             disabled={pending}
           />
@@ -354,7 +366,7 @@ export default function PayReferrerCommission({
           <Input
             id="referrerRemarks"
             value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
+            onChange={(e) => setRemarks(sanitizeAlphabeticInput(e.target.value))}
             placeholder="May commission paid"
             className="border-slate-200"
             disabled={pending}

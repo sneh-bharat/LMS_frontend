@@ -20,14 +20,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { branchApi, CreateBranchInput, UpdateBranchInput } from '@/app/Apis/branch/branchApi';
+import {
+  ADDRESS_OTHER_OPTION,
+  getCitiesForState,
+  getDistrictsForState,
+  INDIAN_STATES,
+  isListedOption,
+} from '@/app/register-patient/indiaAddressOptions';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const BRANCH_TYPES = ['REGIONAL', 'COLLECTION_CENTER', 'FRANCHISE'];
+const BRANCH_TYPES = ['MAIN', 'COLLECTION_CENTER', 'FRANCHISE'] as const;
+type BranchTypeOption = (typeof BRANCH_TYPES)[number];
 const COUNTRIES = ['India', 'USA', 'UK', 'Canada', 'Australia'];
+const ADDRESS_SELECT_CLASS =
+  'w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white font-medium';
 
 const NAME_ONLY_PATTERN = /^[A-Za-z]*$/;
 const ALPHA_SPACE_PATTERN = /^[A-Za-z ]*$/;
+const DISTRICT_PATTERN = /^[A-Za-z0-9 ]*$/;
 const PIN_CODE_PATTERN = /^\d{6}$/;
 
 function sanitizeNameInput(value: string): string {
@@ -38,9 +49,75 @@ function sanitizeAlphabeticInput(value: string): string {
   return value.replace(/[^A-Za-z ]/g, '').replace(/\s+/g, ' ').replace(/^\s+/, '');
 }
 
+function sanitizeDistrictInput(value: string): string {
+  return value.replace(/[^A-Za-z0-9 ]/g, '').replace(/\s+/g, ' ').replace(/^\s+/, '');
+}
+
 function sanitizeNumericInput(value: string, maxLength?: number): string {
   const digits = value.replace(/\D/g, '');
   return typeof maxLength === 'number' ? digits.slice(0, maxLength) : digits;
+}
+
+function composeStreetAddress(address: string, district: string): string | undefined {
+  const street = address.trim();
+  const districtPart = district.trim();
+  if (!street && !districtPart) return undefined;
+  if (!districtPart) return street || undefined;
+  if (!street) return districtPart;
+  return `${street}, ${districtPart}`;
+}
+
+function normalizeBranchType(branchType: string | undefined): string {
+  const value = branchType?.trim() ?? '';
+  if (!value) return '';
+  if (value === 'REGIONAL') return 'MAIN';
+  return BRANCH_TYPES.includes(value as BranchTypeOption) ? value : '';
+}
+
+function extractBranchFieldErrors(error: unknown): Record<string, string> | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const o = error as Record<string, unknown>;
+  const responseData = (o.response as { data?: Record<string, unknown> } | undefined)?.data;
+  const nested =
+    responseData && typeof responseData.data === 'object' && responseData.data !== null
+      ? (responseData.data as Record<string, unknown>)
+      : responseData;
+  const raw = nested?.fieldErrors ?? nested?.errors ?? responseData?.fieldErrors;
+  if (!raw) return null;
+
+  const mapped: Record<string, string> = {};
+
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item !== 'object' || item === null) continue;
+      const entry = item as { field?: string; message?: string; defaultMessage?: string };
+      const field = entry.field?.trim();
+      const message = entry.message ?? entry.defaultMessage;
+      if (field && typeof message === 'string' && message.trim()) {
+        mapped[field] = message;
+      }
+    }
+  } else if (typeof raw === 'object') {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof value === 'string' && value.trim()) mapped[key] = value;
+    }
+  }
+
+  return Object.keys(mapped).length > 0 ? mapped : null;
+}
+
+function getBranchSaveErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const o = error as Record<string, unknown>;
+    const responseData = (o.response as { data?: Record<string, unknown> } | undefined)?.data;
+    if (typeof responseData?.message === 'string' && responseData.message.trim()) {
+      return responseData.message;
+    }
+    if (typeof o.message === 'string' && o.message.trim()) {
+      return o.message;
+    }
+  }
+  return 'Failed to save branch. Please check the form and try again.';
 }
 
 // ─── Add Franchise Modal ────────────────────────────────────────────────────
@@ -67,9 +144,10 @@ interface AddFranchiseModalProps {
 export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddFranchiseModalProps) {
   const [formData, setFormData] = useState({
     branchName: initialData?.branchName || '',
-    branchType: initialData?.branchType || '',
+    branchType: normalizeBranchType(initialData?.branchType),
     address: initialData?.address || '',
     city: initialData?.city || '',
+    district: '',
     state: initialData?.state || '',
     country: initialData?.country || 'India',
     postalCode: initialData?.postalCode || '',
@@ -80,6 +158,8 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cityOtherMode, setCityOtherMode] = useState(false);
+  const [districtOtherMode, setDistrictOtherMode] = useState(false);
 
   // Reset form when opened or edit target changes
   useEffect(() => {
@@ -99,9 +179,10 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
   const resetForm = () => {
     setFormData({
       branchName: initialData?.branchName || '',
-      branchType: initialData?.branchType || '',
+      branchType: normalizeBranchType(initialData?.branchType),
       address: initialData?.address || '',
       city: initialData?.city || '',
+      district: '',
       state: initialData?.state || '',
       country: initialData?.country || 'India',
       postalCode: initialData?.postalCode || '',
@@ -110,6 +191,18 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
       isActive: resolveInitialIsActive(),
     });
     setErrors({});
+    setCityOtherMode(
+      !!initialData?.city &&
+        !isListedOption(initialData.city, getCitiesForState(initialData.state || '')),
+    );
+    setDistrictOtherMode(false);
+  };
+
+  const handleStateChange = (state: string) => {
+    setFormData((prev) => ({ ...prev, state, city: '', district: '' }));
+    setCityOtherMode(false);
+    setDistrictOtherMode(false);
+    if (errors.state) setErrors((p) => ({ ...p, state: '' }));
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,12 +218,22 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
       newErrors.branchName = 'Branch name must contain only letters';
     }
 
-    if (formData.city.trim() && !ALPHA_SPACE_PATTERN.test(formData.city.trim())) {
-      newErrors.city = 'City must contain only letters';
+    if (!formData.branchType?.trim()) {
+      newErrors.branchType = 'Branch type is required';
+    } else if (!BRANCH_TYPES.includes(formData.branchType as BranchTypeOption)) {
+      newErrors.branchType = 'Select a valid branch type';
     }
 
-    if (formData.state.trim() && !ALPHA_SPACE_PATTERN.test(formData.state.trim())) {
-      newErrors.state = 'State must contain only letters';
+    if (!formData.state.trim()) {
+      newErrors.state = 'State is required';
+    }
+
+    if (formData.district.trim() && !DISTRICT_PATTERN.test(formData.district.trim())) {
+      newErrors.district = 'District must contain only letters and numbers';
+    }
+
+    if (formData.city.trim() && !ALPHA_SPACE_PATTERN.test(formData.city.trim())) {
+      newErrors.city = 'City must contain only letters';
     }
 
     if (formData.postalCode.trim() && !PIN_CODE_PATTERN.test(formData.postalCode.trim())) {
@@ -167,8 +270,8 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
         // Update existing branch
         const updateData: UpdateBranchInput = {
           branchName: formData.branchName.trim(),
-          branchType: formData.branchType,
-          address: formData.address.trim() || undefined,
+          branchType: formData.branchType.trim(),
+          address: composeStreetAddress(formData.address, formData.district),
           city: formData.city.trim() || undefined,
           state: formData.state.trim() || undefined,
           country: formData.country.trim() || undefined,
@@ -188,8 +291,8 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
         // Create new branch
         const branchData: CreateBranchInput = {
           branchName: formData.branchName.trim(),
-          branchType: formData.branchType as any,
-          address: formData.address.trim() || undefined,
+          branchType: formData.branchType.trim(),
+          address: composeStreetAddress(formData.address, formData.district),
           city: formData.city.trim() || undefined,
           state: formData.state.trim() || undefined,
           country: formData.country.trim() || 'India',
@@ -204,12 +307,13 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
       }
       
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save branch:', error);
-      const errorMessage = error?.response?.data?.message || 
-                          error?.response?.data?.data?.errorCode || 
-                          'Failed to save branch. Please try again.';
-      toast.error(errorMessage);
+      const fieldErrors = extractBranchFieldErrors(error);
+      if (fieldErrors) {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
+      toast.error(getBranchSaveErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -270,21 +374,30 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
             )}
           </div>
 
-          <div>
+          <div className="relative">
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Branch Type *</Label>
             <Select
-              value={formData.branchType}
-              onValueChange={(value) => setFormData(p => ({ ...p, branchType: value ?? 'MAIN' }))}
+              value={formData.branchType || undefined}
+              onValueChange={(value) => {
+                setFormData(p => ({ ...p, branchType: value ?? '' }));
+                if (errors.branchType) setErrors(p => ({ ...p, branchType: '' }));
+              }}
             >
-              <SelectTrigger id="branchType">
+              <SelectTrigger
+                id="branchType"
+                className={`w-full ${errors.branchType ? 'border-rose-300' : ''}`}
+              >
                 <SelectValue placeholder="Select branch type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent side="bottom" align="start" sideOffset={4}>
                 {BRANCH_TYPES.map(type => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {errors.branchType && (
+              <p className="text-xs text-rose-500 font-medium mt-1">{errors.branchType}</p>
+            )}
           </div>
         </section>
 
@@ -305,37 +418,117 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">City</Label>
-              <Input
-                value={formData.city}
-                onChange={e => {
-                  const city = sanitizeAlphabeticInput(e.target.value);
-                  setFormData(p => ({ ...p, city }));
-                  if (errors.city) setErrors(p => ({ ...p, city: '' }));
-                }}
-                placeholder="Enter City"
-                className={errors.city ? 'border-rose-300' : 'border-slate-200'}
-              />
-              {errors.city && (
-                <p className="text-xs text-rose-500 font-medium mt-1">{errors.city}</p>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">State *</Label>
+              <select
+                value={formData.state}
+                onChange={e => handleStateChange(e.target.value)}
+                className={`${ADDRESS_SELECT_CLASS} ${errors.state ? 'border-rose-300' : ''}`}
+              >
+                <option value="">Select state</option>
+                {INDIAN_STATES.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+              {errors.state && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.state}</p>
               )}
             </div>
             <div>
-              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">State *</Label>
-              <Input
-                value={formData.state}
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">District</Label>
+              <select
+                value={
+                  districtOtherMode ||
+                  (formData.district && !isListedOption(formData.district, getDistrictsForState(formData.state)))
+                    ? ADDRESS_OTHER_OPTION
+                    : formData.district
+                }
                 onChange={e => {
-                  const state = sanitizeAlphabeticInput(e.target.value);
-                  setFormData(p => ({ ...p, state }));
-                  if (errors.state) setErrors(p => ({ ...p, state: '' }));
+                  const selected = e.target.value;
+                  if (selected === ADDRESS_OTHER_OPTION) {
+                    setDistrictOtherMode(true);
+                    setFormData(p => ({ ...p, district: '' }));
+                  } else {
+                    setDistrictOtherMode(false);
+                    setFormData(p => ({ ...p, district: selected }));
+                  }
+                  if (errors.district) setErrors(p => ({ ...p, district: '' }));
                 }}
-                placeholder="Enter State"
-                className={errors.state ? 'border-rose-300' : 'border-slate-200'}
-              />
-              {errors.state && (
-                <p className="text-xs text-rose-500 font-medium mt-1">{errors.state}</p>
+                disabled={!formData.state}
+                className={`${ADDRESS_SELECT_CLASS} ${errors.district ? 'border-rose-300' : ''}`}
+              >
+                <option value="">{formData.state ? 'Select district' : 'Select state first'}</option>
+                {getDistrictsForState(formData.state).map(district => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
+                {formData.state && <option value={ADDRESS_OTHER_OPTION}>Other</option>}
+              </select>
+              {(districtOtherMode ||
+                (formData.district &&
+                  !isListedOption(formData.district, getDistrictsForState(formData.state)))) && (
+                <Input
+                  value={formData.district}
+                  onChange={e => {
+                    const district = sanitizeDistrictInput(e.target.value);
+                    setFormData(p => ({ ...p, district }));
+                    if (errors.district) setErrors(p => ({ ...p, district: '' }));
+                  }}
+                  placeholder="e.g. North 24 Parganas"
+                  className={`mt-2 ${errors.district ? 'border-rose-300' : 'border-slate-200'}`}
+                />
+              )}
+              {errors.district && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.district}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">City</Label>
+              <select
+                value={
+                  cityOtherMode ||
+                  (formData.city && !isListedOption(formData.city, getCitiesForState(formData.state)))
+                    ? ADDRESS_OTHER_OPTION
+                    : formData.city
+                }
+                onChange={e => {
+                  const selected = e.target.value;
+                  if (selected === ADDRESS_OTHER_OPTION) {
+                    setCityOtherMode(true);
+                    setFormData(p => ({ ...p, city: '' }));
+                  } else {
+                    setCityOtherMode(false);
+                    setFormData(p => ({ ...p, city: selected }));
+                  }
+                  if (errors.city) setErrors(p => ({ ...p, city: '' }));
+                }}
+                disabled={!formData.state}
+                className={`${ADDRESS_SELECT_CLASS} ${errors.city ? 'border-rose-300' : ''}`}
+              >
+                <option value="">{formData.state ? 'Select city' : 'Select state first'}</option>
+                {getCitiesForState(formData.state).map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+                {formData.state && <option value={ADDRESS_OTHER_OPTION}>Other</option>}
+              </select>
+              {(cityOtherMode ||
+                (formData.city && !isListedOption(formData.city, getCitiesForState(formData.state)))) && (
+                <Input
+                  value={formData.city}
+                  onChange={e => {
+                    const city = sanitizeAlphabeticInput(e.target.value);
+                    setFormData(p => ({ ...p, city }));
+                    if (errors.city) setErrors(p => ({ ...p, city: '' }));
+                  }}
+                  placeholder="Enter city"
+                  className={`mt-2 ${errors.city ? 'border-rose-300' : 'border-slate-200'}`}
+                />
+              )}
+              {errors.city && (
+                <p className="text-xs text-rose-500 font-medium mt-1">{errors.city}</p>
               )}
             </div>
             <div>
@@ -358,16 +551,16 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 block">Country</Label>
             <Select
               value={formData.country}
               onValueChange={(value) => setFormData(p => ({ ...p, country: value ?? 'India' }))}
             >
-              <SelectTrigger id="country">
+              <SelectTrigger id="country" className="w-full">
                 <SelectValue placeholder="Select country" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent side="bottom" align="start" sideOffset={4}>
                 {COUNTRIES.map(country => (
                   <SelectItem key={country} value={country}>{country}</SelectItem>
                 ))}

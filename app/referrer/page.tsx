@@ -534,10 +534,7 @@ export default function ReferrerListPage() {
                       Username
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      Phone
-                    </th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      Email
+                     Contact details
                     </th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       Role
@@ -545,9 +542,7 @@ export default function ReferrerListPage() {
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                       Status
                     </th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
-                      Show on report
-                    </th>
+                  
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                       Actions
                     </th>
@@ -589,25 +584,26 @@ export default function ReferrerListPage() {
                           <td className="px-6 py-5 text-sm font-semibold text-slate-700 font-mono">
                             {row.username?.trim() || '—'}
                           </td>
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs">
-                              <Phone size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                              {getReferrerPhone(row)}
-                            </div>
-                          </td>
+                         
                           <td className="px-6 py-5 max-w-55">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold truncate">
-                              <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
-                              {row.email?.trim() ? (
-                                <a
-                                  href={`mailto:${row.email.trim()}`}
-                                  className="truncate hover:text-emerald-700 transition-colors"
-                                >
-                                  {row.email.trim()}
-                                </a>
-                              ) : (
-                                '—'
-                              )}
+                            <div className="space-y-1.5 text-xs text-slate-700 font-semibold">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Mail size={12} className="text-emerald-500 shrink-0" aria-hidden />
+                                {row.email?.trim() ? (
+                                  <a
+                                    href={`mailto:${row.email.trim()}`}
+                                    className="truncate hover:text-emerald-700 transition-colors"
+                                  >
+                                    {row.email.trim()}
+                                  </a>
+                                ) : (
+                                  <span>—</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Phone size={12} className="text-emerald-500 shrink-0" aria-hidden />
+                                <span className="truncate">{getReferrerPhone(row)}</span>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-5">
@@ -627,18 +623,7 @@ export default function ReferrerListPage() {
                               {getReferrerStatusLabel(row)}
                             </Badge>
                           </td>
-                          <td className="px-6 py-5 text-center">
-                            <Badge
-                              variant="outline"
-                              className={
-                                showOnReport === 'Yes'
-                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold'
-                                  : 'text-[10px] font-bold'
-                              }
-                            >
-                              {showOnReport}
-                            </Badge>
-                          </td>
+                          
                           <td className="px-6 py-5 text-center">
                             <ReferrerActions
                               row={row}
