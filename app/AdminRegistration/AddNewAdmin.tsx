@@ -39,21 +39,26 @@ interface AddNewAdminProps {
   onClose: () => void;
 }
 
-const PHONE_PATTERN = /^[0-9+\-\s()]+$/;
+const PHONE_MIN_DIGITS = 10;
+const PHONE_MAX_DIGITS = 11;
+
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '');
+}
+
+function sanitizePhoneInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, PHONE_MAX_DIGITS);
+}
 
 const phoneSchema = z
   .string()
   .min(1, 'Phone is required.')
-  .refine((v) => PHONE_PATTERN.test(v.trim()), {
-    message: 'Enter a valid phone number (digits, +, spaces, or dashes only).',
+  .refine((v) => /^\d+$/.test(v), {
+    message: 'Phone must contain digits only.',
   })
-  .refine(
-    (v) => {
-      const digits = v.replace(/\D/g, '').length;
-      return digits >= 10 && digits <= 11;
-    },
-    { message: 'Phone number must be between 10 and 11 digits.' }
-  );
+  .refine((v) => v.length >= PHONE_MIN_DIGITS && v.length <= PHONE_MAX_DIGITS, {
+    message: `Phone number must be between ${PHONE_MIN_DIGITS} and ${PHONE_MAX_DIGITS} digits.`,
+  });
 
 const addAdminSchema = z.object({
   username: z
@@ -68,7 +73,10 @@ const addAdminSchema = z.object({
   fullName: z
     .string()
     .min(1, 'Full name is required.')
-    .min(2, 'Full name must be at least 2 characters.'),
+    .min(2, 'Full name must be at least 2 characters.')
+    .refine((v) => /^[A-Za-z ]+$/.test(v.trim()), {
+      message: 'Full name must contain only letters.',
+    }),
   email: z.string().min(1, 'Email is required.').email('Enter a valid email address.'),
   phone: phoneSchema,
   adminType: z.enum(['SUPER_ADMIN', 'ADMIN'], {
@@ -81,7 +89,10 @@ const editAdminSchema = z.object({
   fullName: z
     .string()
     .min(1, 'Full name is required.')
-    .min(2, 'Full name must be at least 2 characters.'),
+    .min(2, 'Full name must be at least 2 characters.')
+    .refine((v) => /^[A-Za-z ]+$/.test(v.trim()), {
+      message: 'Full name must contain only letters.',
+    }),
   email: z.string().min(1, 'Email is required.').email('Enter a valid email address.'),
   phone: phoneSchema,
   adminType: z.enum(['SUPER_ADMIN', 'ADMIN'], {
@@ -177,9 +188,9 @@ function toEditFormValues(admin: AdminEditInitial): EditAdminFormValues {
     admin.adminType === 'ADMIN' ? 'ADMIN' : 'SUPER_ADMIN';
 
   return {
-    fullName: admin.fullName === '-' ? '' : admin.fullName,
+    fullName: sanitizeAlphabeticInput(admin.fullName === '-' ? '' : admin.fullName),
     email: admin.email === '-' ? '' : admin.email,
-    phone: admin.phone === '-' ? '' : admin.phone,
+    phone: sanitizePhoneInput(admin.phone === '-' ? '' : admin.phone),
     adminType,
     isVerified: admin.isVerified,
     isActive: admin.isActive,
@@ -315,6 +326,11 @@ export default function AddNewAdmin({
 
   const labelClass = 'text-xs font-bold text-slate-700 uppercase tracking-widest';
 
+  const editFullNameField = editForm.register('fullName');
+  const editPhoneField = editForm.register('phone');
+  const createFullNameField = createForm.register('fullName');
+  const createPhoneField = createForm.register('phone');
+
   return (
     <RightDrawer
       isOpen={isOpen}
@@ -355,7 +371,11 @@ export default function AddNewAdmin({
               placeholder="Admin User Full Name"
               className={inputClass(Boolean(editErrors.fullName))}
               disabled={pending}
-              {...editForm.register('fullName')}
+              {...editFullNameField}
+              onChange={(e) => {
+                e.target.value = sanitizeAlphabeticInput(e.target.value);
+                editFullNameField.onChange(e);
+              }}
             />
             <FieldError message={editErrors.fullName?.message} />
           </div>
@@ -382,12 +402,17 @@ export default function AddNewAdmin({
               <Input
                 id="edit-phone"
                 type="tel"
-                inputMode="tel"
-                placeholder="+91-XX-XXXX-XXXX"
+                inputMode="numeric"
+                maxLength={PHONE_MAX_DIGITS}
+                placeholder="9876543210"
                 autoComplete="tel"
                 className={inputClass(Boolean(editErrors.phone))}
                 disabled={pending}
-                {...editForm.register('phone')}
+                {...editPhoneField}
+                onChange={(e) => {
+                  e.target.value = sanitizePhoneInput(e.target.value);
+                  editPhoneField.onChange(e);
+                }}
               />
               <FieldError message={editErrors.phone?.message} />
             </div>
@@ -458,7 +483,11 @@ export default function AddNewAdmin({
               placeholder="Admin User Full Name"
               className={inputClass(Boolean(createErrors.fullName))}
               disabled={pending}
-              {...createForm.register('fullName')}
+              {...createFullNameField}
+              onChange={(e) => {
+                e.target.value = sanitizeAlphabeticInput(e.target.value);
+                createFullNameField.onChange(e);
+              }}
             />
             <FieldError message={createErrors.fullName?.message} />
           </div>
@@ -485,12 +514,17 @@ export default function AddNewAdmin({
               <Input
                 id="phone"
                 type="tel"
-                inputMode="tel"
-                placeholder="+91-XX-XXXX-XXXX"
+                inputMode="numeric"
+                maxLength={PHONE_MAX_DIGITS}
+                placeholder="9876543210"
                 autoComplete="tel"
                 className={inputClass(Boolean(createErrors.phone))}
                 disabled={pending}
-                {...createForm.register('phone')}
+                {...createPhoneField}
+                onChange={(e) => {
+                  e.target.value = sanitizePhoneInput(e.target.value);
+                  createPhoneField.onChange(e);
+                }}
               />
               <FieldError message={createErrors.phone?.message} />
             </div>

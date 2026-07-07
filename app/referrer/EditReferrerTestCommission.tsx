@@ -26,6 +26,10 @@ function formatRupee(value: number | null | undefined): string {
   })}`;
 }
 
+function sanitizeCommissionPercentageInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 4);
+}
+
 export default function EditReferrerTestCommission({
   isOpen,
   onClose,
@@ -44,7 +48,9 @@ export default function EditReferrerTestCommission({
       setError(null);
       return;
     }
-    setCommissionPercentageInput(String(test.commissionPercentage ?? ''));
+    setCommissionPercentageInput(
+      sanitizeCommissionPercentageInput(String(test.commissionPercentage ?? ''))
+    );
     setError(null);
   }, [isOpen, test]);
 
@@ -52,13 +58,13 @@ export default function EditReferrerTestCommission({
     e.preventDefault();
     if (!test || !referrerId || referrerId < 1) return;
 
-    const pct = parseFloat(commissionPercentageInput);
+    const pct = Number(commissionPercentageInput);
     if (!commissionPercentageInput.trim()) {
       setError('Commission percentage is required.');
       return;
     }
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      setError('Enter a value between 0 and 100.');
+    if (!Number.isInteger(pct) || pct < 0 || pct > 1000) {
+      setError('Enter a value between 0 and 1000.');
       return;
     }
     if (Math.abs(pct - test.commissionPercentage) < 0.000001) {
@@ -207,16 +213,15 @@ export default function EditReferrerTestCommission({
             </Label>
             <Input
               id="referrerCommissionPercentage"
-              type="number"
-              min={0}
-              max={100}
-              step={0.01}
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
               value={commissionPercentageInput}
               onChange={(e) => {
-                setCommissionPercentageInput(e.target.value);
+                setCommissionPercentageInput(sanitizeCommissionPercentageInput(e.target.value));
                 if (error) setError(null);
               }}
-              placeholder="20.00"
+              placeholder="20"
               className={`border-slate-200 ${error ? 'border-rose-300' : ''}`}
               disabled={pending}
             />
@@ -226,7 +231,7 @@ export default function EditReferrerTestCommission({
               </p>
             ) : (
               <p className="text-xs text-slate-500 font-medium">
-                Sends PUT override with `commissionPercentage` (e.g. 20.00).
+                Enter a whole number between 0 and 1000 (max 4 digits).
               </p>
             )}
           </div>

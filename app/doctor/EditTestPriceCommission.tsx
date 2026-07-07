@@ -31,10 +31,29 @@ function formatRupee(value: number | null | undefined): string {
   })}`;
 }
 
+function sanitizeCommissionPercentageInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 3);
+}
+
+function sanitizeCommissionAmountInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 4);
+}
+
+function toSanitizedPercentage(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  return sanitizeCommissionPercentageInput(String(Math.round(value)));
+}
+
+function toSanitizedAmount(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  return sanitizeCommissionAmountInput(String(Math.round(value)));
+}
+
 function numbersDiffer(original: number, input: string): boolean {
-  const parsed = parseFloat(input);
+  if (!input.trim()) return true;
+  const parsed = Number(input);
   if (!Number.isFinite(parsed)) return true;
-  return Math.abs(parsed - original) > 0.000001;
+  return Math.round(original) !== parsed;
 }
 
 export default function EditTestPriceCommission({
@@ -75,8 +94,8 @@ export default function EditTestPriceCommission({
       setErrors({});
       return;
     }
-    setCommissionPercentageInput(String(test.commissionPercentage ?? ''));
-    setCommissionAmountInput(String(test.commissionAmount ?? ''));
+    setCommissionPercentageInput(toSanitizedPercentage(test.commissionPercentage));
+    setCommissionAmountInput(toSanitizedAmount(test.commissionAmount));
     setErrors({});
   }, [isOpen, test]);
 
@@ -95,10 +114,10 @@ export default function EditTestPriceCommission({
     }
 
     if (pctChanged) {
-      const pct = parseFloat(commissionPercentageInput);
+      const pct = Number(commissionPercentageInput);
       if (!commissionPercentageInput.trim()) {
         next.commissionPercentage = 'Commission percentage is required.';
-      } else if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      } else if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
         next.commissionPercentage = 'Enter a value between 0 and 100.';
       } else {
         payload.commissionPercentage = pct;
@@ -106,11 +125,11 @@ export default function EditTestPriceCommission({
     }
 
     if (amountChanged) {
-      const amount = parseFloat(commissionAmountInput);
+      const amount = Number(commissionAmountInput);
       if (!commissionAmountInput.trim()) {
         next.commissionAmount = 'Commission amount is required.';
-      } else if (!Number.isFinite(amount) || amount < 0) {
-        next.commissionAmount = 'Enter a valid amount (0 or greater).';
+      } else if (!Number.isInteger(amount) || amount < 0 || amount > 1000) {
+        next.commissionAmount = 'Enter a value between 0 and 1000.';
       } else {
         payload.commissionAmount = amount;
       }
@@ -241,18 +260,17 @@ export default function EditTestPriceCommission({
             </Label>
             <Input
               id="commissionPercentage"
-              type="number"
-              min={0}
-              max={100}
-              step={0.01}
+              type="text"
+              inputMode="numeric"
+              maxLength={3}
               value={commissionPercentageInput}
               onChange={(e) => {
-                setCommissionPercentageInput(e.target.value);
+                setCommissionPercentageInput(sanitizeCommissionPercentageInput(e.target.value));
                 if (errors.commissionPercentage) {
                   setErrors((prev) => ({ ...prev, commissionPercentage: undefined }));
                 }
               }}
-              placeholder="15.00"
+              placeholder="Enter commission percentage"
               className={`border-slate-200 ${errors.commissionPercentage ? 'border-rose-300' : ''}`}
               disabled={pending}
             />
@@ -273,12 +291,12 @@ export default function EditTestPriceCommission({
             </Label>
             <Input
               id="commissionAmount"
-              type="number"
-              min={0}
-              step={0.01}
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
               value={commissionAmountInput}
               onChange={(e) => {
-                setCommissionAmountInput(e.target.value);
+                setCommissionAmountInput(sanitizeCommissionAmountInput(e.target.value));
                 if (errors.commissionAmount) {
                   setErrors((prev) => ({ ...prev, commissionAmount: undefined }));
                 }

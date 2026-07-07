@@ -28,6 +28,13 @@ import {
   CreatePatientInput,
   Patient,
 } from '../Apis/Patients/Patient_Service_API';
+import {
+  ADDRESS_OTHER_OPTION,
+  getCitiesForState,
+  getDistrictsForState,
+  INDIAN_STATES,
+  isListedOption,
+} from './indiaAddressOptions';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -39,6 +46,8 @@ const ALLERGY_SEVERITY = ['Mild', 'Moderate', 'Severe'];
 const WHATSAPP_CONSENT = ['YES', 'NO'];
 const REPORT_LANGUAGES = ['ENGLISH', 'HINDI', 'MARATHI', 'TAMIL', 'TELUGU'];
 const PATIENT_CATEGORIES = ['REGULAR', 'VIP', 'CORPORATE', 'TPA', 'CGHS', 'ECHS', 'ESI', 'BPL', 'STAFF'];
+const ADDRESS_SELECT_CLASS =
+  'w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white font-medium';
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -86,6 +95,10 @@ function sanitizePolicyNumberInput(value: string): string {
 
 function sanitizeAlphabeticInput(value: string): string {
   return value.replace(/[^A-Za-z ]/g, '').replace(/\s+/g, ' ').replace(/^\s+/, '');
+}
+
+function sanitizeDistrictInput(value: string): string {
+  return value.replace(/[^A-Za-z0-9 ]/g, '').replace(/\s+/g, ' ').replace(/^\s+/, '');
 }
 
 function sanitizeNumericInput(value: string, maxLength?: number): string {
@@ -196,6 +209,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addressOtherModes, setAddressOtherModes] = useState<Record<string, boolean>>({});
 
   // Reset form when opened
   useEffect(() => {
@@ -240,6 +254,7 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
       allergies: [],
     });
     setErrors({});
+    setAddressOtherModes({});
   };
 
   const validateForm = (): boolean => {
@@ -388,6 +403,41 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
       const newAllergies = [...prev.allergies];
       newAllergies[index] = { ...newAllergies[index], [field]: value };
       return { ...prev, allergies: newAllergies };
+    });
+  };
+
+  const addressOtherKey = (idx: number, field: 'city' | 'district') => `${idx}-${field}`;
+
+  const setAddressOtherMode = (idx: number, field: 'city' | 'district', enabled: boolean) => {
+    const key = addressOtherKey(idx, field);
+    setAddressOtherModes(prev => {
+      const next = { ...prev };
+      if (enabled) next[key] = true;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  const updateAddress = (
+    idx: number,
+    field: 'city' | 'district' | 'state',
+    value: string,
+  ) => {
+    setFormData(prev => {
+      const addresses = [...prev.addresses];
+      const next = { ...addresses[idx], [field]: value };
+      if (field === 'state') {
+        next.district = '';
+        next.city = '';
+        setAddressOtherModes(modes => {
+          const nextModes = { ...modes };
+          delete nextModes[addressOtherKey(idx, 'district')];
+          delete nextModes[addressOtherKey(idx, 'city')];
+          return nextModes;
+        });
+      }
+      addresses[idx] = next;
+      return { ...prev, addresses };
     });
   };
 
@@ -835,7 +885,23 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
           </div>
 
           <div className="space-y-4">
-            {formData.addresses.map((addr, idx) => (
+            {formData.addresses.map((addr, idx) => {
+              const districtOptions = getDistrictsForState(addr.state);
+              const cityOptions = getCitiesForState(addr.state);
+              const districtOtherMode =
+                addressOtherModes[addressOtherKey(idx, 'district')] ||
+                (!!addr.district && !isListedOption(addr.district, districtOptions));
+              const cityOtherMode =
+                addressOtherModes[addressOtherKey(idx, 'city')] ||
+                (!!addr.city && !isListedOption(addr.city, cityOptions));
+              const districtSelectValue = districtOtherMode
+                ? ADDRESS_OTHER_OPTION
+                : addr.district;
+              const citySelectValue = cityOtherMode
+                ? ADDRESS_OTHER_OPTION
+                : addr.city;
+
+              return (
               <div key={idx} className="p-6 rounded-2xl border border-slate-100 bg-slate-50/30 space-y-4 relative group">
                 <button
                   type="button"
@@ -858,42 +924,91 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                     />
                   </div>
                   <div>
-                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">City</Label>
-                    <Input
-                      value={addr.city}
-                      onChange={e => {
-                        const newAddr = [...formData.addresses];
-                        newAddr[idx].city = sanitizeAlphabeticInput(e.target.value);
-                        setFormData(p => ({ ...p, addresses: newAddr }));
-                      }}
-                      placeholder="e.g. Mumbai"
-                    />
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">State</Label>
+                    <select
+                      value={addr.state}
+                      onChange={e => updateAddress(idx, 'state', e.target.value)}
+                      className={ADDRESS_SELECT_CLASS}
+                    >
+                      <option value="">Select state</option>
+                      {INDIAN_STATES.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">District</Label>
-                    <Input
-                      value={addr.district}
+                    <select
+                      value={districtSelectValue}
                       onChange={e => {
-                        const newAddr = [...formData.addresses];
-                        newAddr[idx].district = sanitizeAlphabeticInput(e.target.value);
-                        setFormData(p => ({ ...p, addresses: newAddr }));
+                        const selected = e.target.value;
+                        if (selected === ADDRESS_OTHER_OPTION) {
+                          setAddressOtherMode(idx, 'district', true);
+                          updateAddress(idx, 'district', '');
+                        } else {
+                          setAddressOtherMode(idx, 'district', false);
+                          updateAddress(idx, 'district', selected);
+                        }
                       }}
-                      placeholder="e.g. Suburban"
-                    />
+                      disabled={!addr.state}
+                      className={ADDRESS_SELECT_CLASS}
+                    >
+                      <option value="">{addr.state ? 'Select district' : 'Select state first'}</option>
+                      {districtOptions.map(district => (
+                        <option key={district} value={district}>{district}</option>
+                      ))}
+                      {addr.state && <option value={ADDRESS_OTHER_OPTION}>Other</option>}
+                    </select>
+                    {districtOtherMode && (
+                      <Input
+                        value={addr.district}
+                        onChange={e => {
+                          const newAddr = [...formData.addresses];
+                          newAddr[idx].district = sanitizeDistrictInput(e.target.value);
+                          setFormData(p => ({ ...p, addresses: newAddr }));
+                        }}
+                        placeholder="e.g. North 24 Parganas"
+                        className="mt-2"
+                      />
+                    )}
                   </div>
                   <div>
-                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">State</Label>
-                    <Input
-                      value={addr.state}
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">City</Label>
+                    <select
+                      value={citySelectValue}
                       onChange={e => {
-                        const newAddr = [...formData.addresses];
-                        newAddr[idx].state = sanitizeAlphabeticInput(e.target.value);
-                        setFormData(p => ({ ...p, addresses: newAddr }));
+                        const selected = e.target.value;
+                        if (selected === ADDRESS_OTHER_OPTION) {
+                          setAddressOtherMode(idx, 'city', true);
+                          updateAddress(idx, 'city', '');
+                        } else {
+                          setAddressOtherMode(idx, 'city', false);
+                          updateAddress(idx, 'city', selected);
+                        }
                       }}
-                      placeholder="e.g. Maharashtra"
-                    />
+                      disabled={!addr.state}
+                      className={ADDRESS_SELECT_CLASS}
+                    >
+                      <option value="">{addr.state ? 'Select city' : 'Select state first'}</option>
+                      {cityOptions.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                      {addr.state && <option value={ADDRESS_OTHER_OPTION}>Other</option>}
+                    </select>
+                    {cityOtherMode && (
+                      <Input
+                        value={addr.city}
+                        onChange={e => {
+                          const newAddr = [...formData.addresses];
+                          newAddr[idx].city = sanitizeAlphabeticInput(e.target.value);
+                          setFormData(p => ({ ...p, addresses: newAddr }));
+                        }}
+                        placeholder="Enter city"
+                        className="mt-2"
+                      />
+                    )}
                   </div>
                   <div>
                     <Label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Pin Code</Label>
@@ -943,7 +1058,8 @@ export function AddPatient({ isOpen, onClose }: AddPatientProps) {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </section>
 

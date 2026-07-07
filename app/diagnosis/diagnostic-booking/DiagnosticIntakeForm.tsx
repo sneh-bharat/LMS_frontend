@@ -37,6 +37,8 @@ import PatientLastVisit from './booking/patient_last_visit';
 import type { Referrer } from '@/app/Apis/Referrer/referrerApi';
 import {
   computeBookingFinancials,
+  normalizePaymentOnBlur,
+  parsePaymentInput,
   type BookingInvestigation,
 } from '@/app/Apis/booking/mapBookingToTestOrder';
 import {
@@ -149,6 +151,29 @@ export default function DiagnosticIntakeForm({
   }, [emergencyPriority, form.emergencyCharge, setForm]);
 
   const financials = computeBookingFinancials(investigations, form);
+
+  useEffect(() => {
+    if (isEstimation || !form.payment.trim()) return;
+    const paid = Number(form.payment);
+    if (Number.isNaN(paid) || paid <= financials.actualPayable) return;
+    setForm((f) => ({
+      ...f,
+      payment:
+        financials.actualPayable > 0 ? String(financials.actualPayable) : '',
+    }));
+  }, [financials.actualPayable, form.payment, isEstimation, setForm]);
+
+  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parsePaymentInput(e.target.value, financials.actualPayable);
+    setForm((f) => ({ ...f, payment: value }));
+  };
+
+  const handlePaymentBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setForm((f) => ({
+      ...f,
+      payment: normalizePaymentOnBlur(e.target.value, financials.actualPayable),
+    }));
+  };
 
   const syncReferringDoctorForm = (doctors: ReferringDoctor[]) => {
     const primary = doctors[doctors.length - 1];
@@ -938,9 +963,14 @@ export default function DiagnosticIntakeForm({
                       />
                       <Input
                         type="number"
+                        min={0}
+                        max={financials.actualPayable}
+                        step="0.01"
                         value={form.payment}
-                        onChange={set('payment')}
+                        onChange={handlePaymentChange}
+                        onBlur={handlePaymentBlur}
                         placeholder="Payable amount..."
+                        title={`Maximum payable: ₹${financials.actualPayable.toLocaleString()}`}
                         className="pl-10 h-12 bg-white border-gray-300 font-black text-[#050b18] placeholder:text-gray-300 shadow-sm"
                       />
                     </div>

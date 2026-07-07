@@ -38,6 +38,17 @@ const initialForm = {
   password: '',
 };
 
+const PHONE_MAX_DIGITS = 11;
+const PHONE_MIN_DIGITS = 10;
+
+function sanitizeAlphabeticInput(value: string): string {
+  return value.replace(/[^A-Za-z ]/g, '');
+}
+
+function sanitizePhoneInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, PHONE_MAX_DIGITS);
+}
+
 function getErrorMessage(err: unknown, isEdit: boolean): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'object' && err !== null && 'message' in err) {
@@ -104,10 +115,12 @@ export default function AddReferrer({
     if (!referrer || referrer.id !== referrerId) return;
 
     const phone = getReferrerPhone(referrer);
+    const rawName = getReferrerName(referrer) === '—' ? '' : getReferrerName(referrer);
+    const rawMobile = referrer.mobile?.trim() || (phone === '—' ? '' : phone);
     setForm({
       branchId: referrer.branchId != null && referrer.branchId > 0 ? referrer.branchId : 0,
-      name: getReferrerName(referrer) === '—' ? '' : getReferrerName(referrer),
-      mobile: referrer.mobile?.trim() || (phone === '—' ? '' : phone),
+      name: sanitizeAlphabeticInput(rawName),
+      mobile: sanitizePhoneInput(rawMobile),
       address: referrer.address?.trim() ?? '',
       email: referrer.email?.trim() ?? '',
       phone: phone === '—' ? '' : phone,
@@ -122,6 +135,9 @@ export default function AddReferrer({
     const next: Record<string, string> = {};
     if (!form.branchId || form.branchId < 1) next.branchId = 'Branch is required.';
     if (!form.name.trim()) next.name = 'Name is required.';
+    else if (!/^[A-Za-z ]+$/.test(form.name.trim())) {
+      next.name = 'Name must contain only letters.';
+    }
     if (!form.email.trim()) next.email = 'Email is required.';
     if (!form.username.trim()) next.username = 'Username is required.';
 
@@ -134,6 +150,11 @@ export default function AddReferrer({
       }
     } else {
       if (!form.mobile.trim()) next.mobile = 'Mobile is required.';
+      else if (!/^\d+$/.test(form.mobile)) {
+        next.mobile = 'Mobile must contain digits only.';
+      } else if (form.mobile.length < PHONE_MIN_DIGITS || form.mobile.length > PHONE_MAX_DIGITS) {
+        next.mobile = `Mobile must be between ${PHONE_MIN_DIGITS} and ${PHONE_MAX_DIGITS} digits.`;
+      }
       if (!form.password.trim()) next.password = 'Password is required.';
       else if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
     }
@@ -263,7 +284,7 @@ export default function AddReferrer({
         <Input
           value={form.name}
           onChange={(e) => {
-            setForm((f) => ({ ...f, name: e.target.value }));
+            setForm((f) => ({ ...f, name: sanitizeAlphabeticInput(e.target.value) }));
             if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
           }}
           placeholder="Referrer Name"
@@ -324,12 +345,15 @@ export default function AddReferrer({
           <div className="space-y-2">
             <Label className="text-xs font-bold text-slate-700 uppercase tracking-widest">Mobile *</Label>
             <Input
+              type="tel"
+              inputMode="numeric"
+              maxLength={PHONE_MAX_DIGITS}
               value={form.mobile}
               onChange={(e) => {
-                setForm((f) => ({ ...f, mobile: e.target.value }));
+                setForm((f) => ({ ...f, mobile: sanitizePhoneInput(e.target.value) }));
                 if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: '' }));
               }}
-              placeholder="+91-XX-XXXX-XXXX"
+              placeholder="9876543210"
               disabled={pending}
               className={errors.mobile ? 'border-rose-300' : ''}
             />
@@ -346,6 +370,7 @@ export default function AddReferrer({
           </Label>
           <Input
             value={form.phone}
+            maxLength={PHONE_MAX_DIGITS}
             onChange={(e) => {
               setForm((f) => ({ ...f, phone: e.target.value }));
               if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));

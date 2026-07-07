@@ -94,6 +94,40 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** Keeps payment input within 0..maxPayable while typing (uses actualPayable as the cap). */
+export function parsePaymentInput(raw: string, maxPayable: number): string {
+  const max = Math.max(0, roundMoney(maxPayable));
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  let cleaned = trimmed.replace(/[^\d.]/g, '');
+  const dotIndex = cleaned.indexOf('.');
+  if (dotIndex !== -1) {
+    const intPart = cleaned.slice(0, dotIndex);
+    const decPart = cleaned.slice(dotIndex + 1).replace(/\./g, '').slice(0, 2);
+    cleaned = decPart.length > 0 ? `${intPart}.${decPart}` : `${intPart}.`;
+  }
+
+  if (cleaned === '.' || cleaned === '') return cleaned === '.' ? '0.' : '';
+
+  const numericPart = cleaned.endsWith('.') ? cleaned.slice(0, -1) : cleaned;
+  const num = Number(numericPart);
+  if (Number.isNaN(num)) return '';
+
+  if (num > max) return String(max);
+  if (num < 0) return '0';
+  return cleaned;
+}
+
+/** Clamps payment on blur to actualPayable. Empty or zero clears the field. */
+export function normalizePaymentOnBlur(raw: string, maxPayable: number): string {
+  if (!raw.trim()) return '';
+  const num = Number(raw);
+  if (Number.isNaN(num) || num <= 0) return '';
+  const max = Math.max(0, roundMoney(maxPayable));
+  return String(roundMoney(Math.min(num, max)));
+}
+
 export interface BookingFinancialSummary {
   /** Sum of test line prices (API `totalAmount`) */
   totalAmount: number;

@@ -47,13 +47,22 @@ function getErrorMessage(err: unknown): string {
   return 'Could not save commission. Please try again.';
 }
 
+function sanitizeCommissionPercentageInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 3);
+}
+
+function toSanitizedPercentage(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  return sanitizeCommissionPercentageInput(String(Math.round(value)));
+}
+
 function buildPayload(formData: typeof initialForm): CreateReferrerCommissionPayload {
   return {
     referrerId: formData.referrerId,
     referrerName: formData.referrerName.trim(),
     departmentId: formData.departmentId,
     departmentName: formData.departmentName.trim(),
-    commissionPercentage: parseFloat(formData.commissionPercentage),
+    commissionPercentage: Number(formData.commissionPercentage),
     applyToAllTests: formData.applyToAllTests,
     isActive: formData.isActive,
   };
@@ -95,7 +104,7 @@ export default function Commission({
         referrerName: initialCommission.referrerName?.trim() || referrerName?.trim() || '',
         departmentId: initialCommission.departmentId,
         departmentName: deptName,
-        commissionPercentage: String(initialCommission.commissionPercentage),
+        commissionPercentage: toSanitizedPercentage(initialCommission.commissionPercentage),
         applyToAllTests: initialCommission.applyToAllTests,
         isActive: initialCommission.isActive,
       });
@@ -193,7 +202,8 @@ export default function Commission({
         departmentName: dept?.departmentName ?? '',
       }));
     } else if (name === 'commissionPercentage') {
-      setFormData((prev) => ({ ...prev, commissionPercentage: el.value }));
+      const commissionPercentage = sanitizeCommissionPercentageInput(el.value);
+      setFormData((prev) => ({ ...prev, commissionPercentage }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: el.value }));
     }
@@ -210,9 +220,9 @@ export default function Commission({
     if (!formData.departmentId || formData.departmentId < 1) next.departmentId = 'Department is required';
     if (!formData.departmentName.trim()) next.departmentId = 'Department is required';
 
-    const pct = parseFloat(formData.commissionPercentage);
+    const pct = Number(formData.commissionPercentage);
     if (!formData.commissionPercentage.trim()) next.commissionPercentage = 'Commission percentage is required';
-    else if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    else if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
       next.commissionPercentage = 'Enter a value between 0 and 100';
     }
 
@@ -401,13 +411,12 @@ export default function Commission({
             <Input
               id="commissionPercentage"
               name="commissionPercentage"
-              type="number"
-              min={0}
-              max={100}
-              step={0.01}
+              type="text"
+              inputMode="numeric"
+              maxLength={3}
               value={formData.commissionPercentage}
               onChange={handleChange}
-              placeholder="15.00"
+              placeholder="15"
               className={`border-slate-200 ${errors.commissionPercentage ? 'border-rose-300' : ''}`}
               disabled={pending}
             />

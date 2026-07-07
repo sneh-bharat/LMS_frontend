@@ -80,6 +80,8 @@ import {
 import {
   computeBookingFinancials,
   mapBookingToTestOrderPayload,
+  normalizePaymentOnBlur,
+  parsePaymentInput,
 } from '@/app/Apis/booking/mapBookingToTestOrder';
 import {
   mapBookingFormToFinancialPayload,
@@ -582,6 +584,31 @@ function DiagnosticBookingContent() {
 
   const testsSubtotal = investigations.reduce((s, i) => s + i.mrp, 0);
   const financials = computeBookingFinancials(investigations, form);
+  const loadedPendingAmount = loadedOrder?.pendingAmount ?? 0;
+  const paymentMax = loadedPendingAmount > 0 ? loadedPendingAmount : financials.actualPayable;
+  const displayBalance = loadedPendingAmount > 0 ? loadedPendingAmount : financials.balanceDue;
+
+  useEffect(() => {
+    if (!form.payment.trim()) return;
+    const paid = Number(form.payment);
+    if (Number.isNaN(paid) || paid <= paymentMax) return;
+    setForm((f) => ({
+      ...f,
+      payment: paymentMax > 0 ? String(paymentMax) : '',
+    }));
+  }, [paymentMax, form.payment]);
+
+  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parsePaymentInput(e.target.value, paymentMax);
+    setForm((f) => ({ ...f, payment: value }));
+  };
+
+  const handlePaymentBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setForm((f) => ({
+      ...f,
+      payment: normalizePaymentOnBlur(e.target.value, paymentMax),
+    }));
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -841,6 +868,7 @@ function DiagnosticBookingContent() {
             value={effectiveBranchId}
             onChange={handleBranchChange}
             autoSelectFirst={false}
+            disabled={isEditMode}
           />
           {/* {!isEditMode ? (
             <>
@@ -1462,14 +1490,20 @@ function DiagnosticBookingContent() {
                 {/* Final Due & Pay */}
                 <div className="space-y-4 pt-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-black text-slate-900 uppercase text-gray-500">Final Amount Due</span>
+                    <span className="text-xs font-black text-slate-900 uppercase text-gray-500">Total Amount</span>
                     <span className="text-2xl font-black text-[#050b18]">₹{financials.actualPayable.toLocaleString()}</span>
                   </div>
+                  {displayBalance > 0 ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-slate-900 uppercase text-gray-500">Balance Due</span>
+                      <span className="text-xl font-black text-amber-700">₹{displayBalance.toLocaleString()}</span>
+                    </div>
+                  ) : null}
 
                   <div className="grid grid-cols-1 gap-3">
                     <div className="relative group">
                       <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors z-10" size={16} />
-                      <Input type="number" value={form.payment} onChange={set('payment')} placeholder="Payable amount..." className="pl-10 h-12 bg-white border-gray-300 font-black text-[#050b18] placeholder:text-gray-300 shadow-sm" />
+                      <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={5} value={form.payment} onChange={handlePaymentChange} onBlur={handlePaymentBlur} placeholder="Payable amount..." title={`Balance due: ₹${paymentMax.toLocaleString()}`} className="pl-10 h-12 bg-white border-gray-300 font-black text-[#050b18] placeholder:text-gray-300 shadow-sm" />
                     </div>
                     <Select value={form.paymentMode} onValueChange={handlePaymentModeChange}>
                       <SelectTrigger className="border-gray-300 h-10 font-bold">
@@ -1505,6 +1539,7 @@ function DiagnosticBookingContent() {
                     </div>
                   </div>
                 </div>
+                {/* end Final Due & Pay  */}
               </div>
 
               {/* Confirm / Update */}
