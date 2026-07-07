@@ -282,10 +282,6 @@ export default function AddFranchiseModal({ isOpen, onClose, initialData }: AddF
         };
 
         await branchApi.updateBranch(Number(initialData.id), updateData);
-        await branchApi.toggleBranchStatus(
-          Number(initialData.id),
-          formData.isActive === true,
-        );
         toast.success('Branch updated successfully!');
       } else {
         // Create new branch

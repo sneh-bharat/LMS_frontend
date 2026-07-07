@@ -140,15 +140,6 @@ export default function InvoiceTable({
     router.push(`/diagnosis/invoice-details?id=${encodeURIComponent(invoice.invoiceBarcode)}`);
   };
 
-  const handleEditOrder = (invoice: Invoice, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const params = new URLSearchParams({ orderId: String(invoice.id) });
-    if (invoice.branchId != null && invoice.branchId > 0) {
-      params.set('branchId', String(invoice.branchId));
-    }
-    router.push(`/diagnosis/diagnostic-booking/booking?${params.toString()}`);
-  };
-
   if (isError) {
     return (
       <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-rose-800">
@@ -265,16 +256,12 @@ export default function InvoiceTable({
                 <TableRow
                   key={invoice.id}
                   className={cn(
-                    "hover:bg-emerald-50/30 text-white transition-all group cursor-pointer border-none",
-                    isSelected && "bg-emerald-50/60"
+                    'hover:bg-emerald-50/30 text-white transition-all border-none',
+                    isSelected && 'bg-emerald-50/60'
                   )}
-                  onClick={() => handleView(invoice)}
                 >
                   {selectionEnabled ? (
-                    <TableCell
-                      className="w-12 px-4 py-5 text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <TableCell className="w-12 px-4 py-5 text-center">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -286,29 +273,17 @@ export default function InvoiceTable({
                     </TableCell>
                   ) : null}
                   <TableCell className="px-6 py-5">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleView(invoice);
-                      }}
-                      className="text-xs font-bold text-slate-500 font-mono hover:text-emerald-600 transition-colors text-left"
-                    >
+                    <span className="text-xs font-bold text-slate-500 font-mono">
                       {invoice.invoiceBarcode}
-                    </button>
+                    </span>
                   </TableCell>
 
-                  <TableCell className="px-6 py-5" onClick={(e) => handleEditOrder(invoice, e)}>
+                  <TableCell className="px-6 py-5">
                     <div className="flex items-center gap-3.5">
-                      
                       <div>
-                        <button
-                          type="button"
-                          onClick={(e) => handleEditOrder(invoice, e)}
-                          className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm mb-0.5 text-left hover:underline decoration-emerald-500/30 underline-offset-4"
-                        >
+                        <span className="font-bold text-slate-900 text-sm mb-0.5 block">
                           {invoice.patientName}
-                        </button>
+                        </span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-slate-400 font-bold tracking-tight">
                             {[
@@ -379,7 +354,7 @@ export default function InvoiceTable({
                     </div>
                   </TableCell>
 
-                  <TableCell className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="px-6 py-5 text-center">
                     <div className="flex items-center justify-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger

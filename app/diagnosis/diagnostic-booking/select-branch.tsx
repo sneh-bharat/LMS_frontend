@@ -16,6 +16,7 @@ export interface SelectBranchProps {
   onChange?: (branchId: number, branch: Branch | null) => void;
   className?: string;
   autoSelectFirst?: boolean;
+  disabled?: boolean;
 }
 
 function formatB2bType(branchType: string) {
@@ -78,6 +79,7 @@ export default function SelectBranch({
   onChange,
   className,
   autoSelectFirst = false,
+  disabled = false,
 }: SelectBranchProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +127,7 @@ export default function SelectBranch({
   }, [value]);
 
   const handleChange = (id: string | null) => {
+    if (disabled) return;
     if (!id) return;
     setSelectedId(id);
     const branch = branches.find((b) => b.id === Number(id)) ?? null;
@@ -151,8 +154,11 @@ export default function SelectBranch({
           No branches found.
         </div>
       ) : (
-        <Select value={selectedId} onValueChange={handleChange}>
-          <SelectTrigger className="h-11 min-w-0 border-gray-300 whitespace-normal">
+        <Select value={selectedId} onValueChange={handleChange} disabled={disabled}>
+          <SelectTrigger
+            disabled={disabled}
+            className="h-11 min-w-0 border-gray-300 whitespace-normal disabled:bg-slate-50 disabled:text-slate-500"
+          >
             <span className="flex min-w-0 flex-1 text-left">
               {selectedBranch ? (
                 <BranchOptionLabel branch={selectedBranch} />
